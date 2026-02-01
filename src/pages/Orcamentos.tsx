@@ -1,0 +1,150 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, FileText, Eye, Copy, X } from "lucide-react";
+import { Quote, QuoteStatus } from "@/types";
+
+const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+  draft: { label: "Rascunho", variant: "secondary" },
+  finalized: { label: "Finalizado", variant: "default" },
+  cancelled: { label: "Cancelado", variant: "destructive" },
+};
+
+export default function Orcamentos() {
+  const { isAdmin } = useAuth();
+  const [search, setSearch] = useState("");
+
+  const { data: quotes, isLoading } = useQuery({
+    queryKey: ["quotes", search],
+    queryFn: async () => {
+      let query = supabase
+        .from("quotes")
+        .select("*, clients(razao_social, nome_fantasia)")
+        .order("created_at", { ascending: false });
+
+      if (search) {
+        query = query.or(`quote_number.ilike.%${search}%,project_name.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const formatCurrency = (value: number, currency: string = "BRL") => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency,
+    }).format(value);
+  };
+
+  const formatDate = (date: string) => {
+    return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Orçamentos</h1>
+          <p className="text-muted-foreground">
+            Crie e gerencie propostas comerciais
+          </p>
+        </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Orçamento
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número ou projeto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground">Carregando...</p>
+            </div>
+          ) : quotes?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground/50" />
+              <h3 className="mt-4 text-lg font-semibold">Nenhum orçamento encontrado</h3>
+              <p className="text-muted-foreground">
+                Crie seu primeiro orçamento clicando no botão acima
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quotes?.map((quote) => (
+                  <TableRow key={quote.id}>
+                    <TableCell className="font-mono font-medium">
+                      {quote.quote_number}
+                    </TableCell>
+                    <TableCell>
+                      {quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}
+                    </TableCell>
+                    <TableCell>{quote.project_name || "-"}</TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(quote.total, quote.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[quote.status].variant}>
+                        {statusConfig[quote.status].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(quote.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" title="Ver">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Duplicar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
