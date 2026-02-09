@@ -1,213 +1,188 @@
 
-# 🏗️ Plano de Implementação: SOIMA CRM no Lovable
 
-## Visão Geral
-Recriar o sistema **SOIMA CRM** originalmente desenvolvido em Next.js 14 + Prisma, adaptando para a stack do Lovable (React + Vite + Supabase). O sistema é um CRM completo para gestão comercial de gruas industriais, incluindo pipeline de vendas, orçamentos e geração de propostas em PDF.
+# Plano: Implementacao Completa do SOIMA CRM
 
----
+## Resumo da Situacao Atual
 
-## 🎨 Design System
-- **Estilo**: Apple-like minimalista
-- **Paleta**: Azul (#3B82F6) + Branco + Preto
-- **Tipografia**: Inter (já configurado)
-- **Componentes**: shadcn/ui (já disponível no projeto)
+O projeto tem a fundacao pronta (banco de dados, autenticacao, layout, navegacao) e telas de listagem basicas. Porem, **a maioria dos modulos esta em estado de placeholder** -- exibem dados mas nao permitem interacao real. O projeto original (Next.js) tinha 100% das funcionalidades; aqui temos aproximadamente 25%.
+
+### Problema critico: RBAC nao funciona
+A tabela `user_roles` esta vazia. Isso significa que nenhum usuario tem role atribuida, e funcionalidades Admin-only podem nao funcionar corretamente. Isso precisa ser corrigido primeiro.
 
 ---
 
-## 📦 Fase 1: Fundação (Banco de Dados + Auth)
+## Fase 1: Corrigir Fundacao (Prioridade Alta)
 
-### 1.1 Configurar Supabase (Lovable Cloud)
-- Habilitar Lovable Cloud para banco PostgreSQL integrado
-- Configurar autenticação por email/senha
+### 1.1 Corrigir RBAC
+- Garantir que o trigger de criacao de profile tambem crie a entry em `user_roles`
+- Criar migration para inserir role "admin" para o usuario existente
+- Adicionar mais produtos seed para completar o catalogo (~100+ itens como no original)
 
-### 1.2 Criar Schema do Banco de Dados
-Criar as tabelas necessárias adaptadas para Supabase:
-
-| Tabela | Descrição |
-|--------|-----------|
-| `profiles` | Perfil do usuário (nome, role_id, ativo) |
-| `user_roles` | Papéis: ADMIN, OPERATOR (tabela separada para segurança) |
-| `clients` | Clientes nacionais e internacionais |
-| `products` | Catálogo de produtos (gruas, torres, acessórios) |
-| `discount_rules` | Regras de desconto por perfil |
-| `pipeline_stages` | Etapas do funil (7 etapas) |
-| `leads` | Leads de vendas |
-| `lead_histories` | Histórico de movimentações |
-| `quotes` | Orçamentos/Propostas |
-| `quote_items` | Itens de cada orçamento |
-| `audit_logs` | Logs de auditoria |
-
-### 1.3 Políticas RLS (Row Level Security)
-- Operadores veem apenas seus próprios leads/orçamentos
-- Admins veem tudo
-- Função `has_role()` para verificação segura de permissões
+### 1.2 Seed de usuario admin
+- Criar usuario admin via migration/seed com role atribuida
+- Credenciais: `admin@soimabrasil.com.br` / `soima123`
 
 ---
 
-## 📦 Fase 2: Layout e Navegação
+## Fase 2: Completar Modulos Existentes
 
-### 2.1 Layout Principal
-- **Sidebar** lateral com menu de navegação
-- **Header** com usuário logado e logout
-- Responsivo para mobile (sidebar colapsável)
+### 2.1 Dashboard Real
+- Queries reais para contar clientes, leads, orcamentos
+- Grafico de conversao do pipeline (usando Recharts, ja instalado)
+- Visao diferenciada Admin vs Operador
+- Lista de orcamentos recentes
+- Acoes rapidas com links funcionais
 
-### 2.2 Rotas da Aplicação
-```
-/login          → Página de login
-/dashboard      → Dashboard (diferenciado por role)
-/clientes       → Lista de clientes
-/clientes/novo  → Cadastrar cliente
-/produtos       → Catálogo de produtos (Admin)
-/pipeline       → Kanban de leads
-/orcamentos     → Lista de orçamentos
-/orcamentos/novo → Wizard de orçamento
-/usuarios       → Gestão de usuários (Admin)
-/auditoria      → Logs do sistema (Admin)
-```
+### 2.2 Clientes - CRUD Completo
+- Editar cliente (modal ou inline)
+- Excluir cliente (com confirmacao AlertDialog)
+- Ver detalhes do cliente (historico de orcamentos vinculados)
+- Validacao de duplicidade de CNPJ/CPF
 
----
+### 2.3 Produtos - CRUD Completo (Admin)
+- Modal para criar novo produto
+- Modal para editar produto (preco, nome, status)
+- Ativar/desativar produto
+- Excluir produto (soft delete)
+- Atualizar badge "Precisa Revisar" ao definir preco
 
-## 📦 Fase 3: Módulos Core
-
-### 3.1 Autenticação e RBAC
-- Login com email/senha
-- 2 perfis: **ADMIN** e **OPERATOR**
-- Proteção de rotas por role
-- Middleware de autenticação
-
-### 3.2 Dashboard
-**Visão Admin:**
-- Total de leads, clientes, orçamentos
-- Gráfico de conversão do pipeline
-- Top vendedores
-
-**Visão Operador:**
-- Seus leads e orçamentos
-- Métricas pessoais
-- Próximas ações
-
-### 3.3 Módulo de Clientes
-- CRUD completo (criar, listar, editar, excluir)
-- Suporte nacional (CNPJ/CPF) e internacional
-- Campos: razão social, nome fantasia, documentos, contatos
-- Histórico de orçamentos vinculados
-
-### 3.4 Catálogo de Produtos (Admin)
-- Organização por categorias:
-  - 🏗️ Gruas (SGT 3610 TL - SGT 7020 TL)
-  - ⚙️ Configurações
-  - 🗼 Torres e Tramos
-  - 🔧 Acessórios
-- Campos: código, nome, preço, unidade, status
-- Badge "Precisa Revisar" para preços R$ 0,00
+### 2.4 Usuarios - Gestao Completa (Admin)
+- Criar novo usuario (signup via Supabase Auth + atribuir role)
+- Editar usuario (nome, role)
+- Ativar/desativar conta
+- Nao permitir desativar a si mesmo
 
 ---
 
-## 📦 Fase 4: Pipeline de Vendas (Kanban)
+## Fase 3: Pipeline Kanban Completo
 
-### 4.1 Quadro Kanban
-- **7 etapas** configuráveis:
-  1. Novo Lead
-  2. Primeiro Contato
-  3. Qualificação
-  4. Proposta Enviada
-  5. Negociação
-  6. Fechamento
-  7. Perdido
+### 3.1 Drag & Drop
+- Implementar drag and drop nativo (HTML5 DnD API ou biblioteca leve)
+- Mover lead entre colunas com atualizacao no banco
+- Registrar movimentacao em `lead_histories`
 
-### 4.2 Funcionalidades
-- Drag & drop entre etapas
-- Cards com info resumida do lead
-- Filtros por operador, data, status
-- Modal de detalhes com histórico
-- Botão "Converter em Cliente"
+### 3.2 CRUD de Leads
+- Modal para criar novo lead (titulo, empresa, contato, valor estimado, origem)
+- Modal de detalhes do lead com historico de movimentacoes
+- Editar lead
+- Converter lead em cliente (criar entry em `clients` a partir dos dados do lead)
+
+### 3.3 Filtros
+- Filtro por operador (Admin ve todos, Operador ve so seus)
+- Filtro por data
 
 ---
 
-## 📦 Fase 5: Sistema de Orçamentos
+## Fase 4: Wizard de Orcamentos (8 Etapas)
 
-### 5.1 Lista de Orçamentos
-- Tabela com busca e filtros
-- Status: Rascunho, Finalizado, Cancelado
-- Ações: ver, editar, duplicar, cancelar
+Este e o modulo mais complexo do sistema:
 
-### 5.2 Wizard de Criação (8 Etapas)
-1. **Selecionar Cliente** - Busca ou cria novo
-2. **Dados do Projeto** - Nome da obra, localização
-3. **Equipamento Principal** - Escolher grua + configuração
-4. **Componentes** - Torres, tramos, chassis
-5. **Acessórios** - Sinalizadores, anemômetros, etc.
-6. **Condições Comerciais** - Moeda, prazo, frete
-7. **Descontos** - Validação conforme regras do perfil
-8. **Revisão e Finalização** - Preview antes de salvar
+### Step 1: Selecionar Cliente
+- Busca de clientes existentes
+- Opcao de criar novo cliente inline
 
-### 5.3 Validações de Desconto
-- Operador: máximo 5% sem aprovação
-- Admin: até limite configurado
-- Acima do limite: fluxo de aprovação
+### Step 2: Dados do Projeto
+- Nome da obra, localizacao, observacoes
 
----
+### Step 3: Equipamento Principal
+- Selecionar grua do catalogo
+- Exibir preco base
 
-## 📦 Fase 6: Geração de PDF
+### Step 4: Componentes (Torres/Tramos)
+- Selecionar itens de torres, tramos, chassis
+- Quantidade e desconto por item
+- Validacao de limite de desconto por role
 
-### 6.1 Proposta Comercial
-- Template profissional baseado no modelo SOIMA
-- Geração via Edge Function com jsPDF
-- Download direto pelo navegador
-- Registro de hash no banco para verificação
+### Step 5: Acessorios
+- Lista de acessorios disponiveis
+- Adicionar/remover com quantidade
 
-### 6.2 Conteúdo do PDF
-- Cabeçalho com logo SOIMA
-- Dados do cliente e projeto
-- Lista de produtos com preços
-- Condições comerciais
-- Validade da proposta
+### Step 6: Condicoes Comerciais
+- Moeda (BRL, USD, EUR)
+- Prazo de entrega
+- Condicoes de pagamento
+- Frete
 
----
+### Step 7: Descontos
+- Desconto geral com validacao por role
+- Operador: max 5%
+- Admin: ate limite configurado
+- Exibir alerta se desconto exceder limite
 
-## 📦 Fase 7: Recursos Administrativos
-
-### 7.1 Gestão de Usuários (Admin)
-- Criar novos usuários
-- Atribuir role (Admin/Operador)
-- Ativar/desativar contas
-- Reset de senha
-
-### 7.2 Auditoria
-- Log automático de ações críticas
-- Filtros por ação, usuário, data
-- Registro de before/after em JSON
+### Step 8: Revisao e Finalizacao
+- Resumo completo do orcamento
+- Calculos automaticos (subtotal, descontos, total)
+- Botao "Salvar Rascunho" e "Finalizar"
+- Apos finalizar, orcamento fica travado (nao editavel)
 
 ---
 
-## 📦 Fase 8: Dados Iniciais (Seed)
+## Fase 5: Geracao de PDF
 
-Após criar as tabelas, popular com:
-- ✅ 7 modelos de Gruas (SGT 3610 TL até SGT 7020 TL)
-- ✅ 6 configurações de gruas
-- ✅ 60+ itens de torres, tramos e chassis
-- ✅ 30+ acessórios
-- ✅ 7 etapas de pipeline
-- ✅ 4 regras de desconto
-- ✅ 1 usuário admin (admin@soimabrasil.com.br / soima123)
+### 5.1 Edge Function para PDF
+- Criar edge function usando jsPDF (Puppeteer nao disponivel no Lovable)
+- Template profissional com logo SOIMA
+- Dados do cliente, projeto, lista de produtos, precos
+- Condicoes comerciais e validade
 
----
-
-## 🚀 Entregáveis Finais
-
-1. **Sistema CRM funcional** com todos os módulos
-2. **Autenticação segura** com RBAC
-3. **Pipeline Kanban** com drag & drop
-4. **Wizard de orçamentos** completo
-5. **Geração de PDF** de propostas
-6. **Auditoria** de todas as ações
-7. **Design responsivo** Apple-like
+### 5.2 Integracao
+- Botao "Gerar PDF" na lista de orcamentos (apenas finalizados)
+- Download direto no navegador
+- Registrar hash no banco para verificacao
 
 ---
 
-## ⏱️ Considerações de Implementação
+## Fase 6: Auditoria Automatica
 
-- A implementação será feita em **etapas incrementais**
-- Cada módulo será testado antes de avançar
-- Foco em experiência do usuário e performance
-- Código limpo e bem organizado
+### 6.1 Trigger de Auditoria
+- Criar triggers no banco para registrar automaticamente CREATE/UPDATE/DELETE
+- Tabelas monitoradas: clients, products, leads, quotes
+- Registrar user_email, old_values, new_values
+
+---
+
+## Detalhes Tecnicos
+
+### Arquivos a criar/modificar:
+
+**Novos componentes:**
+- `src/components/clients/ClientDetailModal.tsx`
+- `src/components/clients/ClientEditModal.tsx`
+- `src/components/products/ProductFormModal.tsx`
+- `src/components/pipeline/LeadFormModal.tsx`
+- `src/components/pipeline/LeadDetailModal.tsx`
+- `src/components/pipeline/DraggableLeadCard.tsx`
+- `src/components/users/UserFormModal.tsx`
+- `src/components/quotes/QuoteWizard.tsx`
+- `src/components/quotes/steps/Step1Client.tsx` (ate Step8Review.tsx)
+- `src/components/dashboard/StatsCards.tsx`
+- `src/components/dashboard/PipelineChart.tsx`
+- `src/components/dashboard/RecentQuotes.tsx`
+
+**Paginas a modificar:**
+- `src/pages/Dashboard.tsx` - queries reais + graficos
+- `src/pages/Clientes.tsx` - editar/excluir
+- `src/pages/Produtos.tsx` - CRUD completo
+- `src/pages/Pipeline.tsx` - drag & drop + CRUD leads
+- `src/pages/Orcamentos.tsx` - wizard + detalhes
+- `src/pages/Usuarios.tsx` - CRUD usuarios
+
+**Edge Functions:**
+- `supabase/functions/generate-pdf/index.ts`
+
+**Migrations:**
+- Fix user_roles trigger
+- Audit triggers
+- Seed data adicional
+
+### Ordem de implementacao sugerida:
+1. Corrigir RBAC + seed (fundamental)
+2. Dashboard real (impacto visual imediato)
+3. CRUD completo de Clientes e Produtos (base para orcamentos)
+4. Pipeline com drag & drop (funcionalidade core)
+5. Wizard de Orcamentos (modulo mais complexo)
+6. Geracao de PDF (depende de orcamentos)
+7. Auditoria automatica (finalizacao)
+
+Cada fase sera implementada incrementalmente e testada antes de avancar.
+
