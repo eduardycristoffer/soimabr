@@ -5,17 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Eye, Copy, X } from "lucide-react";
-import { Quote, QuoteStatus } from "@/types";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Search, FileText, Eye, MoreHorizontal } from "lucide-react";
+import { QuoteStatus } from "@/types";
+import QuoteWizard from "@/components/quotes/QuoteWizard";
 
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
@@ -26,6 +25,7 @@ const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "s
 export default function Orcamentos() {
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["quotes", search],
@@ -34,38 +34,33 @@ export default function Orcamentos() {
         .from("quotes")
         .select("*, clients(razao_social, nome_fantasia)")
         .order("created_at", { ascending: false });
-
       if (search) {
         query = query.or(`quote_number.ilike.%${search}%,project_name.ilike.%${search}%`);
       }
-
       const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
-  const formatCurrency = (value: number, currency: string = "BRL") => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency,
-    }).format(value);
-  };
+  const formatCurrency = (value: number, currency: string = "BRL") =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
-  const formatDate = (date: string) => {
-    return new Intl.DateTimeFormat("pt-BR").format(new Date(date));
-  };
+  const formatDate = (date: string) =>
+    new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+
+  if (wizardOpen) {
+    return <QuoteWizard onClose={() => setWizardOpen(false)} />;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Orçamentos</h1>
-          <p className="text-muted-foreground">
-            Crie e gerencie propostas comerciais
-          </p>
+          <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
-        <Button>
+        <Button onClick={() => setWizardOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Orçamento
         </Button>
@@ -92,9 +87,7 @@ export default function Orcamentos() {
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-semibold">Nenhum orçamento encontrado</h3>
-              <p className="text-muted-foreground">
-                Crie seu primeiro orçamento clicando no botão acima
-              </p>
+              <p className="text-muted-foreground">Crie seu primeiro orçamento clicando no botão acima</p>
             </div>
           ) : (
             <Table>
@@ -112,31 +105,27 @@ export default function Orcamentos() {
               <TableBody>
                 {quotes?.map((quote) => (
                   <TableRow key={quote.id}>
-                    <TableCell className="font-mono font-medium">
-                      {quote.quote_number}
-                    </TableCell>
-                    <TableCell>
-                      {quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}
-                    </TableCell>
+                    <TableCell className="font-mono font-medium">{quote.quote_number}</TableCell>
+                    <TableCell>{quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}</TableCell>
                     <TableCell>{quote.project_name || "-"}</TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(quote.total, quote.currency)}
-                    </TableCell>
+                    <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[quote.status].variant}>
-                        {statusConfig[quote.status].label}
+                      <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
+                        {statusConfig[quote.status as QuoteStatus].label}
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(quote.created_at)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" title="Ver">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Duplicar">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
