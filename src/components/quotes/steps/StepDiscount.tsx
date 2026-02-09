@@ -5,10 +5,8 @@ import { QuoteWizardData } from "@/hooks/useQuoteWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Info, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 
 interface Props {
   data: QuoteWizardData;
@@ -22,27 +20,25 @@ interface Props {
 
 export default function StepDiscount({ data, updateData, subtotal, discountValue, total, onNext, onPrev }: Props) {
   const { role } = useAuth();
+  const isAdmin = role === "admin";
 
-  const { data: rules } = useQuery({
-    queryKey: ["discount-rules"],
+  const { data: operatorRule } = useQuery({
+    queryKey: ["discount-rules", "operator"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("discount_rules")
         .select("*")
-        .order("max_discount_percent");
+        .eq("role", "operator")
+        .eq("requires_approval", false)
+        .single();
       if (error) throw error;
       return data;
     },
+    enabled: !isAdmin,
   });
 
-  const myRules = rules?.filter((r) => r.role === role) || [];
-  const maxNoApproval = myRules.find((r) => !r.requires_approval)?.max_discount_percent || 0;
-  const maxWithApproval = myRules.find((r) => r.requires_approval)?.max_discount_percent || maxNoApproval;
-  const needsApproval = data.discount_percent > maxNoApproval && data.discount_percent <= maxWithApproval;
-  const exceedsMax = data.discount_percent > maxWithApproval;
-
-  // Block next if needs approval without justification
-  const canProceed = !exceedsMax && (!needsApproval || (data.discount_justification?.trim() || "").length > 0);
+  const maxDiscount = isAdmin ? 100 : (operatorRule?.max_discount_percent || 0);
+  const exceedsMax = !isAdmin && data.discount_percent > maxDiscount;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
@@ -63,59 +59,22 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
             />
           </div>
 
-          {/* Justification field - required when needs approval */}
-          {needsApproval && (
-            <div className="space-y-2">
-              <Label>Justificativa (obrigatório) *</Label>
-              <Textarea
-                placeholder="Explique o motivo do desconto acima do limite automático..."
-                value={data.discount_justification || ""}
-                onChange={(e) => updateData({ discount_justification: e.target.value })}
-                rows={3}
-              />
-              {!(data.discount_justification?.trim()) && (
-                <p className="text-xs text-destructive">Justificativa obrigatória para descontos acima de {maxNoApproval}%</p>
-              )}
-            </div>
-          )}
-
-          {/* Rules info */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Seus limites ({role}):</p>
-            {myRules.map((r) => (
-              <div key={r.id} className="flex items-center gap-2 text-xs">
-                <Badge variant={r.requires_approval ? "secondary" : "default"} className="text-[10px]">
-                  {r.requires_approval ? "Com aprovação" : "Sem aprovação"}
-                </Badge>
-                <span>até {r.max_discount_percent}%</span>
-              </div>
-            ))}
-          </div>
-
-          {needsApproval && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Desconto de {data.discount_percent}% requer aprovação de um administrador.
-                O orçamento será salvo como rascunho até a aprovação.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {exceedsMax && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Desconto de {data.discount_percent}% excede o limite máximo de {maxWithApproval}% para seu perfil.
+                Desconto acima do permitido para Operador. Limite: {maxDiscount}%.
               </AlertDescription>
             </Alert>
           )}
 
-          {!needsApproval && !exceedsMax && data.discount_percent > 0 && (
+          {!exceedsMax && data.discount_percent > 0 && (
             <Alert>
               <ShieldCheck className="h-4 w-4" />
               <AlertDescription>
-                Desconto dentro do limite aprovado automaticamente.
+                {isAdmin
+                  ? "Admin: desconto livre, sem restrições."
+                  : `Desconto dentro do limite (${maxDiscount}%).`}
               </AlertDescription>
             </Alert>
           )}
@@ -144,7 +103,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>
-        <Button onClick={onNext} disabled={!canProceed}>Próximo</Button>
+        <Button onClick={onNext} disabled={exceedsMax}>Próximo</Button>
       </div>
     </div>
   );
