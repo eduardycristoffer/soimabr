@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, FileText, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2 } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 
@@ -26,6 +27,7 @@ export default function Orcamentos() {
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["quotes", search],
@@ -48,6 +50,41 @@ export default function Orcamentos() {
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+
+  const handleGeneratePdf = async (quoteId: string) => {
+    setGeneratingPdf(quoteId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Não autenticado");
+
+      const response = await supabase.functions.invoke("generate-pdf", {
+        body: { quoteId },
+      });
+
+      if (response.error) throw response.error;
+
+      const { html, quote_number } = response.data;
+
+      // Open in new window for printing/saving as PDF
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        // Auto-trigger print dialog after a short delay
+        setTimeout(() => printWindow.print(), 500);
+      }
+
+      toast({ title: "PDF gerado!", description: `Orçamento ${quote_number} pronto para impressão` });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(null);
+    }
+  };
 
   if (wizardOpen) {
     return <QuoteWizard onClose={() => setWizardOpen(false)} />;
@@ -124,6 +161,19 @@ export default function Orcamentos() {
                           <DropdownMenuItem>
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
+                          {(quote.status === "finalized" || quote.status === "draft") && (
+                            <DropdownMenuItem
+                              onClick={() => handleGeneratePdf(quote.id)}
+                              disabled={generatingPdf === quote.id}
+                            >
+                              {generatingPdf === quote.id ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="mr-2 h-4 w-4" />
+                              )}
+                              Gerar PDF
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
