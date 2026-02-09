@@ -107,7 +107,7 @@ export default function Orcamentos() {
         setTimeout(() => printWindow.print(), 500);
       }
 
-      toast({ title: "PDF gerado!", description: `Orçamento ${quote_number} pronto para impressão` });
+      toast({ title: "PDF gerado!", description: `Proposta ${quote_number} pronta para impressão` });
     } catch (error: any) {
       toast({
         title: "Erro ao gerar PDF",
@@ -162,12 +162,12 @@ export default function Orcamentos() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orçamentos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Propostas Comerciais</h1>
           <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
         <Button onClick={() => setWizardOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Orçamento
+          Nova Proposta
         </Button>
       </div>
 
@@ -191,8 +191,8 @@ export default function Orcamentos() {
           ) : quotes?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">Nenhum orçamento encontrado</h3>
-              <p className="text-muted-foreground">Crie seu primeiro orçamento clicando no botão acima</p>
+              <h3 className="mt-4 text-lg font-semibold">Nenhuma proposta encontrada</h3>
+               <p className="text-muted-foreground">Crie sua primeira proposta clicando no botão acima</p>
             </div>
           ) : (
             <Table>

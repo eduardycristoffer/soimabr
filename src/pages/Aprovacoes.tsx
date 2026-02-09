@@ -104,7 +104,7 @@ export default function Aprovacoes() {
       toast({
         title: action === "approve" ? "Desconto aprovado!" : "Desconto rejeitado",
         description: action === "approve"
-          ? "O operador poderá finalizar o orçamento."
+          ? "O operador poderá finalizar a proposta."
           : "O operador será notificado para ajustar.",
       });
       queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
@@ -264,7 +264,7 @@ export default function Aprovacoes() {
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
               {actionModal?.action === "approve"
-                ? "Ao aprovar, o operador poderá finalizar o orçamento com este desconto."
+                ? "Ao aprovar, o operador poderá finalizar a proposta com este desconto."
                 : "Ao rejeitar, o operador deverá ajustar o desconto para dentro da faixa permitida."}
             </p>
             <Textarea

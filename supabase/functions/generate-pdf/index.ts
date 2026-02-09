@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (quoteError || !quote) {
-      return new Response(JSON.stringify({ error: "Orçamento não encontrado" }), {
+      return new Response(JSON.stringify({ error: "Proposta não encontrada" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -149,7 +149,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Orçamento ${quote.quote_number}</title>
+<title>Proposta Comercial ${quote.quote_number}</title>
 <style>
   @page { size: A4; margin: 15mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -231,7 +231,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   ` : ""}
 
   <div class="section">
-    <div class="section-title">Itens do Orçamento</div>
+    <div class="section-title">Itens da Proposta</div>
     <table>
       <thead>
         <tr>

@@ -28,7 +28,7 @@ export default function StatsCards() {
       if (!isAdmin) leadsQuery = leadsQuery.eq("owner_id", userId!);
       const { count: leadsCount } = await leadsQuery;
 
-      // Orçamentos este mês
+      // Propostas este mês
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
@@ -82,7 +82,7 @@ export default function StatsCards() {
       icon: Kanban,
     },
     {
-      title: "Orçamentos",
+      title: "Propostas",
       value: stats?.quotes ?? 0,
       description: "Este mês",
       icon: FileText,

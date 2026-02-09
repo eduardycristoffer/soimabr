@@ -22,7 +22,7 @@ import { Json } from "@/integrations/supabase/types";
 const tableLabels: Record<string, string> = {
   clients: "Clientes",
   products: "Produtos",
-  quotes: "Orçamentos",
+  quotes: "Propostas",
   leads: "Leads",
   user_roles: "Permissões",
   profiles: "Perfis",

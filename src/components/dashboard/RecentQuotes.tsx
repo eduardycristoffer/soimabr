@@ -40,15 +40,15 @@ export default function RecentQuotes() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Orçamentos Recentes</CardTitle>
-        <CardDescription>Últimos orçamentos criados</CardDescription>
+        <CardTitle>Propostas Recentes</CardTitle>
+        <CardDescription>Últimas propostas criadas</CardDescription>
       </CardHeader>
       <CardContent>
         {!quotes || quotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6">
             <FileText className="h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              Nenhum orçamento ainda
+              Nenhuma proposta ainda
             </p>
           </div>
         ) : (
