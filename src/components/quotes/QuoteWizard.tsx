@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -22,19 +22,36 @@ interface Props {
 
 export default function QuoteWizard({ onClose }: Props) {
   const { role } = useAuth();
+  const isAdmin = role === "admin";
   const queryClient = useQueryClient();
   const wizard = useQuoteWizard();
 
+  // Fetch operator discount limit
+  const { data: operatorRule } = useQuery({
+    queryKey: ["discount-rules", "operator"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("discount_rules")
+        .select("*")
+        .eq("role", "operator")
+        .eq("requires_approval", false)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !isAdmin,
+  });
 
-
+  const maxDiscount = isAdmin ? 100 : (operatorRule?.max_discount_percent || 0);
+  const needsApproval = !isAdmin && wizard.data.discount_percent > maxDiscount;
 
   const saveMutation = useMutation({
-    mutationFn: async (status: "draft" | "finalized") => {
+    mutationFn: async (mode: "draft" | "finalized" | "request_approval") => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Não autenticado");
 
       const userId = session.session.user.id;
-      const finalStatus = status;
+      const finalStatus = mode === "finalized" ? "finalized" : "draft";
 
       // Generate quote number
       const year = new Date().getFullYear().toString().slice(2);
@@ -44,7 +61,7 @@ export default function QuoteWizard({ onClose }: Props) {
       const seq = String((count || 0) + 1).padStart(4, "0");
       const quoteNumber = `ORC${year}${seq}`;
 
-      const discountApproved = true;
+      const discountApproved = mode === "finalized" || (mode === "draft" && !needsApproval);
 
       // Insert quote
       const { data: quote, error: quoteError } = await supabase
@@ -66,7 +83,7 @@ export default function QuoteWizard({ onClose }: Props) {
           discount_approved: discountApproved,
           subtotal: wizard.subtotal,
           total: wizard.total,
-          status: finalStatus,
+          status: finalStatus as "draft" | "finalized",
           finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
         })
         .select("id")
@@ -102,15 +119,32 @@ export default function QuoteWizard({ onClose }: Props) {
         if (itemsError) throw itemsError;
       }
 
-      return { quoteNumber, status: finalStatus };
+      // If requesting approval, create approval request
+      if (mode === "request_approval") {
+        const { error: approvalError } = await supabase
+          .from("discount_approval_requests")
+          .insert({
+            quote_id: quote.id,
+            requested_by: userId,
+            discount_percent: wizard.data.discount_percent,
+            justification: wizard.data.discount_justification,
+          });
+
+        if (approvalError) throw approvalError;
+      }
+
+      return { quoteNumber, mode };
     },
-    onSuccess: ({ quoteNumber, status }) => {
-      toast({
-        title: status === "finalized" ? "Orçamento finalizado!" : "Rascunho salvo!",
-        description: `Número: ${quoteNumber}`,
-      });
+    onSuccess: ({ quoteNumber, mode }) => {
+      const messages = {
+        finalized: { title: "Orçamento finalizado!", description: `Número: ${quoteNumber}` },
+        draft: { title: "Rascunho salvo!", description: `Número: ${quoteNumber}` },
+        request_approval: { title: "Enviado para aprovação!", description: `Orçamento ${quoteNumber} aguardando aprovação de desconto.` },
+      };
+      toast(messages[mode]);
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
       wizard.reset();
       onClose();
     },
@@ -205,6 +239,8 @@ export default function QuoteWizard({ onClose }: Props) {
             onPrev={wizard.prevStep}
             onSaveDraft={() => saveMutation.mutate("draft")}
             onFinalize={() => saveMutation.mutate("finalized")}
+            onRequestApproval={() => saveMutation.mutate("request_approval")}
+            needsApproval={needsApproval}
             isSaving={saveMutation.isPending}
           />
         )}
