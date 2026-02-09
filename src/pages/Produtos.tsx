@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -147,20 +147,19 @@ export default function Produtos() {
                 <Switch checked={showInactive} onCheckedChange={setShowInactive} />
                 Inativos
               </label>
-              <Tabs
-                value={category}
-                onValueChange={(v) => setCategory(v as ProductCategory | "all")}
-                className="w-auto"
-              >
-                <TabsList className="flex-wrap">
-                  <TabsTrigger value="all">Todos</TabsTrigger>
+              <Select value={category} onValueChange={(v) => setCategory(v as ProductCategory | "all")}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
                   {categoryOrder.map((cat) => (
-                    <TabsTrigger key={cat} value={cat}>
+                    <SelectItem key={cat} value={cat}>
                       {categoryLabels[cat]}
-                    </TabsTrigger>
+                    </SelectItem>
                   ))}
-                </TabsList>
-              </Tabs>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
