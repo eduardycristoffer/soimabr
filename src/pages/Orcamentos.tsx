@@ -41,7 +41,24 @@ export default function Orcamentos() {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // Fetch approver profiles for quotes with discount_approved_by
+      const approverIds = [...new Set(data.filter((q: any) => q.discount_approved_by).map((q: any) => q.discount_approved_by))];
+      let approverProfiles: Record<string, string> = {};
+      if (approverIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, name")
+          .in("user_id", approverIds);
+        if (profiles) {
+          approverProfiles = Object.fromEntries(profiles.map((p) => [p.user_id, p.name]));
+        }
+      }
+
+      return data.map((q: any) => ({
+        ...q,
+        approver_name: q.discount_approved_by ? approverProfiles[q.discount_approved_by] || null : null,
+      }));
     },
   });
 
@@ -125,7 +142,11 @@ export default function Orcamentos() {
       );
     }
     if (approvalStatus === "approved" || discountApproved) {
-      return null; // Approved or auto-approved, no special badge needed
+      return (
+        <Badge variant="outline" className="text-[10px] border-green-300 text-green-600 ml-1">
+          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Aprovado
+        </Badge>
+      );
     }
     if (!discountApproved) {
       return (
@@ -199,6 +220,11 @@ export default function Orcamentos() {
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
                         {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
+                        {quote.approver_name && (
+                          <span className="text-[10px] text-muted-foreground ml-1">
+                            por {quote.approver_name}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{formatDate(quote.created_at)}</TableCell>

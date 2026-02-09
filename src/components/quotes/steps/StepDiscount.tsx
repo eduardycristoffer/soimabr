@@ -5,8 +5,9 @@ import { QuoteWizardData } from "@/hooks/useQuoteWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { ShieldCheck, Send } from "lucide-react";
 
 interface Props {
   data: QuoteWizardData;
@@ -39,6 +40,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
 
   const maxDiscount = isAdmin ? 100 : (operatorRule?.max_discount_percent || 0);
   const exceedsMax = !isAdmin && data.discount_percent > maxDiscount;
+  const needsJustification = exceedsMax && !data.discount_justification.trim();
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
@@ -60,12 +62,24 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
           </div>
 
           {exceedsMax && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert className="border-amber-300 bg-amber-50 text-amber-800">
+              <Send className="h-4 w-4" />
               <AlertDescription>
-                Desconto acima do permitido para Operador. Limite: {maxDiscount}%.
+                Desconto acima do limite ({maxDiscount}%). Será necessária aprovação de um administrador.
               </AlertDescription>
             </Alert>
+          )}
+
+          {exceedsMax && (
+            <div className="space-y-2">
+              <Label>Justificativa (obrigatório)</Label>
+              <Textarea
+                placeholder="Explique o motivo do desconto acima do limite..."
+                value={data.discount_justification}
+                onChange={(e) => updateData({ discount_justification: e.target.value })}
+                rows={3}
+              />
+            </div>
           )}
 
           {!exceedsMax && data.discount_percent > 0 && (
@@ -103,7 +117,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>
-        <Button onClick={onNext} disabled={exceedsMax}>Próximo</Button>
+        <Button onClick={onNext} disabled={needsJustification}>Próximo</Button>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, CheckCircle2 } from "lucide-react";
+import { Loader2, Save, CheckCircle2, Send } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -22,10 +22,12 @@ interface Props {
   onPrev: () => void;
   onSaveDraft: () => void;
   onFinalize: () => void;
+  onRequestApproval: () => void;
+  needsApproval: boolean;
   isSaving: boolean;
 }
 
-export default function StepReview({ data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize, isSaving }: Props) {
+export default function StepReview({ data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize, onRequestApproval, needsApproval, isSaving }: Props) {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
 
@@ -127,6 +129,13 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
         </div>
       </div>
 
+      {needsApproval && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+          <Send className="h-4 w-4 shrink-0" />
+          <span>Este orçamento requer aprovação de desconto por um administrador antes de ser finalizado.</span>
+        </div>
+      )}
+
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev} disabled={isSaving}>Voltar</Button>
         <div className="flex gap-2">
@@ -135,11 +144,19 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             <Save className="mr-2 h-4 w-4" />
             Salvar Rascunho
           </Button>
-          <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Finalizar Orçamento
-          </Button>
+          {needsApproval ? (
+            <Button onClick={onRequestApproval} disabled={isSaving || allItems.length === 0}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Send className="mr-2 h-4 w-4" />
+              Enviar para Aprovação
+            </Button>
+          ) : (
+            <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Finalizar Orçamento
+            </Button>
+          )}
         </div>
       </div>
     </div>
