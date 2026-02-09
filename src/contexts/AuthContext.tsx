@@ -21,12 +21,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError) throw profileError;
 
-      // Buscar role
-      const { data: userRole, error: roleError } = await supabase
+      // Buscar role (maybeSingle para evitar 406 quando não há registro)
+      const { data: userRole } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", authUser.id)
-        .single();
+        .maybeSingle();
 
       setUser(profile);
       setRole(userRole?.role || "operator");
