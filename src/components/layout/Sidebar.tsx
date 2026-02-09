@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { NavItem } from "@/types";
 import { useState } from "react";
+import logoSoima from "@/assets/logo-soima.webp";
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -46,9 +47,7 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
-          <span className="text-xl font-bold text-sidebar-foreground">
-            SOIMA CRM
-          </span>
+          <img src={logoSoima} alt="SOIMA BR" className="h-8 w-auto" />
         )}
         <Button
           variant="ghost"

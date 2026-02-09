@@ -4,10 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import loginPhoto from "@/assets/foto-login.webp";
+import logoSoima from "@/assets/logo-soima.webp";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,11 +16,8 @@ export default function Login() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-
-  // Signup state
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
@@ -74,24 +72,48 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">
-            SOIMA CRM
-          </CardTitle>
-          <CardDescription>
-            Sistema de Gestão Comercial de Gruas
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="flex min-h-screen">
+      {/* Left side - Photo */}
+      <div className="relative hidden w-1/2 lg:block">
+        <img
+          src={loginPhoto}
+          alt="Grua SOIMA em operação"
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute bottom-12 left-12 right-12">
+          <h2 className="text-3xl font-bold text-white">
+            Gestão Comercial de Gruas
+          </h2>
+          <p className="mt-2 text-lg text-white/80">
+            Pipeline de vendas, orçamentos e propostas comerciais em um só lugar.
+          </p>
+        </div>
+      </div>
+
+      {/* Right side - Login form */}
+      <div className="flex w-full flex-col items-center justify-center bg-background px-6 lg:w-1/2">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={logoSoima}
+              alt="SOIMA BR"
+              className="h-14 w-auto"
+            />
+            <p className="text-sm text-muted-foreground">
+              Sistema de Gestão Comercial
+            </p>
+          </div>
+
+          {/* Tabs */}
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="signup">Cadastrar</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="login">
+            <TabsContent value="login" className="mt-6">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
@@ -122,7 +144,7 @@ export default function Login() {
               </form>
             </TabsContent>
 
-            <TabsContent value="signup">
+            <TabsContent value="signup" className="mt-6">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="signup-name">Nome completo</Label>
@@ -165,8 +187,8 @@ export default function Login() {
               </form>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
