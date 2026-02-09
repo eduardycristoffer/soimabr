@@ -1,27 +1,36 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Building2, Globe } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Search, Building2, Globe, MoreHorizontal, Pencil, Eye, Trash2 } from "lucide-react";
 import { Client } from "@/types";
 import ClientFormModal from "@/components/clients/ClientFormModal";
+import ClientDetailModal from "@/components/clients/ClientDetailModal";
 
 export default function Clientes() {
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients", search],
     queryFn: async () => {
@@ -30,18 +39,56 @@ export default function Clientes() {
         .select("*")
         .eq("is_active", true)
         .order("razao_social");
-
       if (search) {
         query = query.or(
           `razao_social.ilike.%${search}%,nome_fantasia.ilike.%${search}%,cnpj.ilike.%${search}%`
         );
       }
-
       const { data, error } = await query;
       if (error) throw error;
       return data as Client[];
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      const { error } = await supabase
+        .from("clients")
+        .update({ is_active: false })
+        .eq("id", clientId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Cliente excluído com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      setDeleteOpen(false);
+      setSelectedClient(null);
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleEdit = (client: Client) => {
+    setSelectedClient(client);
+    setFormOpen(true);
+  };
+
+  const handleView = (client: Client) => {
+    setSelectedClient(client);
+    setDetailOpen(true);
+  };
+
+  const handleDelete = (client: Client) => {
+    setSelectedClient(client);
+    setDeleteOpen(true);
+  };
+
+  const handleNewClient = () => {
+    setSelectedClient(null);
+    setFormOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -52,13 +99,44 @@ export default function Clientes() {
             Gerencie seus clientes nacionais e internacionais
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button onClick={handleNewClient}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Cliente
         </Button>
       </div>
 
-      <ClientFormModal open={modalOpen} onOpenChange={setModalOpen} />
+      <ClientFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        client={selectedClient}
+      />
+      <ClientDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        client={selectedClient}
+      />
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O cliente <strong>{selectedClient?.razao_social}</strong> será desativado. 
+              Esta ação pode ser revertida por um administrador.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedClient && deleteMutation.mutate(selectedClient.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>
@@ -117,22 +195,39 @@ export default function Clientes() {
                     <TableCell>
                       <Badge variant={client.client_type === "nacional" ? "default" : "secondary"}>
                         {client.client_type === "nacional" ? (
-                          <>
-                            <Building2 className="mr-1 h-3 w-3" />
-                            Nacional
-                          </>
+                          <><Building2 className="mr-1 h-3 w-3" />Nacional</>
                         ) : (
-                          <>
-                            <Globe className="mr-1 h-3 w-3" />
-                            Internacional
-                          </>
+                          <><Globe className="mr-1 h-3 w-3" />Internacional</>
                         )}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        Ver
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleView(client)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(client)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(client)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
