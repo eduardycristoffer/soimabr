@@ -12,15 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Building2, Globe } from "lucide-react";
 import { Client } from "@/types";
+import ClientFormModal from "@/components/clients/ClientFormModal";
 
 export default function Clientes() {
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
-
+  const [modalOpen, setModalOpen] = useState(false);
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients", search],
     queryFn: async () => {
@@ -51,11 +52,13 @@ export default function Clientes() {
             Gerencie seus clientes nacionais e internacionais
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Cliente
         </Button>
       </div>
+
+      <ClientFormModal open={modalOpen} onOpenChange={setModalOpen} />
 
       <Card>
         <CardHeader>
