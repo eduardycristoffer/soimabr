@@ -288,17 +288,27 @@ export default function Pipeline() {
               onDrop={(e) => handleDrop(e, stage.id)}
             >
               {/* Stage Header */}
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  <h3 className="font-semibold">{stage.name}</h3>
-                  <Badge variant="secondary" className="ml-1">
-                    {stageLeads.length}
-                  </Badge>
+              <div className="mb-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: stage.color }}
+                    />
+                    <h3 className="font-semibold">{stage.name}</h3>
+                    <Badge variant="secondary" className="ml-1">
+                      {stageLeads.length}
+                    </Badge>
+                  </div>
                 </div>
+                {(() => {
+                  const total = stageLeads.reduce((sum, l) => sum + (l.estimated_value ?? 0), 0);
+                  return total > 0 ? (
+                    <p className="text-xs font-medium text-primary pl-5">
+                      {formatCurrency(total)}
+                    </p>
+                  ) : null;
+                })()}
               </div>
 
               {/* Leads */}
