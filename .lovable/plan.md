@@ -1,71 +1,66 @@
 
-
-# Fluxo de Aprovacao de Desconto para Operadores
+# Renomear "Orcamento" para "Proposta Comercial" / "Proposta"
 
 ## Resumo
-Quando um operador tentar aplicar um desconto acima do limite permitido (ex: 5%), em vez de bloquear, o sistema permitira salvar o orcamento como rascunho e enviar um pedido de aprovacao para o admin. A pagina de Aprovacoes sera restaurada no menu (visivel apenas para admins). Os orcamentos aprovados mostrarao qual admin aprovou.
+Substituir todas as ocorrencias do termo "Orcamento" por "Proposta Comercial" ou "Proposta" em toda a aplicacao, incluindo o PDF gerado pela Edge Function.
 
-## Mudancas
+## Arquivos e mudancas
 
-### 1. StepDiscount.tsx
-- Remover o bloqueio do botao "Proximo" quando excede o limite
-- Adicionar campo de justificativa quando desconto excede o limite
-- Mostrar alerta informando que sera necessaria aprovacao (em vez de bloquear)
+### 1. `src/components/layout/Sidebar.tsx`
+- Linha 27: `"Orçamentos"` -> `"Propostas"`
 
-### 2. useQuoteWizard.ts
-- Adicionar `discount_justification: string` ao `QuoteWizardData`
-- Adicionar propriedade computada `needsApproval` baseada no role e limite
+### 2. `src/pages/Orcamentos.tsx`
+- Linha 165: titulo `"Orçamentos"` -> `"Propostas Comerciais"`
+- Linha 170: botao `"Novo Orçamento"` -> `"Nova Proposta"`
+- Linha 194: `"Nenhum orçamento encontrado"` -> `"Nenhuma proposta encontrada"`
+- Linha 195: `"Crie seu primeiro orçamento..."` -> `"Crie sua primeira proposta..."`
+- Linha 110: toast `"Orçamento ... pronto para impressão"` -> `"Proposta ... pronta para impressão"`
 
-### 3. QuoteWizard.tsx
-- Na etapa de revisao (step 8), quando `needsApproval` for true:
-  - Esconder botao "Finalizar Orcamento"
-  - Mostrar botao "Salvar e Solicitar Aprovacao" que salva como draft e cria um registro em `discount_approval_requests`
-- Manter botao "Salvar Rascunho" disponivel normalmente
+### 3. `src/components/quotes/QuoteWizard.tsx`
+- Linha 140: `"Orçamento finalizado!"` -> `"Proposta finalizada!"`
+- Linha 142: `"Orçamento ... aguardando..."` -> `"Proposta ... aguardando..."`
+- Linha 153: `"Erro ao salvar orçamento"` -> `"Erro ao salvar proposta"`
+- Linha 168: `"Novo Orçamento"` -> `"Nova Proposta Comercial"`
 
-### 4. StepReview.tsx
-- Adicionar prop `needsApproval`
-- Quando true, mostrar badge "Requer Aprovacao" e trocar botao "Finalizar" por "Enviar para Aprovacao"
+### 4. `src/hooks/useQuoteWizard.ts`
+- Nenhuma mudanca necessaria (nao contem textos visíveis com "orcamento")
 
-### 5. Aprovacoes.tsx (restaurar pagina)
-- Restaurar a rota `/aprovacoes` no App.tsx apontando para o componente existente (ja existe em `src/pages/Aprovacoes.tsx`)
-- O componente ja possui toda a logica de listar pedidos pendentes, aprovar e rejeitar
+### 5. `src/components/quotes/steps/StepReview.tsx`
+- Linha 135: `"Este orçamento requer aprovação..."` -> `"Esta proposta requer aprovação..."`
+- Linha 157: `"Finalizar Orçamento"` -> `"Finalizar Proposta"`
 
-### 6. Sidebar.tsx
-- Adicionar item "Aprovacoes" no menu com `adminOnly: true` e icone `CheckCircle2`
+### 6. `src/components/quotes/steps/StepCommercial.tsx`
+- Linha 74: placeholder `"Notas adicionais do orçamento..."` -> `"Notas adicionais da proposta..."`
 
-### 7. App.tsx
-- Trocar o redirect de `/aprovacoes` pelo import real do componente `Aprovacoes`
+### 7. `src/components/clients/ClientDetailModal.tsx`
+- Linha 131: comentario (nao visivel, mas atualizar por consistencia)
+- Linha 133: `"Orçamentos (N)"` -> `"Propostas (N)"`
+- Linha 135: `"Nenhum orçamento vinculado"` -> `"Nenhuma proposta vinculada"`
 
-### 8. Orcamentos.tsx - Mostrar admin aprovador
-- Na listagem de orcamentos, quando houver desconto aprovado, mostrar o nome do admin que aprovou
-- Buscar `discount_approved_by` do quote e cruzar com `profiles` para exibir o nome
+### 8. `src/components/dashboard/RecentQuotes.tsx`
+- Linha 43: `"Orçamentos Recentes"` -> `"Propostas Recentes"`
+- Linha 44: `"Últimos orçamentos criados"` -> `"Ultimas propostas criadas"`
+- Linha 51: `"Nenhum orçamento ainda"` -> `"Nenhuma proposta ainda"`
 
-## Detalhes Tecnicos
+### 9. `src/components/dashboard/StatsCards.tsx`
+- Linha 31: comentario (atualizar)
+- Linha 85: `"Orçamentos"` -> `"Propostas"`
 
-### Fluxo do operador
-1. Operador define desconto acima de 5% no Step 7
-2. Sistema mostra alerta: "Desconto acima do limite. Sera necessaria aprovacao do admin."
-3. Campo de justificativa aparece (obrigatorio)
-4. No Step 8 (Revisao), botao "Finalizar" e substituido por "Enviar para Aprovacao"
-5. Ao clicar, salva quote como `draft` e cria registro em `discount_approval_requests`
+### 10. `src/pages/Aprovacoes.tsx`
+- Linha 107: `"finalizar o orçamento"` -> `"finalizar a proposta"`
+- Linha 267: `"finalizar o orçamento com este desconto"` -> `"finalizar a proposta com este desconto"`
 
-### Fluxo do admin
-1. Admin ve item "Aprovacoes" no menu lateral
-2. Pagina lista pedidos pendentes com detalhes (% desconto, justificativa, operador)
-3. Admin aprova ou rejeita com observacao opcional
-4. Se aprovado, `quotes.discount_approved = true` e `discount_approved_by` recebe o ID do admin
+### 11. `src/pages/Auditoria.tsx`
+- Linha 25: `"Orçamentos"` -> `"Propostas"`
 
-### Exibicao do aprovador
-- Na tabela de orcamentos, ao lado do badge de desconto aprovado, mostrar "Aprovado por [Nome do Admin]"
-- Query ja inclui join com profiles para buscar o nome
+### 12. `src/pages/Login.tsx`
+- Linha 89: `"orçamentos e propostas comerciais"` -> `"propostas comerciais"`
 
-### Arquivos alterados
-- `src/hooks/useQuoteWizard.ts` - adicionar justificativa e needsApproval
-- `src/components/quotes/steps/StepDiscount.tsx` - remover bloqueio, adicionar justificativa
-- `src/components/quotes/steps/StepReview.tsx` - botao condicional de aprovacao
-- `src/components/quotes/QuoteWizard.tsx` - logica de salvar com pedido de aprovacao
-- `src/components/layout/Sidebar.tsx` - adicionar menu Aprovacoes
-- `src/App.tsx` - restaurar rota /aprovacoes
-- `src/pages/Orcamentos.tsx` - mostrar nome do admin aprovador
-- `src/pages/Aprovacoes.tsx` - ja existe, sem alteracoes necessarias
+### 13. `supabase/functions/generate-pdf/index.ts` (Edge Function - PDF)
+- Linha 58: `"Orçamento não encontrado"` -> `"Proposta não encontrada"`
+- Linha 152: `<title>Orçamento ...` -> `<title>Proposta Comercial ...`
+- Linha 234: `"Itens do Orçamento"` -> `"Itens da Proposta"`
 
+## Notas
+- Nomes de tabelas, colunas e rotas no banco/codigo permanecem como `quotes`, `quote_number`, `/orcamentos` etc. Apenas textos visiveis ao usuario sao alterados.
+- A Edge Function `generate-pdf` sera re-deployed automaticamente apos a edicao.
