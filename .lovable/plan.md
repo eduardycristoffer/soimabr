@@ -1,44 +1,39 @@
 
 
-# Filtro de Categorias Responsivo na Pagina de Produtos
+# Visibilidade de Clientes: Todos os Usuarios Veem Todos os Clientes
 
-## Problema
-As abas (Tabs) de categorias quebram o layout em telas menores porque ocupam muito espaco horizontal, fazendo o conteudo transbordar.
+## Situacao Atual
+A politica RLS de SELECT na tabela `clients` restringe operadores a verem apenas clientes onde `created_by = auth.uid()`. Isso impede que um operador veja clientes cadastrados por colegas.
 
-## Solucao
-Substituir o componente `Tabs/TabsList/TabsTrigger` por um `Select` dropdown, mantendo "Todos" como opcao padrao e listando as categorias no menu suspenso.
+## Mudanca Proposta
+Alterar a politica de SELECT para que **todos os usuarios autenticados** possam visualizar todos os clientes ativos. As politicas de INSERT, UPDATE e DELETE permanecem iguais.
 
-## Arquivo alterado
-`src/pages/Produtos.tsx`
+## Detalhes Tecnicos
 
-## Mudancas
-
-### Imports
-- Remover imports de `Tabs, TabsList, TabsTrigger`
-- Adicionar import de `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` de `@/components/ui/select`
-
-### UI (linhas 145-164)
-Substituir o bloco de `<Tabs>` por um `<Select>` compacto:
+### Migration SQL
+Uma unica migration para substituir a politica de SELECT:
 
 ```text
-<Select value={category} onValueChange={(v) => setCategory(v)}>
-  <SelectTrigger className="w-[180px]">
-    <SelectValue placeholder="Todos" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="all">Todos</SelectItem>
-    <SelectItem value="grua">Gruas</SelectItem>
-    <SelectItem value="configuracao">Configuracoes</SelectItem>
-    <SelectItem value="torre">Torres</SelectItem>
-    <SelectItem value="tramo">Tramos</SelectItem>
-    <SelectItem value="chassis">Chassis</SelectItem>
-    <SelectItem value="acessorio">Acessorios</SelectItem>
-  </SelectContent>
-</Select>
+DROP POLICY "Users can view clients" ON public.clients;
+
+CREATE POLICY "Authenticated users can view all clients"
+  ON public.clients
+  FOR SELECT
+  TO authenticated
+  USING (true);
 ```
 
-Os emojis das categorias serao mantidos nos itens do Select para manter consistencia visual. O dropdown tem fundo solido e z-index alto para nao ficar transparente.
+### Politicas que NAO mudam
+- **INSERT**: `created_by = auth.uid()` (cada um cadastra com seu ID)
+- **UPDATE**: admin ou dono (`created_by = auth.uid()`)
+- **DELETE**: somente admin
 
-### Layout do header
-Reorganizar os controles (busca, switch inativos, select categoria) para ficarem bem empilhados em mobile e lado a lado em desktop.
+### Arquivos de codigo
+Nenhum arquivo de codigo precisa ser alterado. As queries ja buscam `clients` normalmente; a restricao era apenas no RLS.
+
+## Resultado
+- Operador ve todos os clientes da empresa (cadastrados por qualquer usuario)
+- Operador continua editando apenas os clientes que ele cadastrou
+- Admin ve e edita todos
+- No wizard de orcamento (StepClient), o operador passa a ver todos os clientes disponiveis
 
