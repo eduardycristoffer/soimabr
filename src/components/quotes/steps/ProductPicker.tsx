@@ -1,0 +1,197 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { QuoteItemDraft } from "@/hooks/useQuoteWizard";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search, Plus, Minus, Trash2 } from "lucide-react";
+import { ProductCategory } from "@/types";
+
+const categoryLabels: Record<string, string> = {
+  grua: "🏗️ Grua",
+  configuracao: "⚙️ Configuração",
+  torre: "🗼 Torre",
+  tramo: "📐 Tramo",
+  chassis: "🔧 Chassis",
+  acessorio: "🔩 Acessório",
+};
+
+interface Props {
+  categories: ProductCategory[];
+  items: QuoteItemDraft[];
+  onItemsChange: (items: QuoteItemDraft[]) => void;
+  title: string;
+  onNext: () => void;
+  onPrev: () => void;
+  currency?: string;
+}
+
+export default function ProductPicker({ categories, items, onItemsChange, title, onNext, onPrev, currency = "BRL" }: Props) {
+  const [search, setSearch] = useState("");
+
+  const { data: products } = useQuery({
+    queryKey: ["products-picker", categories, search],
+    queryFn: async () => {
+      let q = supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true)
+        .in("categoria", categories)
+        .order("categoria")
+        .order("nome");
+      if (search) {
+        q = q.or(`nome.ilike.%${search}%,codigo.ilike.%${search}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+
+  const addItem = (product: any) => {
+    const existing = items.find((i) => i.product_id === product.id);
+    if (existing) {
+      onItemsChange(
+        items.map((i) =>
+          i.product_id === product.id
+            ? { ...i, quantity: i.quantity + 1, total_price: i.unit_price * (i.quantity + 1) }
+            : i
+        )
+      );
+    } else {
+      onItemsChange([
+        ...items,
+        {
+          product_id: product.id,
+          product_code: product.codigo,
+          product_name: product.nome,
+          product_category: product.categoria,
+          unit_price: product.preco,
+          quantity: 1,
+          total_price: product.preco,
+        },
+      ]);
+    }
+  };
+
+  const updateQty = (productId: string, delta: number) => {
+    onItemsChange(
+      items
+        .map((i) => {
+          if (i.product_id !== productId) return i;
+          const newQty = i.quantity + delta;
+          if (newQty <= 0) return null;
+          return { ...i, quantity: newQty, total_price: i.unit_price * newQty };
+        })
+        .filter(Boolean) as QuoteItemDraft[]
+    );
+  };
+
+  const removeItem = (productId: string) => {
+    onItemsChange(items.filter((i) => i.product_id !== productId));
+  };
+
+  const itemsTotal = items.reduce((sum, i) => sum + i.total_price, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Product catalog */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold">Catálogo</h4>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="space-y-1 max-h-[350px] overflow-y-auto">
+            {products?.map((p) => {
+              const inCart = items.find((i) => i.product_id === p.id);
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center justify-between p-2 rounded-md text-sm hover:bg-accent/50 cursor-pointer transition-colors ${
+                    inCart ? "bg-accent/30 border border-primary/20" : "border border-transparent"
+                  }`}
+                  onClick={() => addItem(p)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0">
+                        {categoryLabels[p.categoria] || p.categoria}
+                      </Badge>
+                    </div>
+                    <p className="font-medium truncate">{p.nome}</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <span className="text-sm font-medium">{formatCurrency(p.preco)}</span>
+                    <Plus className="h-4 w-4 text-primary" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected items */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold">Itens Selecionados ({items.length})</h4>
+          {items.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Clique nos produtos à esquerda para adicioná-los
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[350px] overflow-y-auto">
+              {items.map((item) => (
+                <Card key={item.product_id} className="p-0">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{item.product_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.product_code} · {formatCurrency(item.unit_price)}/un
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product_id, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product_id, 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm font-semibold w-24 text-right">{formatCurrency(item.total_price)}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.product_id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <div className="flex justify-end pt-2 border-t">
+                <span className="text-sm font-semibold">Subtotal: {formatCurrency(itemsTotal)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-between pt-4">
+        <Button variant="outline" onClick={onPrev}>Voltar</Button>
+        <Button onClick={onNext}>Próximo</Button>
+      </div>
+    </div>
+  );
+}
