@@ -10,6 +10,8 @@ import {
   Menu,
   LogOut,
   ChevronLeft,
+  Percent,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,9 +23,11 @@ import logoSoima from "@/assets/logo-soima.webp";
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", href: "/clientes", icon: Users },
-  { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Pipeline", href: "/pipeline", icon: Kanban },
   { title: "Orçamentos", href: "/orcamentos", icon: FileText },
+  { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
+  { title: "Regras de Desconto", href: "/regras-desconto", icon: Percent, adminOnly: true },
+  { title: "Aprovações", href: "/aprovacoes", icon: ShieldCheck, adminOnly: true },
   { title: "Usuários", href: "/usuarios", icon: UserCog, adminOnly: true },
   { title: "Auditoria", href: "/auditoria", icon: ClipboardList, adminOnly: true },
 ];

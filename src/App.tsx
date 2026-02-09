@@ -13,6 +13,8 @@ import Pipeline from "@/pages/Pipeline";
 import Orcamentos from "@/pages/Orcamentos";
 import Usuarios from "@/pages/Usuarios";
 import Auditoria from "@/pages/Auditoria";
+import RegrasDesconto from "@/pages/RegrasDesconto";
+import Aprovacoes from "@/pages/Aprovacoes";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,8 @@ const App = () => (
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/regras-desconto" element={<RegrasDesconto />} />
+              <Route path="/aprovacoes" element={<Aprovacoes />} />
               <Route path="/auditoria" element={<Auditoria />} />
             </Route>
             

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2 } from "lucide-react";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 
@@ -45,6 +45,24 @@ export default function Orcamentos() {
     },
   });
 
+  // Fetch approval requests to show status
+  const { data: approvalRequests } = useQuery({
+    queryKey: ["discount-approvals-for-quotes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("discount_approval_requests")
+        .select("quote_id, status")
+        .order("requested_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getApprovalStatus = (quoteId: string) => {
+    const req = approvalRequests?.find((r) => r.quote_id === quoteId);
+    return req?.status || null;
+  };
+
   const formatCurrency = (value: number, currency: string = "BRL") =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
@@ -65,12 +83,10 @@ export default function Orcamentos() {
 
       const { html, quote_number } = response.data;
 
-      // Open in new window for printing/saving as PDF
       const printWindow = window.open("", "_blank");
       if (printWindow) {
         printWindow.document.write(html);
         printWindow.document.close();
-        // Auto-trigger print dialog after a short delay
         setTimeout(() => printWindow.print(), 500);
       }
 
@@ -89,6 +105,37 @@ export default function Orcamentos() {
   if (wizardOpen) {
     return <QuoteWizard onClose={() => setWizardOpen(false)} />;
   }
+
+  const renderApprovalBadge = (quoteId: string, discountPercent: number, discountApproved: boolean) => {
+    if (discountPercent <= 0) return null;
+    const approvalStatus = getApprovalStatus(quoteId);
+
+    if (approvalStatus === "pending") {
+      return (
+        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600 ml-1">
+          <Clock className="h-2.5 w-2.5 mr-0.5" /> Aguardando
+        </Badge>
+      );
+    }
+    if (approvalStatus === "rejected") {
+      return (
+        <Badge variant="outline" className="text-[10px] border-destructive text-destructive ml-1">
+          <XCircle className="h-2.5 w-2.5 mr-0.5" /> Rejeitado
+        </Badge>
+      );
+    }
+    if (approvalStatus === "approved" || discountApproved) {
+      return null; // Approved or auto-approved, no special badge needed
+    }
+    if (!discountApproved) {
+      return (
+        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600 ml-1">
+          <Clock className="h-2.5 w-2.5 mr-0.5" /> Pendente
+        </Badge>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -147,9 +194,12 @@ export default function Orcamentos() {
                     <TableCell>{quote.project_name || "-"}</TableCell>
                     <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
-                        {statusConfig[quote.status as QuoteStatus].label}
-                      </Badge>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
+                          {statusConfig[quote.status as QuoteStatus].label}
+                        </Badge>
+                        {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
+                      </div>
                     </TableCell>
                     <TableCell>{formatDate(quote.created_at)}</TableCell>
                     <TableCell className="text-right">

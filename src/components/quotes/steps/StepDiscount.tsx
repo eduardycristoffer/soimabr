@@ -5,6 +5,7 @@ import { QuoteWizardData } from "@/hooks/useQuoteWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Info, ShieldCheck } from "lucide-react";
@@ -40,6 +41,9 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
   const needsApproval = data.discount_percent > maxNoApproval && data.discount_percent <= maxWithApproval;
   const exceedsMax = data.discount_percent > maxWithApproval;
 
+  // Block next if needs approval without justification
+  const canProceed = !exceedsMax && (!needsApproval || (data.discount_justification?.trim() || "").length > 0);
+
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
 
@@ -59,6 +63,22 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
             />
           </div>
 
+          {/* Justification field - required when needs approval */}
+          {needsApproval && (
+            <div className="space-y-2">
+              <Label>Justificativa (obrigatório) *</Label>
+              <Textarea
+                placeholder="Explique o motivo do desconto acima do limite automático..."
+                value={data.discount_justification || ""}
+                onChange={(e) => updateData({ discount_justification: e.target.value })}
+                rows={3}
+              />
+              {!(data.discount_justification?.trim()) && (
+                <p className="text-xs text-destructive">Justificativa obrigatória para descontos acima de {maxNoApproval}%</p>
+              )}
+            </div>
+          )}
+
           {/* Rules info */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">Seus limites ({role}):</p>
@@ -77,6 +97,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 Desconto de {data.discount_percent}% requer aprovação de um administrador.
+                O orçamento será salvo como rascunho até a aprovação.
               </AlertDescription>
             </Alert>
           )}
@@ -123,7 +144,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>
-        <Button onClick={onNext} disabled={exceedsMax}>Próximo</Button>
+        <Button onClick={onNext} disabled={!canProceed}>Próximo</Button>
       </div>
     </div>
   );
