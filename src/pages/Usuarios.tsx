@@ -1,30 +1,50 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, UserCog, Shield, User } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, UserCog, Shield, User, MoreHorizontal, Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
-import { Profile, AppRole } from "@/types";
+import { AppRole } from "@/types";
+import InviteUserModal from "@/components/users/InviteUserModal";
 
-interface ProfileWithRole extends Profile {
-  user_roles?: { role: AppRole }[];
+interface ProfileWithRole {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  is_active: boolean;
+  role: AppRole;
 }
 
 export default function Usuarios() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
-  // Redirecionar se não for admin
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -39,42 +59,74 @@ export default function Usuarios() {
 
       if (profilesError) throw profilesError;
 
-      // Buscar roles separadamente
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
       if (rolesError) throw rolesError;
 
-      // Combinar dados
-      const profilesWithRoles = profilesData.map((profile) => ({
+      return profilesData.map((profile) => ({
         ...profile,
-        role: rolesData.find((r) => r.user_id === profile.user_id)?.role || "operator",
-      }));
-
-      return profilesWithRoles;
+        role: (rolesData.find((r) => r.user_id === profile.user_id)?.role || "operator") as AppRole,
+      })) as ProfileWithRole[];
     },
   });
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+  const invokeAction = async (action: string, payload: Record<string, unknown>) => {
+    const key = `${action}-${payload.user_id}`;
+    setActionLoading(key);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-users", {
+        body: { action, ...payload },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      toast({ title: "Operação realizada com sucesso" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
   };
+
+  const handleChangeRole = (userId: string, currentRole: AppRole) => {
+    const newRole = currentRole === "admin" ? "operator" : "admin";
+    const label = newRole === "admin" ? "Administrador" : "Operador";
+    setConfirmDialog({
+      open: true,
+      title: `Alterar perfil para ${label}?`,
+      description: `O usuário passará a ter permissões de ${label}.`,
+      onConfirm: () => invokeAction("update_role", { user_id: userId, role: newRole }),
+    });
+  };
+
+  const handleToggleActive = (userId: string, isActive: boolean) => {
+    const action = isActive ? "desativar" : "ativar";
+    setConfirmDialog({
+      open: true,
+      title: `${isActive ? "Desativar" : "Ativar"} usuário?`,
+      description: isActive
+        ? "O usuário não poderá mais acessar o sistema."
+        : "O usuário poderá acessar o sistema novamente.",
+      onConfirm: () => invokeAction("toggle_active", { user_id: userId, is_active: !isActive }),
+    });
+  };
+
+  const getInitials = (name: string) =>
+    name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const isSelf = (userId: string) => currentUser?.user_id === userId;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Usuários</h1>
-          <p className="text-muted-foreground">
-            Gerencie os usuários e suas permissões
-          </p>
+          <p className="text-muted-foreground">Gerencie os usuários e suas permissões</p>
         </div>
-        <Button>
+        <Button onClick={() => setInviteOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Usuário
         </Button>
@@ -84,7 +136,7 @@ export default function Usuarios() {
         <CardContent className="pt-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground">Carregando...</p>
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : profiles?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -104,7 +156,7 @@ export default function Usuarios() {
               </TableHeader>
               <TableBody>
                 {profiles?.map((profile) => (
-                  <TableRow key={profile.id}>
+                  <TableRow key={profile.id} className={!profile.is_active ? "opacity-50" : ""}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -113,25 +165,21 @@ export default function Usuarios() {
                             {getInitials(profile.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{profile.name}</span>
+                        <div>
+                          <span className="font-medium">{profile.name}</span>
+                          {isSelf(profile.user_id) && (
+                            <span className="ml-2 text-xs text-muted-foreground">(você)</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{profile.email}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={(profile as any).role === "admin" ? "default" : "secondary"}
-                        className="gap-1"
-                      >
-                        {(profile as any).role === "admin" ? (
-                          <>
-                            <Shield className="h-3 w-3" />
-                            Admin
-                          </>
+                      <Badge variant={profile.role === "admin" ? "default" : "secondary"} className="gap-1">
+                        {profile.role === "admin" ? (
+                          <><Shield className="h-3 w-3" /> Admin</>
                         ) : (
-                          <>
-                            <User className="h-3 w-3" />
-                            Operador
-                          </>
+                          <><User className="h-3 w-3" /> Operador</>
                         )}
                       </Badge>
                     </TableCell>
@@ -141,9 +189,39 @@ export default function Usuarios() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        Editar
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={!!actionLoading}
+                          >
+                            {actionLoading?.includes(profile.user_id) ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreHorizontal className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleChangeRole(profile.user_id, profile.role)}
+                            disabled={isSelf(profile.user_id)}
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            {profile.role === "admin" ? "Tornar Operador" : "Tornar Admin"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleToggleActive(profile.user_id, profile.is_active)}
+                            disabled={isSelf(profile.user_id)}
+                            className={profile.is_active ? "text-destructive" : ""}
+                          >
+                            <UserCog className="mr-2 h-4 w-4" />
+                            {profile.is_active ? "Desativar Conta" : "Ativar Conta"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -152,6 +230,30 @@ export default function Usuarios() {
           )}
         </CardContent>
       </Card>
+
+      <InviteUserModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["users-with-roles"] })}
+      />
+
+      <AlertDialog open={confirmDialog.open} onOpenChange={(v) => !v && setConfirmDialog((p) => ({ ...p, open: false }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              confirmDialog.onConfirm();
+              setConfirmDialog((p) => ({ ...p, open: false }));
+            }}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
