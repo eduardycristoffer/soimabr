@@ -71,7 +71,7 @@ export default function StepCommercial({ data, updateData, onNext, onPrev }: Pro
         <div className="space-y-2 md:col-span-2">
           <Label>Observações</Label>
           <Textarea
-            placeholder="Notas adicionais do orçamento..."
+            placeholder="Notas adicionais da proposta..."
             className="resize-none"
             rows={3}
             value={data.notes}

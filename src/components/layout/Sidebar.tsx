@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Clientes", href: "/clientes", icon: Users },
   { title: "Pipeline", href: "/pipeline", icon: Kanban },
-  { title: "Orçamentos", href: "/orcamentos", icon: FileText },
+  { title: "Propostas", href: "/orcamentos", icon: FileText },
   { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Aprovações", href: "/aprovacoes", icon: CheckCircle2, adminOnly: true },
   { title: "Regras de Desconto", href: "/regras-desconto", icon: Percent, adminOnly: true },

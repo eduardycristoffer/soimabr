@@ -132,7 +132,7 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
       {needsApproval && (
         <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm">
           <Send className="h-4 w-4 shrink-0" />
-          <span>Este orçamento requer aprovação de desconto por um administrador antes de ser finalizado.</span>
+          <span>Esta proposta requer aprovação de desconto por um administrador antes de ser finalizada.</span>
         </div>
       )}
 
@@ -154,7 +154,7 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Finalizar Orçamento
+              Finalizar Proposta
             </Button>
           )}
         </div>

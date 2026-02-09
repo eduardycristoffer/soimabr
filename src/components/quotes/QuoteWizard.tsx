@@ -137,9 +137,9 @@ export default function QuoteWizard({ onClose }: Props) {
     },
     onSuccess: ({ quoteNumber, mode }) => {
       const messages = {
-        finalized: { title: "Orçamento finalizado!", description: `Número: ${quoteNumber}` },
+        finalized: { title: "Proposta finalizada!", description: `Número: ${quoteNumber}` },
         draft: { title: "Rascunho salvo!", description: `Número: ${quoteNumber}` },
-        request_approval: { title: "Enviado para aprovação!", description: `Orçamento ${quoteNumber} aguardando aprovação de desconto.` },
+        request_approval: { title: "Enviado para aprovação!", description: `Proposta ${quoteNumber} aguardando aprovação de desconto.` },
       };
       toast(messages[mode]);
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
@@ -150,7 +150,7 @@ export default function QuoteWizard({ onClose }: Props) {
     },
     onError: (error) => {
       toast({
-        title: "Erro ao salvar orçamento",
+        title: "Erro ao salvar proposta",
         description: error.message,
         variant: "destructive",
       });
@@ -165,7 +165,7 @@ export default function QuoteWizard({ onClose }: Props) {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Novo Orçamento</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Nova Proposta Comercial</h1>
           <p className="text-sm text-muted-foreground">
             Etapa {wizard.step} de 8 — {WIZARD_STEPS[wizard.step - 1].description}
           </p>

@@ -128,11 +128,11 @@ export default function ClientDetailModal({ open, onOpenChange, client }: Client
 
           <Separator />
 
-          {/* Orçamentos vinculados */}
+          {/* Propostas vinculadas */}
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold">Orçamentos ({quotes?.length ?? 0})</h4>
+            <h4 className="text-sm font-semibold">Propostas ({quotes?.length ?? 0})</h4>
             {!quotes || quotes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum orçamento vinculado</p>
+              <p className="text-sm text-muted-foreground">Nenhuma proposta vinculada</p>
             ) : (
               <div className="space-y-2">
                 {quotes.map((q) => (

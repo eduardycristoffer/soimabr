@@ -86,7 +86,7 @@ export default function Login() {
             Gestão Comercial de Gruas
           </h2>
           <p className="mt-2 text-lg text-white/80">
-            Pipeline de vendas, orçamentos e propostas comerciais em um só lugar.
+            Pipeline de vendas e propostas comerciais em um só lugar.
           </p>
         </div>
       </div>
