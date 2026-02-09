@@ -1,23 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, AlertTriangle } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Search, Package, AlertTriangle, MoreHorizontal, Pencil, Power } from "lucide-react";
 import { Product, ProductCategory } from "@/types";
 import { Navigate } from "react-router-dom";
+import ProductFormModal from "@/components/products/ProductFormModal";
 
 const categoryLabels: Record<ProductCategory, string> = {
   grua: "🏗️ Gruas",
@@ -29,55 +30,75 @@ const categoryLabels: Record<ProductCategory, string> = {
 };
 
 const categoryOrder: ProductCategory[] = [
-  "grua",
-  "configuracao",
-  "torre",
-  "tramo",
-  "chassis",
-  "acessorio",
+  "grua", "configuracao", "torre", "tramo", "chassis", "acessorio",
 ];
 
 export default function Produtos() {
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<ProductCategory | "all">("all");
+  const [showInactive, setShowInactive] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Redirecionar se não for admin
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ["products", search, category],
+    queryKey: ["products", search, category, showInactive],
     queryFn: async () => {
       let query = supabase
         .from("products")
         .select("*")
-        .eq("is_active", true)
         .order("categoria")
         .order("nome");
-
+      if (!showInactive) {
+        query = query.eq("is_active", true);
+      }
       if (search) {
         query = query.or(`nome.ilike.%${search}%,codigo.ilike.%${search}%`);
       }
-
       if (category !== "all") {
         query = query.eq("categoria", category);
       }
-
       const { data, error } = await query;
       if (error) throw error;
       return data as Product[];
     },
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: isActive })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { isActive }) => {
+      toast({ title: isActive ? "Produto ativado!" : "Produto desativado!" });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (error) => {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    },
+  });
+
   const needsReviewCount = products?.filter((p) => p.needs_review).length || 0;
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(price);
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
+
+  const handleEdit = (product: Product) => {
+    setSelectedProduct(product);
+    setFormOpen(true);
+  };
+
+  const handleNew = () => {
+    setSelectedProduct(null);
+    setFormOpen(true);
   };
 
   return (
@@ -96,12 +117,18 @@ export default function Produtos() {
               {needsReviewCount} sem preço
             </Badge>
           )}
-          <Button>
+          <Button onClick={handleNew}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Produto
           </Button>
         </div>
       </div>
+
+      <ProductFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        product={selectedProduct}
+      />
 
       <Card>
         <CardHeader className="pb-4">
@@ -115,20 +142,26 @@ export default function Produtos() {
                 className="pl-9"
               />
             </div>
-            <Tabs
-              value={category}
-              onValueChange={(v) => setCategory(v as ProductCategory | "all")}
-              className="w-full md:w-auto"
-            >
-              <TabsList className="flex-wrap">
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                {categoryOrder.map((cat) => (
-                  <TabsTrigger key={cat} value={cat}>
-                    {categoryLabels[cat]}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+                Inativos
+              </label>
+              <Tabs
+                value={category}
+                onValueChange={(v) => setCategory(v as ProductCategory | "all")}
+                className="w-auto"
+              >
+                <TabsList className="flex-wrap">
+                  <TabsTrigger value="all">Todos</TabsTrigger>
+                  {categoryOrder.map((cat) => (
+                    <TabsTrigger key={cat} value={cat}>
+                      {categoryLabels[cat]}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -153,12 +186,13 @@ export default function Produtos() {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products?.map((product) => (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} className={!product.is_active ? "opacity-50" : ""}>
                     <TableCell className="font-mono text-sm">
                       {product.codigo}
                     </TableCell>
@@ -182,10 +216,34 @@ export default function Produtos() {
                     <TableCell className="text-right font-medium">
                       {formatPrice(product.preco)}
                     </TableCell>
+                    <TableCell>
+                      <Badge variant={product.is_active ? "default" : "secondary"}>
+                        {product.is_active ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        Editar
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(product)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => toggleActiveMutation.mutate({
+                              id: product.id,
+                              isActive: !product.is_active,
+                            })}
+                          >
+                            <Power className="mr-2 h-4 w-4" />
+                            {product.is_active ? "Desativar" : "Ativar"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

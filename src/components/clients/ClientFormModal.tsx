@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,32 +7,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { isValidCNPJ, isValidCPF, formatCNPJ, formatCPF, formatPhone } from "@/lib/validators";
-import { ClientType } from "@/types";
+import { Client, ClientType } from "@/types";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Globe, Loader2 } from "lucide-react";
@@ -91,6 +78,7 @@ type ClientFormData = z.infer<typeof clientSchema>;
 interface ClientFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  client?: Client | null;
 }
 
 const ESTADOS_BR = [
@@ -98,14 +86,49 @@ const ESTADOS_BR = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
-export default function ClientFormModal({ open, onOpenChange }: ClientFormModalProps) {
+export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [clientType, setClientType] = useState<ClientType>("nacional");
+  const isEditing = !!client;
+  const [clientType, setClientType] = useState<ClientType>(client?.client_type || "nacional");
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
-    defaultValues: {
+    defaultValues: getDefaultValues(client),
+  });
+
+  useEffect(() => {
+    if (open) {
+      const defaults = getDefaultValues(client);
+      form.reset(defaults);
+      setClientType(defaults.client_type as ClientType);
+    }
+  }, [open, client]);
+
+  function getDefaultValues(c?: Client | null): ClientFormData {
+    if (c) {
+      return {
+        client_type: c.client_type as ClientType,
+        razao_social: c.razao_social,
+        nome_fantasia: c.nome_fantasia || "",
+        cnpj: c.cnpj || "",
+        cpf: c.cpf || "",
+        inscricao_estadual: c.inscricao_estadual || "",
+        tax_id: c.tax_id || "",
+        email: c.email || "",
+        telefone: c.telefone || "",
+        contato_nome: c.contato_nome || "",
+        contato_email: c.contato_email || "",
+        contato_telefone: c.contato_telefone || "",
+        endereco: c.endereco || "",
+        cidade: c.cidade || "",
+        estado: c.estado || "",
+        cep: c.cep || "",
+        pais: c.pais || "Brasil",
+        observacoes: c.observacoes || "",
+      } as ClientFormData;
+    }
+    return {
       client_type: "nacional",
       razao_social: "",
       nome_fantasia: "",
@@ -123,15 +146,15 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
       cep: "",
       pais: "Brasil",
       observacoes: "",
-    },
-  });
+    } as ClientFormData;
+  }
 
   const mutation = useMutation({
     mutationFn: async (data: ClientFormData) => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("clients").insert([{
+      const payload = {
         razao_social: data.razao_social,
         nome_fantasia: data.nome_fantasia || null,
         client_type: data.client_type,
@@ -150,20 +173,32 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
         cep: data.client_type === "nacional" ? (data.cep || null) : null,
         pais: data.pais,
         observacoes: data.observacoes || null,
-        created_by: session.session.user.id,
-      }]);
+      };
 
-      if (error) throw error;
+      if (isEditing) {
+        const { error } = await supabase
+          .from("clients")
+          .update(payload)
+          .eq("id", client!.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("clients").insert([{
+          ...payload,
+          created_by: session.session.user.id,
+        }]);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast({ title: "Cliente criado com sucesso!" });
+      toast({ title: isEditing ? "Cliente atualizado!" : "Cliente criado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       form.reset();
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
-        title: "Erro ao criar cliente",
+        title: isEditing ? "Erro ao atualizar cliente" : "Erro ao criar cliente",
         description: error.message,
         variant: "destructive",
       });
@@ -185,8 +220,10 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Cliente</DialogTitle>
-          <DialogDescription>Preencha os dados do cliente</DialogDescription>
+          <DialogTitle>{isEditing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Atualize os dados do cliente" : "Preencha os dados do cliente"}
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs value={clientType} onValueChange={handleTabChange}>
@@ -210,7 +247,6 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                     <FormMessage />
                   </FormItem>
                 )} />
-
                 <FormField control={form.control} name="nome_fantasia" render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel>Nome Fantasia</FormLabel>
@@ -227,30 +263,20 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                     <FormItem>
                       <FormLabel>CNPJ</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="00.000.000/0000-00"
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(formatCNPJ(e.target.value))}
-                        />
+                        <Input placeholder="00.000.000/0000-00" value={field.value || ""} onChange={(e) => field.onChange(formatCNPJ(e.target.value))} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-
                   <FormField control={form.control} name="cpf" render={({ field }) => (
                     <FormItem>
                       <FormLabel>CPF</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="000.000.000-00"
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(formatCPF(e.target.value))}
-                        />
+                        <Input placeholder="000.000.000-00" value={field.value || ""} onChange={(e) => field.onChange(formatCPF(e.target.value))} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-
                   <FormField control={form.control} name="inscricao_estadual" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Inscrição Estadual</FormLabel>
@@ -271,7 +297,6 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                       <FormMessage />
                     </FormItem>
                   )} />
-
                   <FormField control={form.control} name="pais" render={({ field }) => (
                     <FormItem>
                       <FormLabel>País *</FormLabel>
@@ -293,16 +318,11 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                       <FormMessage />
                     </FormItem>
                   )} />
-
                   <FormField control={form.control} name="telefone" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="(00) 00000-0000"
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                        />
+                        <Input placeholder="(00) 00000-0000" value={field.value || ""} onChange={(e) => field.onChange(formatPhone(e.target.value))} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -332,11 +352,7 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                     <FormItem>
                       <FormLabel>Telefone</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="(00) 00000-0000"
-                          value={field.value || ""}
-                          onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                        />
+                        <Input placeholder="(00) 00000-0000" value={field.value || ""} onChange={(e) => field.onChange(formatPhone(e.target.value))} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -429,7 +445,7 @@ export default function ClientFormModal({ open, onOpenChange }: ClientFormModalP
                 </Button>
                 <Button type="submit" disabled={mutation.isPending}>
                   {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Cliente
+                  {isEditing ? "Atualizar" : "Salvar Cliente"}
                 </Button>
               </div>
             </form>
