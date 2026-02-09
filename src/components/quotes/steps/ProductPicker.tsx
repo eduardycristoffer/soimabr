@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Plus, Minus, Trash2 } from "lucide-react";
 import { ProductCategory } from "@/types";
 
@@ -31,6 +31,7 @@ interface Props {
 
 export default function ProductPicker({ categories, items, onItemsChange, title, onNext, onPrev, currency = "BRL" }: Props) {
   const [search, setSearch] = useState("");
+  const { isAdmin } = useAuth();
 
   const { data: products } = useQuery({
     queryKey: ["products-picker", categories, search],
@@ -135,7 +136,7 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                     <p className="font-medium truncate">{p.nome}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-2 shrink-0">
-                    <span className="text-sm font-medium">{formatCurrency(p.preco)}</span>
+                    {isAdmin && <span className="text-sm font-medium">{formatCurrency(p.preco)}</span>}
                     <Plus className="h-4 w-4 text-primary" />
                   </div>
                 </div>
@@ -160,7 +161,8 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{item.product_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.product_code} · {formatCurrency(item.unit_price)}/un
+                          {item.product_code}
+                          {isAdmin && ` · ${formatCurrency(item.unit_price)}/un`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 ml-2">

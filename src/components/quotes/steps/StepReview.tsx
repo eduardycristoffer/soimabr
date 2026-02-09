@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, CheckCircle2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Save, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -19,13 +20,14 @@ interface Props {
   subtotal: number;
   discountValue: number;
   total: number;
+  needsApproval: boolean;
   onPrev: () => void;
   onSaveDraft: () => void;
   onFinalize: () => void;
   isSaving: boolean;
 }
 
-export default function StepReview({ data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize, isSaving }: Props) {
+export default function StepReview({ data, subtotal, discountValue, total, needsApproval, onPrev, onSaveDraft, onFinalize, isSaving }: Props) {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
 
@@ -54,6 +56,16 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
 
   return (
     <div className="space-y-6">
+      {/* Approval warning */}
+      {needsApproval && (
+        <Alert>
+          <Clock className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Desconto requer aprovação.</strong> O orçamento será salvo como rascunho e um pedido de aprovação será enviado automaticamente ao administrador. Você não poderá finalizar até a aprovação.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left column */}
         <div className="space-y-4">
@@ -113,7 +125,14 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
                 </div>
                 {data.discount_percent > 0 && (
                   <div className="flex justify-between text-destructive">
-                    <span>Desconto ({data.discount_percent}%)</span>
+                    <span className="flex items-center gap-1">
+                      Desconto ({data.discount_percent}%)
+                      {needsApproval && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-300 text-amber-600">
+                          <Clock className="h-2.5 w-2.5 mr-0.5" /> Pendente
+                        </Badge>
+                      )}
+                    </span>
                     <span className="font-medium">-{formatCurrency(discountValue)}</span>
                   </div>
                 )}
@@ -133,13 +152,15 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
           <Button variant="outline" onClick={onSaveDraft} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Salvar Rascunho
+            {needsApproval ? "Salvar e Solicitar Aprovação" : "Salvar Rascunho"}
           </Button>
-          <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Finalizar Orçamento
-          </Button>
+          {!needsApproval && (
+            <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Finalizar Orçamento
+            </Button>
+          )}
         </div>
       </div>
     </div>

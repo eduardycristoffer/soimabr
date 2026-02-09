@@ -134,6 +134,56 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_approval_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_notes: string | null
+          discount_percent: number
+          id: string
+          justification: string
+          quote_id: string
+          requested_at: string
+          requested_by: string
+          status: Database["public"]["Enums"]["approval_status"]
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_notes?: string | null
+          discount_percent: number
+          id?: string
+          justification: string
+          quote_id: string
+          requested_at?: string
+          requested_by: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_notes?: string | null
+          discount_percent?: number
+          id?: string
+          justification?: string
+          quote_id?: string
+          requested_at?: string
+          requested_by?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discount_approval_requests_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_rules: {
         Row: {
           created_at: string
@@ -594,6 +644,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operator"
+      approval_status: "pending" | "approved" | "rejected"
       client_type: "nacional" | "internacional"
       currency: "BRL" | "USD" | "EUR"
       product_category:
@@ -732,6 +783,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operator"],
+      approval_status: ["pending", "approved", "rejected"],
       client_type: ["nacional", "internacional"],
       currency: ["BRL", "USD", "EUR"],
       product_category: [
