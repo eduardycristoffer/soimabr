@@ -40,7 +40,6 @@ export interface QuoteWizardData {
 
   // Step 7 - Discount
   discount_percent: number;
-  discount_justification: string;
 }
 
 const INITIAL_DATA: QuoteWizardData = {
@@ -58,7 +57,6 @@ const INITIAL_DATA: QuoteWizardData = {
   validity_days: 30,
   notes: "",
   discount_percent: 0,
-  discount_justification: "",
 };
 
 export const WIZARD_STEPS = [

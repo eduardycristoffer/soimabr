@@ -11,7 +11,6 @@ import {
   LogOut,
   ChevronLeft,
   Percent,
-  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,7 +26,6 @@ const navItems: NavItem[] = [
   { title: "Orçamentos", href: "/orcamentos", icon: FileText },
   { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Regras de Desconto", href: "/regras-desconto", icon: Percent, adminOnly: true },
-  { title: "Aprovações", href: "/aprovacoes", icon: ShieldCheck, adminOnly: true },
   { title: "Usuários", href: "/usuarios", icon: UserCog, adminOnly: true },
   { title: "Auditoria", href: "/auditoria", icon: ClipboardList, adminOnly: true },
 ];
