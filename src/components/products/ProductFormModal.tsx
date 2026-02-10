@@ -19,12 +19,15 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 
 const productSchema = z.object({
   codigo: z.string().trim().min(1, "Código é obrigatório").max(50),
   nome: z.string().trim().min(2, "Nome é obrigatório").max(200),
   descricao: z.string().trim().max(1000).optional().or(z.literal("")),
+  descricao_tecnica: z.string().trim().max(5000).optional().or(z.literal("")),
+  show_tech_desc_pdf: z.boolean(),
   categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"]),
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
   preco: z.coerce.number().min(0, "Preço não pode ser negativo"),
@@ -68,6 +71,8 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         codigo: p.codigo,
         nome: p.nome,
         descricao: p.descricao || "",
+        descricao_tecnica: (p as any).descricao_tecnica || "",
+        show_tech_desc_pdf: (p as any).show_tech_desc_pdf ?? false,
         categoria: p.categoria,
         unidade: p.unidade,
         preco: p.preco,
@@ -77,6 +82,8 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       codigo: "",
       nome: "",
       descricao: "",
+      descricao_tecnica: "",
+      show_tech_desc_pdf: false,
       categoria: "acessorio",
       unidade: "UN",
       preco: 0,
@@ -89,6 +96,8 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         codigo: data.codigo,
         nome: data.nome,
         descricao: data.descricao || null,
+        descricao_tecnica: data.descricao_tecnica || null,
+        show_tech_desc_pdf: data.show_tech_desc_pdf,
         categoria: data.categoria,
         unidade: data.unidade,
         preco: data.preco,
@@ -124,7 +133,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           <DialogDescription>
@@ -173,6 +182,25 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                 <FormLabel>Descrição</FormLabel>
                 <FormControl><Textarea placeholder="Descrição do produto..." className="resize-none" rows={2} {...field} /></FormControl>
                 <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="descricao_tecnica" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descrição Técnica</FormLabel>
+                <FormControl><Textarea placeholder="Descrição técnica detalhada do produto..." className="resize-none" rows={4} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="show_tech_desc_pdf" render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <FormLabel className="text-sm font-normal cursor-pointer">
+                  Exibir descrição técnica no PDF da proposta
+                </FormLabel>
               </FormItem>
             )} />
 

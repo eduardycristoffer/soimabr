@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Percent,
   CheckCircle2,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { title: "Regras de Desconto", href: "/regras-desconto", icon: Percent, adminOnly: true },
   { title: "Usuários", href: "/usuarios", icon: UserCog, adminOnly: true },
   { title: "Auditoria", href: "/auditoria", icon: ClipboardList, adminOnly: true },
+  { title: "Empresa", href: "/configuracao-empresa", icon: Building2, adminOnly: true },
 ];
 
 export function Sidebar() {

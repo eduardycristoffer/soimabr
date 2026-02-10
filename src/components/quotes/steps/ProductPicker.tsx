@@ -27,9 +27,10 @@ interface Props {
   onNext: () => void;
   onPrev: () => void;
   currency?: string;
+  hideNav?: boolean;
 }
 
-export default function ProductPicker({ categories, items, onItemsChange, title, onNext, onPrev, currency = "BRL" }: Props) {
+export default function ProductPicker({ categories, items, onItemsChange, title, onNext, onPrev, currency = "BRL", hideNav }: Props) {
   const [search, setSearch] = useState("");
   const { isAdmin } = useAuth();
 
@@ -190,10 +191,12 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
         </div>
       </div>
 
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onPrev}>Voltar</Button>
-        <Button onClick={onNext}>Próximo</Button>
-      </div>
+      {!hideNav && (
+        <div className="flex justify-between pt-4">
+          <Button variant="outline" onClick={onPrev}>Voltar</Button>
+          <Button onClick={onNext}>Próximo</Button>
+        </div>
+      )}
     </div>
   );
 }

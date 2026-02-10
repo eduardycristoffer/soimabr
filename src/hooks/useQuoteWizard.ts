@@ -30,6 +30,12 @@ export interface QuoteWizardData {
   // Step 5 - Accessories
   accessories: QuoteItemDraft[];
 
+  // Step 3b - Grua specs (per quote, not per product)
+  grua_lanca_m: number | null;
+  grua_altura_torre_m: number | null;
+  grua_carga_maxima_kg: number | null;
+  grua_carga_ponta_kg: number | null;
+
   // Step 6 - Commercial
   currency: Currency;
   delivery_time: string;
@@ -51,6 +57,10 @@ const INITIAL_DATA: QuoteWizardData = {
   equipment: [],
   components: [],
   accessories: [],
+  grua_lanca_m: null,
+  grua_altura_torre_m: null,
+  grua_carga_maxima_kg: null,
+  grua_carga_ponta_kg: null,
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",
