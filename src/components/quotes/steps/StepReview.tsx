@@ -80,6 +80,20 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             </CardContent>
           </Card>
 
+          {(data.grua_lanca_m || data.grua_altura_torre_m || data.grua_carga_maxima_kg || data.grua_carga_ponta_kg) && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Especificações da Grua</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm space-y-1">
+                {data.grua_lanca_m && <p><span className="text-muted-foreground">Lança:</span> {data.grua_lanca_m} m</p>}
+                {data.grua_altura_torre_m && <p><span className="text-muted-foreground">Altura da torre:</span> {data.grua_altura_torre_m} m</p>}
+                {data.grua_carga_maxima_kg && <p><span className="text-muted-foreground">Carga máxima:</span> {data.grua_carga_maxima_kg} kg</p>}
+                {data.grua_carga_ponta_kg && <p><span className="text-muted-foreground">Carga na ponta:</span> {data.grua_carga_ponta_kg} kg</p>}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Condições Comerciais</CardTitle>

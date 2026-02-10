@@ -15,6 +15,7 @@ import Usuarios from "@/pages/Usuarios";
 import Auditoria from "@/pages/Auditoria";
 import RegrasDesconto from "@/pages/RegrasDesconto";
 import Aprovacoes from "@/pages/Aprovacoes";
+import ConfiguracaoEmpresa from "@/pages/ConfiguracaoEmpresa";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/regras-desconto" element={<RegrasDesconto />} />
               <Route path="/aprovacoes" element={<Aprovacoes />} />
               <Route path="/auditoria" element={<Auditoria />} />
+              <Route path="/configuracao-empresa" element={<ConfiguracaoEmpresa />} />
             </Route>
             
             {/* Redirect root to dashboard */}

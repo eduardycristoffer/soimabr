@@ -134,6 +134,51 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          company_name: string
+          crea_registration: string | null
+          created_at: string
+          email: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          razao_social: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string
+          crea_registration?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          razao_social?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string
+          crea_registration?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          razao_social?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       discount_approval_requests: {
         Row: {
           created_at: string
@@ -374,11 +419,13 @@ export type Database = {
           codigo: string
           created_at: string
           descricao: string | null
+          descricao_tecnica: string | null
           id: string
           is_active: boolean
           needs_review: boolean
           nome: string
           preco: number
+          show_tech_desc_pdf: boolean
           unidade: string
           updated_at: string
         }
@@ -387,11 +434,13 @@ export type Database = {
           codigo: string
           created_at?: string
           descricao?: string | null
+          descricao_tecnica?: string | null
           id?: string
           is_active?: boolean
           needs_review?: boolean
           nome: string
           preco?: number
+          show_tech_desc_pdf?: boolean
           unidade?: string
           updated_at?: string
         }
@@ -400,11 +449,13 @@ export type Database = {
           codigo?: string
           created_at?: string
           descricao?: string | null
+          descricao_tecnica?: string | null
           id?: string
           is_active?: boolean
           needs_review?: boolean
           nome?: string
           preco?: number
+          show_tech_desc_pdf?: boolean
           unidade?: string
           updated_at?: string
         }
@@ -518,6 +569,10 @@ export type Database = {
           discount_value: number
           finalized_at: string | null
           freight_terms: string | null
+          grua_altura_torre_m: number | null
+          grua_carga_maxima_kg: number | null
+          grua_carga_ponta_kg: number | null
+          grua_lanca_m: number | null
           id: string
           lead_id: string | null
           notes: string | null
@@ -547,6 +602,10 @@ export type Database = {
           discount_value?: number
           finalized_at?: string | null
           freight_terms?: string | null
+          grua_altura_torre_m?: number | null
+          grua_carga_maxima_kg?: number | null
+          grua_carga_ponta_kg?: number | null
+          grua_lanca_m?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -576,6 +635,10 @@ export type Database = {
           discount_value?: number
           finalized_at?: string | null
           freight_terms?: string | null
+          grua_altura_torre_m?: number | null
+          grua_carga_maxima_kg?: number | null
+          grua_carga_ponta_kg?: number | null
+          grua_lanca_m?: number | null
           id?: string
           lead_id?: string | null
           notes?: string | null

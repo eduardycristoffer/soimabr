@@ -75,11 +75,31 @@ Deno.serve(async (req) => {
       .eq("user_id", quote.created_by)
       .single();
 
-    // Generate HTML for the PDF
-    const html = generateQuoteHTML(quote, items || [], creator);
+    // Fetch company settings
+    const { data: company } = await supabase
+      .from("company_settings")
+      .select("*")
+      .limit(1)
+      .single();
 
-    // Use Lovable AI gateway to... no, we'll return HTML and let the client print
-    // Actually, return the HTML content that the client can use with window.print()
+    // Fetch products for tech descriptions
+    const productIds = (items || []).map((i: any) => i.product_id).filter(Boolean);
+    let productsMap: Record<string, any> = {};
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, descricao_tecnica, show_tech_desc_pdf")
+        .in("id", productIds);
+      if (products) {
+        for (const p of products) {
+          productsMap[p.id] = p;
+        }
+      }
+    }
+
+    // Generate HTML for the PDF
+    const html = generateQuoteHTML(quote, items || [], creator, company, productsMap);
+
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -92,7 +112,7 @@ Deno.serve(async (req) => {
   }
 });
 
-function generateQuoteHTML(quote: any, items: any[], creator: any) {
+function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>) {
   const formatCurrency = (value: number) => {
     const symbols: Record<string, string> = { BRL: "R$", USD: "US$", EUR: "€" };
     const sym = symbols[quote.currency] || quote.currency;
@@ -105,6 +125,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   };
 
   const client = quote.clients;
+  const co = company || {};
 
   const categoryLabels: Record<string, string> = {
     grua: "Grua",
@@ -126,16 +147,21 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   const categoryOrder = ["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"];
   const sortedCategories = categoryOrder.filter((c) => grouped[c]);
 
+  // Get grua item name for the tech block
+  const gruaItem = (grouped["grua"] || [])[0];
+
   let itemsHTML = "";
   let idx = 1;
   for (const cat of sortedCategories) {
     itemsHTML += `<tr class="cat-header"><td colspan="5">${categoryLabels[cat] || cat}</td></tr>`;
     for (const item of grouped[cat]) {
+      const product = productsMap[item.product_id];
+      const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
       itemsHTML += `
         <tr>
           <td class="center">${idx++}</td>
           <td>${item.product_code}</td>
-          <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}</td>
+          <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
           <td class="center">${item.quantity}</td>
           <td class="right">${formatCurrency(item.total_price)}</td>
         </tr>`;
@@ -144,6 +170,30 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
 
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
+
+  // Grua specs block
+  const hasGruaSpecs = quote.grua_lanca_m || quote.grua_altura_torre_m || quote.grua_carga_maxima_kg || quote.grua_carga_ponta_kg;
+  const gruaSpecsHTML = hasGruaSpecs ? `
+  <div class="section">
+    <div class="section-title">Partes Consideradas para a Cotação</div>
+    <div class="specs-box">
+      ${gruaItem ? `<div class="specs-product">${gruaItem.product_name}</div>` : ""}
+      <div class="specs-grid">
+        ${quote.grua_lanca_m ? `<div><span class="label">Lança:</span> <span class="value">${quote.grua_lanca_m} m</span></div>` : ""}
+        ${quote.grua_altura_torre_m ? `<div><span class="label">Altura da torre:</span> <span class="value">${quote.grua_altura_torre_m} m</span></div>` : ""}
+        ${quote.grua_carga_maxima_kg ? `<div><span class="label">Carga Máxima:</span> <span class="value">${Number(quote.grua_carga_maxima_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
+        ${quote.grua_carga_ponta_kg ? `<div><span class="label">Carga na ponta:</span> <span class="value">${Number(quote.grua_carga_ponta_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
+      </div>
+    </div>
+  </div>` : "";
+
+  // Company header info
+  const companyName = co.company_name || "SOIMA Brasil";
+  const companySubtitle = co.razao_social || "Equipamentos para Construção Civil";
+  const companyPhone = co.phone || "";
+  const companyEmail = co.email || "";
+  const companyWebsite = co.website || "";
+  const companyCrea = co.crea_registration || "";
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -157,6 +207,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0047AB; padding-bottom: 12px; margin-bottom: 16px; }
   .company { font-size: 20px; font-weight: 700; color: #0047AB; letter-spacing: 1px; }
   .company small { display: block; font-size: 10px; color: #666; font-weight: 400; letter-spacing: 0; }
+  .company-contact { font-size: 9px; color: #666; margin-top: 4px; line-height: 1.6; }
   .quote-info { text-align: right; }
   .quote-number { font-size: 16px; font-weight: 700; color: #0047AB; }
   .quote-meta { font-size: 10px; color: #666; margin-top: 4px; }
@@ -168,6 +219,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   .info-grid .label { color: #666; }
   .info-grid .value { font-weight: 500; }
 
+  .specs-box { background: #f0f4fa; border: 1px solid #c8d6e8; border-radius: 4px; padding: 10px 14px; }
+  .specs-product { font-weight: 700; font-size: 12px; color: #0047AB; margin-bottom: 6px; }
+  .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 11px; }
+  .specs-grid .label { color: #555; }
+  .specs-grid .value { font-weight: 600; }
+
   table { width: 100%; border-collapse: collapse; font-size: 10px; }
   table th { background: #0047AB; color: white; padding: 6px 8px; text-align: left; font-weight: 600; }
   table td { padding: 5px 8px; border-bottom: 1px solid #eee; }
@@ -175,6 +232,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   .cat-header td { background: #e8eef7; font-weight: 700; color: #0047AB; font-size: 10px; padding: 4px 8px; }
   .center { text-align: center; }
   .right { text-align: right; }
+  .tech-desc { color: #555; font-style: italic; display: block; margin-top: 2px; }
 
   .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
   .totals-box { width: 250px; font-size: 11px; }
@@ -185,7 +243,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   .conditions { font-size: 10px; }
   .conditions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
 
-  .footer { margin-top: 24px; border-top: 2px solid #0047AB; padding-top: 8px; font-size: 9px; color: #888; text-align: center; }
+  .footer { margin-top: 24px; border-top: 2px solid #0047AB; padding-top: 8px; font-size: 9px; color: #555; text-align: center; line-height: 1.6; }
+  .footer .company-legal { font-weight: 600; color: #333; }
   .signature { margin-top: 40px; display: flex; justify-content: space-around; }
   .sig-line { width: 200px; text-align: center; border-top: 1px solid #333; padding-top: 4px; font-size: 10px; }
 </style>
@@ -193,7 +252,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
 <body>
   <div class="header">
     <div>
-      <div class="company">SOIMA BRASIL<small>Equipamentos para Construção Civil</small></div>
+      <div class="company">${companyName.toUpperCase()}<small>${companySubtitle}</small></div>
+      <div class="company-contact">
+        ${companyPhone ? `Tel: ${companyPhone}<br>` : ""}
+        ${companyEmail ? `${companyEmail}<br>` : ""}
+        ${companyWebsite ? `${companyWebsite}<br>` : ""}
+        ${companyCrea ? `${companyCrea}` : ""}
+      </div>
     </div>
     <div class="quote-info">
       <div class="quote-number">${quote.quote_number}</div>
@@ -229,6 +294,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
     </div>
   </div>
   ` : ""}
+
+  ${gruaSpecsHTML}
 
   <div class="section">
     <div class="section-title">Itens da Proposta</div>
@@ -280,13 +347,15 @@ function generateQuoteHTML(quote: any, items: any[], creator: any) {
   </div>
 
   <div class="signature">
-    <div class="sig-line">SOIMA Brasil</div>
+    <div class="sig-line">${companyName}</div>
     <div class="sig-line">${client?.razao_social || "Cliente"}</div>
   </div>
 
   <div class="footer">
-    Documento gerado em ${formatDate(new Date().toISOString())} por ${creator?.name || "Sistema"} (${creator?.email || ""})
-    <br>SOIMA Brasil — Equipamentos para Construção Civil
+    <span class="company-legal">${co.razao_social || companyName}</span>
+    ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
+    ${co.address ? `<br>${co.address}` : ""}
+    <br>Documento gerado em ${formatDate(new Date().toISOString())} por ${creator?.name || "Sistema"} (${creator?.email || ""})
   </div>
 </body>
 </html>`;
