@@ -112,6 +112,11 @@ Deno.serve(async (req) => {
   }
 });
 
+// Logo URLs from storage
+const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo.webp";
+const YELUM_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/yelum-logo.png";
+const CREA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/crea-go-logo.webp";
+
 function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>) {
   const formatCurrency = (value: number) => {
     const symbols: Record<string, string> = { BRL: "R$", USD: "US$", EUR: "€" };
@@ -205,6 +210,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0047AB; padding-bottom: 12px; margin-bottom: 16px; }
+  .header-left { display: flex; align-items: flex-start; gap: 12px; }
+  .header-logo { height: 50px; width: auto; }
   .company { font-size: 20px; font-weight: 700; color: #0047AB; letter-spacing: 1px; }
   .company small { display: block; font-size: 10px; color: #666; font-weight: 400; letter-spacing: 0; }
   .company-contact { font-size: 9px; color: #666; margin-top: 4px; line-height: 1.6; }
@@ -244,6 +251,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   .conditions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
 
   .footer { margin-top: 24px; border-top: 2px solid #0047AB; padding-top: 8px; font-size: 9px; color: #555; text-align: center; line-height: 1.6; }
+  .footer-logos { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 10px; }
+  .footer-logos img { height: 40px; width: auto; }
   .footer .company-legal { font-weight: 600; color: #333; }
   .signature { margin-top: 40px; display: flex; justify-content: space-around; }
   .sig-line { width: 200px; text-align: center; border-top: 1px solid #333; padding-top: 4px; font-size: 10px; }
@@ -251,13 +260,16 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="company">${companyName.toUpperCase()}<small>${companySubtitle}</small></div>
-      <div class="company-contact">
-        ${companyPhone ? `Tel: ${companyPhone}<br>` : ""}
-        ${companyEmail ? `${companyEmail}<br>` : ""}
-        ${companyWebsite ? `${companyWebsite}<br>` : ""}
-        ${companyCrea ? `${companyCrea}` : ""}
+    <div class="header-left">
+      <img src="${SOIMA_LOGO_URL}" alt="SOIMA" class="header-logo" />
+      <div>
+        <div class="company">${companyName.toUpperCase()}<small>${companySubtitle}</small></div>
+        <div class="company-contact">
+          ${companyPhone ? `Tel: ${companyPhone}<br>` : ""}
+          ${companyEmail ? `${companyEmail}<br>` : ""}
+          ${companyWebsite ? `${companyWebsite}<br>` : ""}
+          ${companyCrea ? `${companyCrea}` : ""}
+        </div>
       </div>
     </div>
     <div class="quote-info">
@@ -356,6 +368,10 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
     ${co.address ? `<br>${co.address}` : ""}
     <br>Documento gerado em ${formatDate(new Date().toISOString())} por ${creator?.name || "Sistema"} (${creator?.email || ""})
+    <div class="footer-logos">
+      <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
+      <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
+    </div>
   </div>
 </body>
 </html>`;
