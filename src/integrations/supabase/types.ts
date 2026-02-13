@@ -298,6 +298,53 @@ export type Database = {
         }
         Relationships: []
       }
+      google_sheets_config: {
+        Row: {
+          apps_script_url: string | null
+          created_at: string
+          field_mapping: Json
+          id: string
+          is_active: boolean
+          sheet_name: string | null
+          spreadsheet_id: string | null
+          trigger_on: string
+          trigger_stage_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          apps_script_url?: string | null
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          is_active?: boolean
+          sheet_name?: string | null
+          spreadsheet_id?: string | null
+          trigger_on?: string
+          trigger_stage_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apps_script_url?: string | null
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          is_active?: boolean
+          sheet_name?: string | null
+          spreadsheet_id?: string | null
+          trigger_on?: string
+          trigger_stage_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_sheets_config_trigger_stage_id_fkey"
+            columns: ["trigger_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_histories: {
         Row: {
           action: string
@@ -443,6 +490,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      outbound_webhooks: {
+        Row: {
+          created_at: string
+          event_type: string
+          headers: Json
+          id: string
+          is_active: boolean
+          retry_count: number
+          target_url: string
+          timeout_ms: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          headers?: Json
+          id?: string
+          is_active?: boolean
+          retry_count?: number
+          target_url: string
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          headers?: Json
+          id?: string
+          is_active?: boolean
+          retry_count?: number
+          target_url?: string
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       pipeline_history: {
         Row: {
@@ -876,6 +959,66 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          secret_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          secret_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          secret_token?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          direction: string
+          endpoint: string | null
+          event_type: string | null
+          http_status: number | null
+          id: string
+          payload: Json | null
+          response: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          endpoint?: string | null
+          event_type?: string | null
+          http_status?: number | null
+          id?: string
+          payload?: Json | null
+          response?: Json | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          endpoint?: string | null
+          event_type?: string | null
+          http_status?: number | null
+          id?: string
+          payload?: Json | null
+          response?: Json | null
+          status?: string
         }
         Relationships: []
       }

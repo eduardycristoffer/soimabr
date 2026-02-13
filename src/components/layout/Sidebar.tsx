@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Building2,
   ShieldCheck,
+  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { title: "Usuários", href: "/usuarios", icon: UserCog, adminOnly: true },
   { title: "Auditoria", href: "/auditoria", icon: ClipboardList, adminOnly: true },
   { title: "Empresa", href: "/configuracao-empresa", icon: Building2, adminOnly: true },
+  { title: "Webhooks", href: "/webhooks", icon: Webhook, adminOnly: true },
 ];
 
 export function Sidebar() {

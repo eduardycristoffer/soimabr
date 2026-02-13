@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -18,23 +18,79 @@ Deno.serve(async (req) => {
     );
   }
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  let body: any;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const logEntry = {
+    direction: "inbound",
+    event_type: "lead.created",
+    endpoint: "/webhook-leads",
+    payload: body,
+    status: "success",
+    http_status: 200,
+    response: null as any,
+  };
+
+  try {
+    // Check if webhook is active
+    const { data: config } = await supabase
+      .from("webhook_configs")
+      .select("is_active, secret_token")
+      .limit(1)
+      .single();
+
+    if (config && !config.is_active) {
+      logEntry.status = "blocked";
+      logEntry.http_status = 403;
+      logEntry.response = { error: "Webhook desativado" };
+      await supabase.from("webhook_logs").insert(logEntry);
+      return new Response(
+        JSON.stringify({ error: "Webhook desativado" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate secret token if configured
+    if (config?.secret_token) {
+      const providedToken = req.headers.get("x-webhook-secret");
+      if (providedToken !== config.secret_token) {
+        logEntry.status = "blocked";
+        logEntry.http_status = 401;
+        logEntry.response = { error: "Token inválido" };
+        await supabase.from("webhook_logs").insert(logEntry);
+        return new Response(
+          JSON.stringify({ error: "Token inválido" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { name, email, phone, company_name, source, metadata } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
+      logEntry.status = "failed";
+      logEntry.http_status = 400;
+      logEntry.response = { error: "Campo 'name' é obrigatório" };
+      await supabase.from("webhook_logs").insert(logEntry);
       return new Response(
         JSON.stringify({ error: "Campo 'name' é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Find "Novo Lead" stage (stage_type = 'lead', order_index = 1)
+    // Find "Novo Lead" stage
     const { data: stage, error: stageErr } = await supabase
       .from("pipeline_stages")
       .select("id")
@@ -43,13 +99,17 @@ Deno.serve(async (req) => {
       .single();
 
     if (stageErr || !stage) {
+      logEntry.status = "failed";
+      logEntry.http_status = 500;
+      logEntry.response = { error: "Etapa 'Novo Lead' não encontrada" };
+      await supabase.from("webhook_logs").insert(logEntry);
       return new Response(
         JSON.stringify({ error: "Etapa 'Novo Lead' não encontrada" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Find first admin to assign as owner
+    // Find first admin
     const { data: adminRole } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -59,6 +119,10 @@ Deno.serve(async (req) => {
 
     const ownerId = adminRole?.user_id;
     if (!ownerId) {
+      logEntry.status = "failed";
+      logEntry.http_status = 500;
+      logEntry.response = { error: "Nenhum administrador encontrado" };
+      await supabase.from("webhook_logs").insert(logEntry);
       return new Response(
         JSON.stringify({ error: "Nenhum administrador encontrado para atribuir o lead" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -83,6 +147,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (leadErr) {
+      logEntry.status = "failed";
+      logEntry.http_status = 500;
+      logEntry.response = { error: leadErr.message };
+      await supabase.from("webhook_logs").insert(logEntry);
       return new Response(
         JSON.stringify({ error: leadErr.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,11 +173,20 @@ Deno.serve(async (req) => {
       notes: "Lead criado via webhook",
     });
 
+    logEntry.status = "success";
+    logEntry.http_status = 200;
+    logEntry.response = { success: true, lead_id: lead.id };
+    await supabase.from("webhook_logs").insert(logEntry);
+
     return new Response(
       JSON.stringify({ success: true, lead_id: lead.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    logEntry.status = "failed";
+    logEntry.http_status = 500;
+    logEntry.response = { error: err.message || "Erro interno" };
+    await supabase.from("webhook_logs").insert(logEntry).catch(() => {});
     return new Response(
       JSON.stringify({ error: err.message || "Erro interno" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

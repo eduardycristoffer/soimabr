@@ -17,6 +17,7 @@ import RegrasDesconto from "@/pages/RegrasDesconto";
 import Aprovacoes from "@/pages/Aprovacoes";
 import SolicitacoesAcesso from "@/pages/SolicitacoesAcesso";
 import ConfiguracaoEmpresa from "@/pages/ConfiguracaoEmpresa";
+import WebhooksIntegracoes from "@/pages/WebhooksIntegracoes";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/solicitacoes-acesso" element={<SolicitacoesAcesso />} />
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/configuracao-empresa" element={<ConfiguracaoEmpresa />} />
+              <Route path="/webhooks" element={<WebhooksIntegracoes />} />
             </Route>
             
             {/* Redirect root to dashboard */}
