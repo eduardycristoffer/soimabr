@@ -212,7 +212,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           .from("quotes")
           .insert({
             ...quotePayload,
-            quote_number: "TEMP", // Will be replaced by trigger
+            quote_number: "", // Empty string triggers auto-generation
             created_by: userId,
             finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
           } as any)
