@@ -152,9 +152,6 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const categoryOrder = ["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"];
   const sortedCategories = categoryOrder.filter((c) => grouped[c]);
 
-  // Get grua item name for the tech block
-  const gruaItem = (grouped["grua"] || [])[0];
-
   let itemsHTML = "";
   let idx = 1;
   for (const cat of sortedCategories) {
@@ -176,21 +173,22 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
 
-  // Grua specs block
-  const hasGruaSpecs = quote.grua_lanca_m || quote.grua_altura_torre_m || quote.grua_carga_maxima_kg || quote.grua_carga_ponta_kg || quote.grua_altura_trabalho_m;
-  const gruaSpecsHTML = hasGruaSpecs ? `
+  // Grua specs block - per item
+  const gruaItems = (grouped["grua"] || []).filter((i: any) => i.grua_lanca_m || i.grua_altura_torre_m || i.grua_carga_maxima_kg || i.grua_carga_ponta_kg || i.grua_altura_trabalho_m);
+  const gruaSpecsHTML = gruaItems.length > 0 ? `
   <div class="section">
     <div class="section-title">Partes Consideradas para a Cotação</div>
-    <div class="specs-box">
-      ${gruaItem ? `<div class="specs-product">${gruaItem.product_name}</div>` : ""}
+    ${gruaItems.map((gi: any) => `
+    <div class="specs-box" style="margin-bottom: 8px;">
+      <div class="specs-product">${gi.product_name}</div>
       <div class="specs-grid">
-        ${quote.grua_lanca_m ? `<div><span class="label">Lança:</span> <span class="value">${quote.grua_lanca_m} m</span></div>` : ""}
-        ${quote.grua_altura_torre_m ? `<div><span class="label">Altura da torre:</span> <span class="value">${quote.grua_altura_torre_m} m</span></div>` : ""}
-        ${quote.grua_carga_maxima_kg ? `<div><span class="label">Carga Máxima:</span> <span class="value">${Number(quote.grua_carga_maxima_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
-        ${quote.grua_carga_ponta_kg ? `<div><span class="label">Carga na ponta:</span> <span class="value">${Number(quote.grua_carga_ponta_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
-        ${quote.grua_altura_trabalho_m ? `<div><span class="label">Altura de Trabalho:</span> <span class="value">${quote.grua_altura_trabalho_m} m</span></div>` : ""}
+        ${gi.grua_lanca_m ? `<div><span class="label">Lança:</span> <span class="value">${gi.grua_lanca_m} m</span></div>` : ""}
+        ${gi.grua_altura_torre_m ? `<div><span class="label">Altura da torre:</span> <span class="value">${gi.grua_altura_torre_m} m</span></div>` : ""}
+        ${gi.grua_carga_maxima_kg ? `<div><span class="label">Carga Máxima:</span> <span class="value">${Number(gi.grua_carga_maxima_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
+        ${gi.grua_carga_ponta_kg ? `<div><span class="label">Carga na ponta:</span> <span class="value">${Number(gi.grua_carga_ponta_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
+        ${gi.grua_altura_trabalho_m ? `<div><span class="label">Altura de Trabalho:</span> <span class="value">${gi.grua_altura_trabalho_m} m</span></div>` : ""}
       </div>
-    </div>
+    </div>`).join("")}
   </div>` : "";
 
   // Company header info

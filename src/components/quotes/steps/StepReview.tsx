@@ -80,20 +80,20 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             </CardContent>
           </Card>
 
-      {(data.grua_lanca_m || data.grua_altura_torre_m || data.grua_carga_maxima_kg || data.grua_carga_ponta_kg || data.grua_altura_trabalho_m) && (
-            <Card>
+      {data.equipment.filter(item => item.grua_lanca_m || item.grua_altura_torre_m || item.grua_carga_maxima_kg || item.grua_carga_ponta_kg || item.grua_altura_trabalho_m).map((item) => (
+            <Card key={item.product_id}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Especificações da Grua</CardTitle>
+                <CardTitle className="text-sm">Especificações — {item.product_name}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm space-y-1">
-                {data.grua_lanca_m && <p><span className="text-muted-foreground">Lança:</span> {data.grua_lanca_m} m</p>}
-                {data.grua_altura_torre_m && <p><span className="text-muted-foreground">Altura da torre:</span> {data.grua_altura_torre_m} m</p>}
-                {data.grua_carga_maxima_kg && <p><span className="text-muted-foreground">Carga máxima:</span> {data.grua_carga_maxima_kg} kg</p>}
-                {data.grua_carga_ponta_kg && <p><span className="text-muted-foreground">Carga na ponta:</span> {data.grua_carga_ponta_kg} kg</p>}
-                {data.grua_altura_trabalho_m && <p><span className="text-muted-foreground">Altura de Trabalho:</span> {data.grua_altura_trabalho_m} m</p>}
+                {item.grua_lanca_m && <p><span className="text-muted-foreground">Lança:</span> {item.grua_lanca_m} m</p>}
+                {item.grua_altura_torre_m && <p><span className="text-muted-foreground">Altura da torre:</span> {item.grua_altura_torre_m} m</p>}
+                {item.grua_carga_maxima_kg && <p><span className="text-muted-foreground">Carga máxima:</span> {item.grua_carga_maxima_kg} kg</p>}
+                {item.grua_carga_ponta_kg && <p><span className="text-muted-foreground">Carga na ponta:</span> {item.grua_carga_ponta_kg} kg</p>}
+                {item.grua_altura_trabalho_m && <p><span className="text-muted-foreground">Altura de Trabalho:</span> {item.grua_altura_trabalho_m} m</p>}
               </CardContent>
             </Card>
-          )}
+          ))}
 
           <Card>
             <CardHeader className="pb-3">

@@ -58,6 +58,11 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
             quantity: i.quantity,
             total_price: i.total_price,
             notes: i.notes || undefined,
+            grua_lanca_m: i.grua_lanca_m ?? null,
+            grua_altura_torre_m: i.grua_altura_torre_m ?? null,
+            grua_carga_maxima_kg: i.grua_carga_maxima_kg ?? null,
+            grua_carga_ponta_kg: i.grua_carga_ponta_kg ?? null,
+            grua_altura_trabalho_m: i.grua_altura_trabalho_m ?? null,
           }));
 
       wizard.updateData({
@@ -68,11 +73,11 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
         equipment: mapItems(["grua"]),
         components: mapItems(["configuracao", "torre", "tramo", "chassis"]),
         accessories: mapItems(["acessorio"]),
-        grua_lanca_m: quote.grua_lanca_m,
-        grua_altura_torre_m: quote.grua_altura_torre_m,
-        grua_carga_maxima_kg: quote.grua_carga_maxima_kg,
-        grua_carga_ponta_kg: quote.grua_carga_ponta_kg,
-        grua_altura_trabalho_m: quote.grua_altura_trabalho_m ?? null,
+        grua_lanca_m: null,
+        grua_altura_torre_m: null,
+        grua_carga_maxima_kg: null,
+        grua_carga_ponta_kg: null,
+        grua_altura_trabalho_m: null,
         currency: quote.currency,
         delivery_time: quote.delivery_time || "",
         payment_terms: quote.payment_terms || "",
@@ -116,15 +121,17 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
       const finalStatus = mode === "finalized" ? "finalized" : "draft";
       const discountApproved = mode === "finalized" || (mode === "draft" && !needsApproval);
 
+      // Copy specs from first grua for backward compat with quotes table
+      const firstGrua = wizard.data.equipment[0];
       const quotePayload = {
         client_id: wizard.data.client_id,
         project_name: wizard.data.project_name || null,
         project_location: wizard.data.project_location || null,
-        grua_lanca_m: wizard.data.grua_lanca_m,
-        grua_altura_torre_m: wizard.data.grua_altura_torre_m,
-        grua_carga_maxima_kg: wizard.data.grua_carga_maxima_kg,
-        grua_carga_ponta_kg: wizard.data.grua_carga_ponta_kg,
-        grua_altura_trabalho_m: wizard.data.grua_altura_trabalho_m,
+        grua_lanca_m: firstGrua?.grua_lanca_m ?? null,
+        grua_altura_torre_m: firstGrua?.grua_altura_torre_m ?? null,
+        grua_carga_maxima_kg: firstGrua?.grua_carga_maxima_kg ?? null,
+        grua_carga_ponta_kg: firstGrua?.grua_carga_ponta_kg ?? null,
+        grua_altura_trabalho_m: firstGrua?.grua_altura_trabalho_m ?? null,
         currency: wizard.data.currency,
         delivery_time: wizard.data.delivery_time || null,
         payment_terms: wizard.data.payment_terms || null,
@@ -217,6 +224,11 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
           total_price: item.total_price,
           order_index: index,
           notes: item.notes || null,
+          grua_lanca_m: item.product_category === "grua" ? (item.grua_lanca_m ?? null) : null,
+          grua_altura_torre_m: item.product_category === "grua" ? (item.grua_altura_torre_m ?? null) : null,
+          grua_carga_maxima_kg: item.product_category === "grua" ? (item.grua_carga_maxima_kg ?? null) : null,
+          grua_carga_ponta_kg: item.product_category === "grua" ? (item.grua_carga_ponta_kg ?? null) : null,
+          grua_altura_trabalho_m: item.product_category === "grua" ? (item.grua_altura_trabalho_m ?? null) : null,
         }));
 
         const { error: itemsError } = await supabase

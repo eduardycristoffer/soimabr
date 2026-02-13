@@ -1,4 +1,4 @@
-import { QuoteWizardData } from "@/hooks/useQuoteWizard";
+import { QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import ProductPicker from "./ProductPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,11 @@ interface Props {
 }
 
 export default function StepEquipment({ data, updateData, onNext, onPrev }: Props) {
-  const hasGrua = data.equipment.length > 0;
+  const updateEquipmentItem = (index: number, field: keyof QuoteItemDraft, value: number | null) => {
+    const updated = [...data.equipment];
+    updated[index] = { ...updated[index], [field]: value };
+    updateData({ equipment: updated });
+  };
 
   return (
     <div className="space-y-6">
@@ -27,72 +31,67 @@ export default function StepEquipment({ data, updateData, onNext, onPrev }: Prop
         hideNav
       />
 
-      {hasGrua && (
-        <Card>
+      {data.equipment.map((item, idx) => (
+        <Card key={item.product_id}>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Especificações Técnicas da Grua</CardTitle>
+            <CardTitle className="text-sm">{item.product_name}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="grua_lanca_m">Lança (m)</Label>
+                <Label>Lança (m)</Label>
                 <Input
-                  id="grua_lanca_m"
                   type="number"
                   step="0.1"
                   placeholder="Ex: 36"
-                  value={data.grua_lanca_m ?? ""}
-                  onChange={(e) => updateData({ grua_lanca_m: e.target.value ? Number(e.target.value) : null })}
+                  value={item.grua_lanca_m ?? ""}
+                  onChange={(e) => updateEquipmentItem(idx, "grua_lanca_m", e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grua_altura_torre_m">Altura da torre (m)</Label>
+                <Label>Altura da torre (m)</Label>
                 <Input
-                  id="grua_altura_torre_m"
                   type="number"
                   step="0.1"
                   placeholder="Ex: 27"
-                  value={data.grua_altura_torre_m ?? ""}
-                  onChange={(e) => updateData({ grua_altura_torre_m: e.target.value ? Number(e.target.value) : null })}
+                  value={item.grua_altura_torre_m ?? ""}
+                  onChange={(e) => updateEquipmentItem(idx, "grua_altura_torre_m", e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grua_carga_maxima_kg">Carga máxima (kg)</Label>
+                <Label>Carga máxima (kg)</Label>
                 <Input
-                  id="grua_carga_maxima_kg"
                   type="number"
                   step="1"
                   placeholder="Ex: 6000"
-                  value={data.grua_carga_maxima_kg ?? ""}
-                  onChange={(e) => updateData({ grua_carga_maxima_kg: e.target.value ? Number(e.target.value) : null })}
+                  value={item.grua_carga_maxima_kg ?? ""}
+                  onChange={(e) => updateEquipmentItem(idx, "grua_carga_maxima_kg", e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grua_carga_ponta_kg">Carga na ponta (kg)</Label>
+                <Label>Carga na ponta (kg)</Label>
                 <Input
-                  id="grua_carga_ponta_kg"
                   type="number"
                   step="1"
                   placeholder="Ex: 1400"
-                  value={data.grua_carga_ponta_kg ?? ""}
-                  onChange={(e) => updateData({ grua_carga_ponta_kg: e.target.value ? Number(e.target.value) : null })}
+                  value={item.grua_carga_ponta_kg ?? ""}
+                  onChange={(e) => updateEquipmentItem(idx, "grua_carga_ponta_kg", e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="grua_altura_trabalho_m">Altura de Trabalho (m)</Label>
+                <Label>Altura de Trabalho (m)</Label>
                 <Input
-                  id="grua_altura_trabalho_m"
                   type="number"
                   step="0.1"
                   placeholder="Ex: 30"
-                  value={data.grua_altura_trabalho_m ?? ""}
-                  onChange={(e) => updateData({ grua_altura_trabalho_m: e.target.value ? Number(e.target.value) : null })}
+                  value={item.grua_altura_trabalho_m ?? ""}
+                  onChange={(e) => updateEquipmentItem(idx, "grua_altura_trabalho_m", e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
+      ))}
 
       <div className="flex justify-between pt-4">
         <button type="button" onClick={onPrev} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">
