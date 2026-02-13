@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const APP_URL = "https://soima.tryade.com.br";
 
-const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo.webp";
+const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo-white.webp";
 
 function getInviteEmailHTML(userName: string, verifyUrl: string): string {
   return `<!DOCTYPE html>
@@ -80,7 +80,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify user actually has must_complete_profile flag
       const { data: profileCheck } = await supabase
         .from("profiles")
         .select("must_complete_profile")
@@ -94,7 +93,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Update profile name and remove flag
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ name: name.trim(), must_complete_profile: false })
@@ -107,7 +105,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Update password and user metadata
       const { error: authError } = await supabase.auth.admin.updateUserById(user_id, {
         password,
         user_metadata: { name: name.trim(), must_set_password: false },
@@ -120,10 +117,126 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Log
       await supabase.from("security_logs").insert({
         user_id,
         action: "profile_completed",
+        ip_address: req.headers.get("x-forwarded-for") || null,
+        user_agent: req.headers.get("user-agent") || null,
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // update_own_profile requires authentication but NOT admin
+    if (action === "update_own_profile") {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Não autenticado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const anonClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(
+        authHeader.replace("Bearer ", "")
+      );
+      if (claimsError || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userId = claimsData.claims.sub;
+      const { name, current_password, new_password } = payload;
+
+      // Update name
+      if (name && typeof name === "string") {
+        if (name.trim().length < 2) {
+          return new Response(JSON.stringify({ error: "Nome deve ter pelo menos 2 caracteres" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        await supabase
+          .from("profiles")
+          .update({ name: name.trim() })
+          .eq("user_id", userId);
+
+        await supabase.auth.admin.updateUserById(userId, {
+          user_metadata: { name: name.trim() },
+        });
+      }
+
+      // Update password
+      if (current_password && new_password) {
+        if (new_password.length < 6) {
+          return new Response(JSON.stringify({ error: "Nova senha deve ter pelo menos 6 caracteres" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get user email for validation
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", userId)
+          .single();
+
+        if (!profile) {
+          return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate current password via temporary signIn
+        const tempClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        );
+        const { error: signInError } = await tempClient.auth.signInWithPassword({
+          email: profile.email,
+          password: current_password,
+        });
+
+        if (signInError) {
+          return new Response(JSON.stringify({ error: "Senha atual incorreta" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Sign out temporary session
+        await tempClient.auth.signOut();
+
+        // Update password via admin
+        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+          password: new_password,
+        });
+
+        if (updateError) {
+          return new Response(JSON.stringify({ error: updateError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      await supabase.from("security_logs").insert({
+        user_id: userId,
+        action: name ? "profile_name_updated" : "password_changed",
         ip_address: req.headers.get("x-forwarded-for") || null,
         user_agent: req.headers.get("user-agent") || null,
       });

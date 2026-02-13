@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Login from "@/pages/Login";
 import VerifyEmail from "@/pages/VerifyEmail";
+import ResetPassword from "@/pages/ResetPassword";
+import MeuPerfil from "@/pages/MeuPerfil";
 import Dashboard from "@/pages/Dashboard";
 import Clientes from "@/pages/Clientes";
 import Produtos from "@/pages/Produtos";
@@ -34,6 +36,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/auth/verify" element={<VerifyEmail />} />
+            <Route path="/auth/reset-password" element={<ResetPassword />} />
             
             {/* Protected routes */}
             <Route element={<MainLayout />}>
@@ -49,6 +52,7 @@ const App = () => (
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/configuracao-empresa" element={<ConfiguracaoEmpresa />} />
               <Route path="/webhooks" element={<WebhooksIntegracoes />} />
+              <Route path="/perfil" element={<MeuPerfil />} />
             </Route>
             
             {/* Redirect root to dashboard */}
