@@ -1,92 +1,66 @@
 
-# Especificacoes Tecnicas por Grua (Multi-Grua)
 
-## Problema Atual
+# Corrigir "Ver Detalhes" e Visibilidade do "Editar"
 
-As especificacoes tecnicas (lanca, altura torre, carga maxima, carga ponta, altura de trabalho) sao armazenadas globalmente na tabela `quotes`. Quando ha mais de uma grua na proposta, todas compartilham os mesmos valores, o que esta incorreto.
+## Problemas Identificados
+
+1. **"Ver detalhes"**: O botao nao tem nenhuma acao (`onClick`) associada. Ao clicar, o menu fecha sem fazer nada.
+2. **"Editar"**: So aparece para propostas com status `draft`. Como as propostas do usuario sao todas "Finalizado", o botao nunca e exibido.
+
+---
 
 ## Solucao
 
-Mover as especificacoes tecnicas para a tabela `quote_items`, vinculando-as a cada item de grua individualmente. Na interface, ao inves de um unico card de especificacoes, exibir um card por grua selecionada com seus campos independentes.
+### 1. Implementar "Ver Detalhes" (Modal de visualizacao)
+
+Criar um modal/dialog que exibe todas as informacoes da proposta em modo somente leitura:
+
+- **Dados do cliente** (razao social, nome fantasia)
+- **Dados do projeto** (nome, local)
+- **Itens** (equipamentos, componentes, acessorios com quantidades e precos)
+- **Especificacoes tecnicas** por grua (lanca, altura torre, cargas, altura de trabalho)
+- **Condicoes comerciais** (moeda, validade, entrega, pagamento, frete)
+- **Totais** (subtotal, desconto, total)
+- **Status e datas**
+
+O modal sera aberto ao clicar em "Ver detalhes", passando o `quote.id` para carregar os dados completos (incluindo `quote_items`).
+
+### 2. Adicionar "Duplicar" para Propostas Finalizadas
+
+Para propostas com status `finalized`, adicionar uma opcao **"Duplicar como Rascunho"** que:
+
+- Cria uma copia da proposta com status `draft`
+- Gera um novo `quote_number`
+- Abre o wizard com os dados pre-preenchidos para o usuario ajustar
+
+Isso permite que o usuario "edite" uma proposta finalizada sem alterar o original.
+
+### 3. Manter "Editar" para Rascunhos
+
+O botao "Editar" continua visivel apenas para propostas `draft`, como ja esta implementado.
 
 ---
 
-## 1. Migracao do Banco de Dados
+## Detalhes Tecnicos
 
-Adicionar 5 colunas na tabela `quote_items` para armazenar specs por item:
+### Novo componente: `QuoteDetailModal.tsx`
 
-- `grua_lanca_m NUMERIC`
-- `grua_altura_torre_m NUMERIC`
-- `grua_carga_maxima_kg NUMERIC`
-- `grua_carga_ponta_kg NUMERIC`
-- `grua_altura_trabalho_m NUMERIC`
+- Recebe `quoteId` e `open` como props
+- Busca dados da proposta + `quote_items` + `clients` via Supabase
+- Exibe as informacoes em layout semelhante ao `StepReview.tsx` (duas colunas)
+- Botao "Fechar" e opcao de "Gerar PDF" direto do modal
 
-Migrar dados existentes: copiar os valores atuais de `quotes` para o primeiro item de grua em `quote_items` (para nao perder dados).
+### Alteracoes em `Orcamentos.tsx`
 
-As colunas na tabela `quotes` serao mantidas temporariamente para compatibilidade, mas o codigo passara a ler/escrever nos items.
+- Adicionar state para controlar o modal de detalhes (`viewingQuoteId`)
+- Conectar o `onClick` do "Ver detalhes" ao state
+- Adicionar opcao "Duplicar como Rascunho" no menu de propostas finalizadas
+- Implementar funcao `handleDuplicate` que copia a proposta e abre o wizard
 
----
-
-## 2. Modelo de Dados no Frontend (`useQuoteWizard.ts`)
-
-Adicionar campos opcionais de specs ao `QuoteItemDraft`:
-
-```text
-export interface QuoteItemDraft {
-  ...campos existentes...
-  grua_lanca_m?: number | null;
-  grua_altura_torre_m?: number | null;
-  grua_carga_maxima_kg?: number | null;
-  grua_carga_ponta_kg?: number | null;
-  grua_altura_trabalho_m?: number | null;
-}
-```
-
-Remover os campos globais `grua_*` do `QuoteWizardData` (ou mante-los como fallback mas sem uso).
-
----
-
-## 3. Step Equipamento (`StepEquipment.tsx`)
-
-Ao inves de um unico card de "Especificacoes Tecnicas da Grua", renderizar **um card por grua** na lista `data.equipment`:
-
-- Titulo do card: nome da grua (ex: "Grua ascensional SGT 3610 TL TR")
-- Cada card com os 5 campos: Lanca, Altura Torre, Carga Maxima, Carga Ponta, Altura de Trabalho
-- Alteracoes atualizam o item especifico no array `equipment`
-
----
-
-## 4. Step Revisao (`StepReview.tsx`)
-
-Exibir as especificacoes de cada grua separadamente, iterando sobre `data.equipment` e mostrando os specs de cada uma.
-
----
-
-## 5. Salvamento (`QuoteWizard.tsx`)
-
-Na insercao de `quote_items`, incluir os campos `grua_*` para cada item de equipamento. Tambem manter os valores na tabela `quotes` (copiando do primeiro item) para compatibilidade com o PDF.
-
----
-
-## 6. PDF (`generate-pdf/index.ts`)
-
-Atualizar o bloco "Partes Consideradas para a Cotacao" para listar cada grua com suas especificacoes individuais, ao inves de uma unica secao global. Cada grua tera seu proprio sub-bloco com nome do produto e specs.
-
----
-
-## 7. Edicao de Proposta
-
-Na carga de proposta para edicao, ler os campos `grua_*` de cada `quote_item` e popular os dados no array `equipment`.
-
----
-
-## Arquivos Modificados
+### Arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| Migration SQL | Adicionar colunas `grua_*` em `quote_items` + migrar dados |
-| `src/hooks/useQuoteWizard.ts` | Specs no `QuoteItemDraft`, remover campos globais |
-| `src/components/quotes/steps/StepEquipment.tsx` | Card por grua |
-| `src/components/quotes/steps/StepReview.tsx` | Specs por grua na revisao |
-| `src/components/quotes/QuoteWizard.tsx` | Salvar/carregar specs por item |
-| `supabase/functions/generate-pdf/index.ts` | Specs por grua no PDF |
+| `src/components/quotes/QuoteDetailModal.tsx` | **Novo** - modal de visualizacao |
+| `src/pages/Orcamentos.tsx` | Conectar "Ver detalhes", adicionar "Duplicar" |
+
