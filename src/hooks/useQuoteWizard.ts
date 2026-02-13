@@ -50,6 +50,7 @@ export interface QuoteWizardData {
   freight_terms: string;
   validity_days: number;
   notes: string;
+  language: "pt-BR" | "en";
 
   // Step 7 - Discount
   discount_percent: number;
@@ -80,6 +81,7 @@ const INITIAL_DATA: QuoteWizardData = {
   freight_terms: "",
   validity_days: 30,
   notes: "",
+  language: "pt-BR",
   discount_percent: 0,
   discount_justification: "",
   usd_brl_rate_used: null,
