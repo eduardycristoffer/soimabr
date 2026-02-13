@@ -12,6 +12,7 @@ export type PipelineStage = Database["public"]["Tables"]["pipeline_stages"]["Row
 export type DiscountRule = Database["public"]["Tables"]["discount_rules"]["Row"];
 export type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 export type UserRole = Database["public"]["Tables"]["user_roles"]["Row"];
+export type PipelineHistory = Database["public"]["Tables"]["pipeline_history"]["Row"];
 
 // Enums
 export type AppRole = Database["public"]["Enums"]["app_role"];
@@ -37,6 +38,7 @@ export type QuoteUpdate = Database["public"]["Tables"]["quotes"]["Update"];
 export interface LeadWithStage extends Lead {
   pipeline_stages?: PipelineStage | null;
   clients?: Client | null;
+  quotes?: Quote | null;
 }
 
 export interface QuoteWithRelations extends Quote {
@@ -67,3 +69,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
 }
+
+// Lead source / origin types
+export type LeadSource = "manual" | "webhook" | "indicacao" | "outro";
+export type LeadOrigin = "manual" | "marketing" | "indicacao" | "proposal_direct";

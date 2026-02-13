@@ -1,49 +1,34 @@
 
+# Pipeline de Vendas Completo — Implementação Concluída
 
-# Adicionar Opcao de Excluir Proposta em Rascunho
+## Status: ✅ IMPLEMENTADO
 
-## Resumo
+### Fase 1 — Banco de Dados ✅
+- `pipeline_stages`: colunas `is_fixed`, `stage_type` adicionadas
+- Etapas fixas: Novo Lead, Primeiro Contato, Proposta, Fechamento - Ganho, Perdido
+- Etapas editáveis: Qualificação, Negociação, Proposta Enviada
+- `leads`: colunas `source`, `quote_id`, `metadata`, `lead_origin`
+- Tabela `pipeline_history` para auditoria
+- Trigger `prevent_fixed_stage_mutation` protege etapas fixas
+- Trigger `prevent_final_stage_move` bloqueia movimentação de etapas finais por operadores
 
-Adicionar um item "Excluir" no menu de acoes (dropdown) das propostas com status **rascunho**. Ao clicar, exibir um dialog de confirmacao antes de efetuar a exclusao.
+### Fase 2 — Propostas no Pipeline ✅
+- QuoteWizard auto-cria/atualiza card no pipeline ao salvar proposta
+- Cards diferenciados visualmente (Lead vs Proposta)
+- `lead_origin = 'proposal_direct'` para propostas sem lead prévio
 
----
+### Fase 3 — Funcionalidades de Lead ✅
+- Campo `source` no formulário de lead (manual, indicação, webhook, outro)
+- Conversão Lead → Cliente com modal dedicado
+- Webhook edge function `webhook-leads` para entrada externa
+- Gestão de etapas pelo admin (PipelineStageManager)
 
-## Implementacao
+### Fase 4 — Exportação e Melhorias ✅
+- Exportação CSV e Excel com filtros
+- Badges de tipo (Lead/Proposta), source, conversão
+- Filtro rápido por tipo (Todos/Leads/Propostas)
 
-### 1. Dialog de Confirmacao
-
-Usar `AlertDialog` para pedir confirmacao antes de excluir. Texto: "Tem certeza que deseja excluir esta proposta? Esta acao nao pode ser desfeita."
-
-### 2. Logica de Exclusao
-
-Ao confirmar:
-1. Deletar os itens relacionados em `quote_items` (WHERE `quote_id`)
-2. Deletar versoes em `quote_versions` (WHERE `quote_id`)
-3. Deletar solicitacoes de desconto em `discount_approval_requests` (WHERE `quote_id`)
-4. Deletar a proposta em `quotes` (WHERE `id` AND `status = 'draft'`)
-5. Invalidar a query `["quotes"]` para atualizar a lista
-6. Exibir toast de sucesso ou erro
-
-### 3. Menu Dropdown
-
-Adicionar item "Excluir" com icone `Trash2` no dropdown, visivel apenas quando `quote.status === "draft"`. Estilizado em vermelho (destructive).
-
----
-
-## Arquivo a Modificar
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Orcamentos.tsx` | Adicionar estado para controle do dialog, funcao de exclusao, `AlertDialog` de confirmacao, e item "Excluir" no dropdown |
-
----
-
-## Detalhes
-
-- Importar `AlertDialog` e seus subcomponentes, e o icone `Trash2`
-- Novo estado: `deletingQuoteId` (string ou null)
-- O item do menu seta `deletingQuoteId` ao clicar
-- O `AlertDialog` e controlado por `!!deletingQuoteId`
-- Ao confirmar, executa as delecoes em sequencia e fecha o dialog
-- Apenas propostas em **rascunho** mostram a opcao
-
+### Decisão: leads.quote_id
+- Representa APENAS a proposta ativa associada (1:1 por ora)
+- Novas propostas para o mesmo cliente atualizam o quote_id
+- Histórico mantido em pipeline_history

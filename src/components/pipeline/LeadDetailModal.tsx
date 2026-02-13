@@ -1,26 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Building2,
-  User,
-  Mail,
-  Phone,
-  DollarSign,
-  CalendarDays,
-  ArrowRight,
-  Trash2,
-  Pencil,
-  Clock,
+  Building2, User, Mail, Phone, DollarSign, CalendarDays,
+  ArrowRight, Trash2, Pencil, Clock, UserCheck, FileText, Globe, Megaphone,
 } from "lucide-react";
 import { Lead, PipelineStage } from "@/types";
 import { format } from "date-fns";
@@ -29,10 +17,11 @@ import { ptBR } from "date-fns/locale";
 interface LeadDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lead: (Lead & { pipeline_stages?: PipelineStage | null }) | null;
+  lead: (Lead & { pipeline_stages?: PipelineStage | null; quotes?: any }) | null;
   isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onConvert?: () => void;
 }
 
 export default function LeadDetailModal({
@@ -42,6 +31,7 @@ export default function LeadDetailModal({
   isAdmin,
   onEdit,
   onDelete,
+  onConvert,
 }: LeadDetailModalProps) {
   const { data: history } = useQuery({
     queryKey: ["lead-history", lead?.id],
@@ -59,6 +49,10 @@ export default function LeadDetailModal({
 
   if (!lead) return null;
 
+  const source = (lead as any).source || "manual";
+  const leadOrigin = (lead as any).lead_origin || "manual";
+  const hasQuote = !!(lead as any).quote_id;
+
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
     return new Intl.NumberFormat("pt-BR", {
@@ -70,23 +64,72 @@ export default function LeadDetailModal({
   const formatDate = (dateStr: string) =>
     format(new Date(dateStr), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
+  const getSourceLabel = (src: string) => {
+    const map: Record<string, string> = {
+      manual: "Manual",
+      webhook: "Webhook",
+      indicacao: "Indicação",
+      outro: "Outro",
+    };
+    return map[src] || src;
+  };
+
+  const getSourceIcon = (src: string) => {
+    switch (src) {
+      case "webhook": return <Globe className="h-3.5 w-3.5" />;
+      case "indicacao": return <Megaphone className="h-3.5 w-3.5" />;
+      default: return null;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             {lead.title}
             {lead.pipeline_stages && (
-              <Badge
-                style={{ backgroundColor: lead.pipeline_stages.color, color: "#fff" }}
-              >
+              <Badge style={{ backgroundColor: lead.pipeline_stages.color, color: "#fff" }}>
                 {lead.pipeline_stages.name}
+              </Badge>
+            )}
+            {hasQuote && (
+              <Badge variant="outline" className="border-primary text-primary">
+                <FileText className="h-3 w-3 mr-0.5" />
+                Proposta
+              </Badge>
+            )}
+            {lead.is_converted && (
+              <Badge variant="outline" className="border-green-500 text-green-600">
+                <UserCheck className="h-3 w-3 mr-0.5" />
+                Convertido
               </Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Source & Origin */}
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {getSourceIcon(source)}
+              <span className="ml-1">Origem: {getSourceLabel(source)}</span>
+            </Badge>
+          </div>
+
+          {/* Quote info */}
+          {hasQuote && (lead as any).quotes && (
+            <div className="rounded-md bg-primary/5 border border-primary/20 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-primary">
+                <FileText className="h-4 w-4" />
+                Proposta: {(lead as any).quotes.quote_number}
+              </div>
+              <p className="text-muted-foreground mt-1">
+                Valor: {formatCurrency((lead as any).quotes.total)}
+              </p>
+            </div>
+          )}
+
           {/* Info Grid */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {lead.company_name && (
@@ -122,9 +165,7 @@ export default function LeadDetailModal({
             {lead.expected_close_date && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <CalendarDays className="h-4 w-4 shrink-0" />
-                <span>
-                  {format(new Date(lead.expected_close_date), "dd/MM/yyyy")}
-                </span>
+                <span>{format(new Date(lead.expected_close_date), "dd/MM/yyyy")}</span>
               </div>
             )}
           </div>
@@ -175,6 +216,11 @@ export default function LeadDetailModal({
                             {(entry as any).to_stage?.name ?? "?"}
                           </Badge>
                         </div>
+                      ) : entry.action === "CONVERTED" ? (
+                        <div className="flex items-center gap-1">
+                          <UserCheck className="h-3.5 w-3.5 text-green-600" />
+                          <span className="font-medium text-green-600">Convertido em Cliente</span>
+                        </div>
                       ) : (
                         <span className="font-medium">{entry.action}</span>
                       )}
@@ -197,6 +243,12 @@ export default function LeadDetailModal({
             <Button variant="destructive" size="sm" onClick={onDelete}>
               <Trash2 className="mr-1 h-4 w-4" />
               Excluir
+            </Button>
+          )}
+          {!lead.is_converted && onConvert && (
+            <Button variant="outline" size="sm" onClick={onConvert} className="border-green-500 text-green-600 hover:bg-green-50">
+              <UserCheck className="mr-1 h-4 w-4" />
+              Converter em Cliente
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={onEdit}>

@@ -2,23 +2,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Lead } from "@/types";
 
 const leadSchema = z.object({
@@ -30,6 +24,7 @@ const leadSchema = z.object({
   estimated_value: z.coerce.number().min(0).optional().or(z.literal("")),
   expected_close_date: z.string().optional(),
   notes: z.string().optional(),
+  source: z.string().optional(),
 });
 
 export type LeadFormValues = z.infer<typeof leadSchema>;
@@ -50,6 +45,7 @@ export default function LeadFormModal({
   isLoading,
 }: LeadFormModalProps) {
   const isEditing = !!defaultValues?.id;
+  const isWebhook = (defaultValues as any)?.source === "webhook";
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
@@ -62,6 +58,7 @@ export default function LeadFormModal({
       estimated_value: defaultValues?.estimated_value ?? "",
       expected_close_date: defaultValues?.expected_close_date ?? "",
       notes: defaultValues?.notes ?? "",
+      source: (defaultValues as any)?.source ?? "manual",
     },
   });
 
@@ -86,6 +83,34 @@ export default function LeadFormModal({
                   <FormControl>
                     <Input placeholder="Ex: Projeto torre residencial" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origem</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isWebhook}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a origem" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="indicacao">Indicação</SelectItem>
+                      <SelectItem value="webhook">Webhook</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
