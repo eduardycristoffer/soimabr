@@ -15,7 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface Props {
   stages: PipelineStage[];
@@ -74,10 +74,14 @@ export default function PipelineExport({ stages }: Props) {
         const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
         downloadBlob(blob, "leads-export.csv");
       } else {
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Leads");
-        XLSX.writeFile(wb, "leads-export.xlsx");
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Leads");
+        const headers = Object.keys(rows[0]);
+        worksheet.addRow(headers);
+        rows.forEach((row: any) => worksheet.addRow(headers.map((h) => row[h])));
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        downloadBlob(blob, "leads-export.xlsx");
       }
 
       toast.success("Exportação concluída");
