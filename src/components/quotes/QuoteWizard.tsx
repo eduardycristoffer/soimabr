@@ -19,30 +19,33 @@ import StepReview from "./steps/StepReview";
 interface Props {
   onClose: () => void;
   editingQuoteId?: string | null;
+  duplicatingQuoteId?: string | null;
 }
 
-export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
+export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteId }: Props) {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const queryClient = useQueryClient();
   const wizard = useQuoteWizard();
 
-  // Load existing quote data for editing
+  const sourceQuoteId = editingQuoteId || duplicatingQuoteId;
+
+  // Load existing quote data for editing or duplicating
   const { isLoading: isLoadingQuote } = useQuery({
-    queryKey: ["quote-edit", editingQuoteId],
+    queryKey: ["quote-source", sourceQuoteId],
     queryFn: async () => {
-      if (!editingQuoteId) return null;
+      if (!sourceQuoteId) return null;
       const { data: quote, error } = await supabase
         .from("quotes")
         .select("*, clients(razao_social, nome_fantasia)")
-        .eq("id", editingQuoteId)
+        .eq("id", sourceQuoteId)
         .single();
       if (error) throw error;
 
       const { data: items } = await supabase
         .from("quote_items")
         .select("*")
-        .eq("quote_id", editingQuoteId)
+        .eq("quote_id", sourceQuoteId)
         .order("order_index");
 
       // Map items to draft format
@@ -90,7 +93,7 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
 
       return quote;
     },
-    enabled: !!editingQuoteId,
+    enabled: !!sourceQuoteId,
   });
 
   // Fetch operator discount limit
@@ -277,7 +280,7 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
     },
   });
 
-  if (editingQuoteId && isLoadingQuote) {
+  if (sourceQuoteId && isLoadingQuote) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-muted-foreground">Carregando proposta...</p>
@@ -294,7 +297,7 @@ export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {editingQuoteId ? "Editar Proposta Comercial" : "Nova Proposta Comercial"}
+            {editingQuoteId ? "Editar Proposta Comercial" : duplicatingQuoteId ? "Duplicar Proposta Comercial" : "Nova Proposta Comercial"}
           </h1>
           <p className="text-sm text-muted-foreground">
             Etapa {wizard.step} de 8 — {WIZARD_STEPS[wizard.step - 1].description}

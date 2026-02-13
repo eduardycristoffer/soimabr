@@ -29,6 +29,7 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [viewingQuoteId, setViewingQuoteId] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
@@ -127,16 +128,24 @@ export default function Orcamentos() {
 
   const handleNew = () => {
     setEditingQuoteId(null);
+    setDuplicatingQuoteId(null);
+    setWizardOpen(true);
+  };
+
+  const handleDuplicate = (quoteId: string) => {
+    setDuplicatingQuoteId(quoteId);
+    setEditingQuoteId(null);
     setWizardOpen(true);
   };
 
   const handleCloseWizard = () => {
     setWizardOpen(false);
     setEditingQuoteId(null);
+    setDuplicatingQuoteId(null);
   };
 
   if (wizardOpen) {
-    return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} />;
+    return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
   }
 
   const renderApprovalBadge = (quoteId: string, discountPercent: number, discountApproved: boolean) => {
@@ -259,7 +268,7 @@ export default function Orcamentos() {
                             </DropdownMenuItem>
                           )}
                           {quote.status === "finalized" && (
-                            <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
+                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id)}>
                               <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
                             </DropdownMenuItem>
                           )}
