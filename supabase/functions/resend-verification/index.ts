@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo.webp";
-const APP_URL = "https://soimabr.lovable.app";
+const APP_URL = "https://soima.tryade.com.br";
 
 function getInviteEmailHTML(userName: string, verifyUrl: string): string {
   return `<!DOCTYPE html>
@@ -17,8 +17,8 @@ function getInviteEmailHTML(userName: string, verifyUrl: string): string {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px;">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-      <tr><td style="background:#1a1a2e;padding:24px;text-align:center;">
-        <img src="${SOIMA_LOGO_URL}" alt="SOIMA" height="40" style="height:40px;" />
+      <tr><td style="background:#1a1a2e;padding:32px;text-align:center;">
+        <img src="${SOIMA_LOGO_URL}" alt="SOIMA" height="56" style="height:56px;" />
       </td></tr>
       <tr><td style="padding:32px;">
         <h2 style="color:#1a1a2e;margin:0 0 16px;">Bem-vindo ao Sistema SOIMA</h2>
