@@ -13,9 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
+import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
 
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
@@ -28,6 +29,7 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [viewingQuoteId, setViewingQuoteId] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
   const { data: quotes, isLoading } = useQuery({
@@ -248,12 +250,17 @@ export default function Orcamentos() {
                           <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setViewingQuoteId(quote.id)}>
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
                           {quote.status === "draft" && (
                             <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
                               <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                          )}
+                          {quote.status === "finalized" && (
+                            <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
+                              <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
                             </DropdownMenuItem>
                           )}
                           {(quote.status === "finalized" || quote.status === "draft") && (
@@ -279,6 +286,12 @@ export default function Orcamentos() {
           )}
         </CardContent>
       </Card>
+
+      <QuoteDetailModal
+        quoteId={viewingQuoteId}
+        open={!!viewingQuoteId}
+        onClose={() => setViewingQuoteId(null)}
+      />
     </div>
   );
 }
