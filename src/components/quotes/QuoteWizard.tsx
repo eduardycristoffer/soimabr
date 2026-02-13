@@ -271,6 +271,64 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         if (approvalError) throw approvalError;
       }
 
+      // === AUTO-SYNC: Create or update pipeline card for this quote ===
+      try {
+        // Find the "Proposta" stage (stage_type = 'proposal')
+        const { data: proposalStage } = await supabase
+          .from("pipeline_stages")
+          .select("id")
+          .eq("stage_type", "proposal")
+          .single();
+
+        if (proposalStage) {
+          // Check if client already has a lead in the pipeline
+          const { data: existingLead } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("client_id", wizard.data.client_id)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingLead) {
+            // Update existing lead: move to "Proposta" stage and link quote
+            await supabase
+              .from("leads")
+              .update({
+                stage_id: proposalStage.id,
+                quote_id: quoteId,
+                estimated_value: wizard.total,
+              } as any)
+              .eq("id", existingLead.id);
+          } else {
+            // Create new lead at "Proposta" stage
+            // Fetch client name for the lead title
+            const { data: clientInfo } = await supabase
+              .from("clients")
+              .select("razao_social, nome_fantasia, contato_nome, contato_email, contato_telefone")
+              .eq("id", wizard.data.client_id)
+              .single();
+
+            await supabase.from("leads").insert({
+              title: `Proposta ${quoteNumber} - ${clientInfo?.nome_fantasia || clientInfo?.razao_social || ""}`,
+              company_name: clientInfo?.razao_social || null,
+              contact_name: clientInfo?.contato_nome || null,
+              contact_email: clientInfo?.contato_email || null,
+              contact_phone: clientInfo?.contato_telefone || null,
+              estimated_value: wizard.total,
+              owner_id: userId,
+              stage_id: proposalStage.id,
+              client_id: wizard.data.client_id,
+              quote_id: quoteId,
+              source: "manual",
+              lead_origin: "proposal_direct",
+            } as any);
+          }
+        }
+      } catch (pipelineErr) {
+        // Non-blocking: log but don't fail the quote save
+        console.error("Erro ao sincronizar pipeline:", pipelineErr);
+      }
+
       return { quoteNumber, mode };
     },
     onSuccess: ({ quoteNumber, mode }) => {
@@ -284,6 +342,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
       wizard.reset();
       onClose();
     },

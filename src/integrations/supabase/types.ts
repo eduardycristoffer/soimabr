@@ -366,8 +366,12 @@ export type Database = {
           expected_close_date: string | null
           id: string
           is_converted: boolean
+          lead_origin: string
+          metadata: Json | null
           notes: string | null
           owner_id: string
+          quote_id: string | null
+          source: string
           stage_id: string | null
           title: string
           updated_at: string
@@ -384,8 +388,12 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           is_converted?: boolean
+          lead_origin?: string
+          metadata?: Json | null
           notes?: string | null
           owner_id: string
+          quote_id?: string | null
+          source?: string
           stage_id?: string | null
           title: string
           updated_at?: string
@@ -402,8 +410,12 @@ export type Database = {
           expected_close_date?: string | null
           id?: string
           is_converted?: boolean
+          lead_origin?: string
+          metadata?: Json | null
           notes?: string | null
           owner_id?: string
+          quote_id?: string | null
+          source?: string
           stage_id?: string | null
           title?: string
           updated_at?: string
@@ -417,8 +429,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_stage_id_fkey"
             columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_history: {
+        Row: {
+          from_stage_id: string | null
+          id: string
+          lead_id: string
+          moved_at: string
+          moved_by: string
+          notes: string | null
+          to_stage_id: string | null
+        }
+        Insert: {
+          from_stage_id?: string | null
+          id?: string
+          lead_id: string
+          moved_at?: string
+          moved_by: string
+          notes?: string | null
+          to_stage_id?: string | null
+        }
+        Update: {
+          from_stage_id?: string | null
+          id?: string
+          lead_id?: string
+          moved_at?: string
+          moved_by?: string
+          notes?: string | null
+          to_stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_history_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_history_to_stage_id_fkey"
+            columns: ["to_stage_id"]
             isOneToOne: false
             referencedRelation: "pipeline_stages"
             referencedColumns: ["id"]
@@ -431,27 +502,33 @@ export type Database = {
           created_at: string
           id: string
           is_final: boolean
+          is_fixed: boolean
           is_lost: boolean
           name: string
           order_index: number
+          stage_type: string
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
           is_final?: boolean
+          is_fixed?: boolean
           is_lost?: boolean
           name: string
           order_index: number
+          stage_type?: string
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
           is_final?: boolean
+          is_fixed?: boolean
           is_lost?: boolean
           name?: string
           order_index?: number
+          stage_type?: string
         }
         Relationships: []
       }
