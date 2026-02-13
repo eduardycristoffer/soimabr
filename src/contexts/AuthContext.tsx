@@ -12,7 +12,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (authUser: User) => {
     try {
-      // Buscar profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -21,7 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError) throw profileError;
 
-      // Buscar role (maybeSingle para evitar 406 quando não há registro)
+      // Block inactive users
+      if (!profile.is_active) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setRole(null);
+        return;
+      }
+
       const { data: userRole } = await supabase
         .from("user_roles")
         .select("role")
@@ -38,11 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Configurar listener de auth ANTES de buscar sessão
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          // Usar setTimeout para evitar deadlock
           setTimeout(() => fetchUserProfile(session.user), 0);
         } else {
           setUser(null);
@@ -52,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Buscar sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchUserProfile(session.user);
@@ -72,18 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { name },
-      },
-    });
-    if (error) throw error;
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -97,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: role === "admin",
     isLoading,
     signIn,
-    signUp,
     signOut,
   };
 

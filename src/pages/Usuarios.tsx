@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, UserCog, Shield, User, MoreHorizontal, Loader2 } from "lucide-react";
+import { Plus, UserCog, Shield, User, MoreHorizontal, Loader2, MailCheck } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { AppRole } from "@/types";
 import InviteUserModal from "@/components/users/InviteUserModal";
@@ -204,6 +204,32 @@ export default function Usuarios() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {!profile.is_active && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  setActionLoading(`resend-${profile.user_id}`);
+                                  try {
+                                    const { data, error } = await supabase.functions.invoke("resend-verification", {
+                                      body: { user_id: profile.user_id },
+                                    });
+                                    if (error) throw error;
+                                    if (data?.error) throw new Error(data.error);
+                                    toast({ title: "Convite reenviado com sucesso" });
+                                  } catch (err: any) {
+                                    toast({ title: "Erro", description: err.message, variant: "destructive" });
+                                  } finally {
+                                    setActionLoading(null);
+                                  }
+                                }}
+                                disabled={isSelf(profile.user_id)}
+                              >
+                                <MailCheck className="mr-2 h-4 w-4" />
+                                Reenviar Convite
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
                           <DropdownMenuItem
                             onClick={() => handleChangeRole(profile.user_id, profile.role)}
                             disabled={isSelf(profile.user_id)}

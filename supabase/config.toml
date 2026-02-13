@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.dispatch-outbound-webhook]
 verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.verify-email]
+verify_jwt = false
+
+[functions.resend-verification]
+verify_jwt = false
+
+[functions.log-auth-event]
+verify_jwt = false
