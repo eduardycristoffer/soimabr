@@ -185,38 +185,17 @@ export function usePipelineData() {
   });
 
   const convertLeadMutation = useMutation({
-    mutationFn: async ({ leadId, clientData }: {
+    mutationFn: async ({ leadId, clientId }: {
       leadId: string;
-      clientData: {
-        razao_social: string;
-        nome_fantasia?: string;
-        contato_nome?: string;
-        contato_email?: string;
-        contato_telefone?: string;
-      };
+      clientId: string;
     }) => {
-      // Create client
-      const { data: client, error: clientErr } = await supabase
-        .from("clients")
-        .insert({
-          razao_social: clientData.razao_social,
-          nome_fantasia: clientData.nome_fantasia || null,
-          contato_nome: clientData.contato_nome || null,
-          contato_email: clientData.contato_email || null,
-          contato_telefone: clientData.contato_telefone || null,
-          created_by: user!.user_id,
-        })
-        .select()
-        .single();
-      if (clientErr) throw clientErr;
-
-      // Update lead
+      // Update lead to mark as converted
       const { error: leadErr } = await supabase
         .from("leads")
         .update({
           is_converted: true,
           converted_at: new Date().toISOString(),
-          client_id: client.id,
+          client_id: clientId,
         })
         .eq("id", leadId);
       if (leadErr) throw leadErr;
@@ -226,16 +205,16 @@ export function usePipelineData() {
         lead_id: leadId,
         user_id: user!.user_id,
         action: "CONVERTED",
-        notes: `Convertido em cliente: ${clientData.razao_social}`,
+        notes: `Convertido em cliente`,
       });
 
-      return client;
+      return { leadId, clientId };
     },
-    onSuccess: (client, vars) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Lead convertido em cliente com sucesso");
-      dispatchWebhookEvent("lead.converted", { lead_id: vars.leadId, client_id: client?.id });
+      dispatchWebhookEvent("lead.converted", { lead_id: result.leadId, client_id: result.clientId });
     },
     onError: () => toast.error("Erro ao converter lead"),
   });

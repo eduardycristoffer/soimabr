@@ -79,10 +79,19 @@ const clientSchema = z.discriminatedUnion("client_type", [
 
 type ClientFormData = z.infer<typeof clientSchema>;
 
+interface LeadData {
+  company_name?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+}
+
 interface ClientFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client | null;
+  leadData?: LeadData | null;
+  onConvertSuccess?: (clientId: string) => void;
 }
 
 const ESTADOS_BR = [
@@ -90,10 +99,11 @@ const ESTADOS_BR = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
-export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
+export default function ClientFormModal({ open, onOpenChange, client, leadData, onConvertSuccess }: ClientFormModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!client;
+  const isConvertMode = !!leadData && !isEditing;
   const [clientType, setClientType] = useState<ClientType>(client?.client_type || "nacional");
   const [accessRequestOpen, setAccessRequestOpen] = useState(false);
   const [duplicateCnpjDigits, setDuplicateCnpjDigits] = useState("");
@@ -105,13 +115,13 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   useEffect(() => {
     if (open) {
-      const defaults = getDefaultValues(client);
+      const defaults = getDefaultValues(client, leadData);
       form.reset(defaults);
       setClientType(defaults.client_type as ClientType);
     }
-  }, [open, client]);
+  }, [open, client, leadData]);
 
-  function getDefaultValues(c?: Client | null): ClientFormData {
+  function getDefaultValues(c?: Client | null, ld?: LeadData | null): ClientFormData {
     if (c) {
       return {
         client_type: c.client_type as ClientType,
@@ -136,16 +146,16 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
     }
     return {
       client_type: "nacional",
-      razao_social: "",
-      nome_fantasia: "",
+      razao_social: ld?.company_name || "",
+      nome_fantasia: ld?.company_name || "",
       cnpj: "",
       cpf: "",
       inscricao_estadual: "",
       email: "",
       telefone: "",
-      contato_nome: "",
-      contato_email: "",
-      contato_telefone: "",
+      contato_nome: ld?.contact_name || "",
+      contato_email: ld?.contact_email || "",
+      contato_telefone: ld?.contact_phone || "",
       endereco: "",
       cidade: "",
       estado: "",
@@ -192,12 +202,13 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
           .update(updatePayload)
           .eq("id", client!.id);
         if (error) throw error;
+        return null;
       } else {
-        const { error } = await supabase.from("clients").insert([{
+        const { data: newClient, error } = await supabase.from("clients").insert([{
           ...payload,
           created_by: session.session.user.id,
           assigned_to: session.session.user.id,
-        }]);
+        }]).select().single();
         if (error) {
           // Check for unique CNPJ violation
           if (error.message?.includes("idx_clients_cnpj_digits_unique") || error.code === "23505") {
@@ -207,14 +218,18 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
           }
           throw error;
         }
+        return newClient;
       }
     },
-    onSuccess: () => {
-      toast({ title: isEditing ? "Cliente atualizado!" : "Cliente criado com sucesso!" });
+    onSuccess: (newClient) => {
+      toast({ title: isConvertMode ? "Lead convertido em cliente!" : isEditing ? "Cliente atualizado!" : "Cliente criado com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       form.reset();
       onOpenChange(false);
+      if (isConvertMode && newClient?.id && onConvertSuccess) {
+        onConvertSuccess(newClient.id);
+      }
     },
     onError: (error) => {
       toast({
@@ -241,9 +256,9 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
+            <DialogTitle>{isConvertMode ? "Converter Lead em Cliente" : isEditing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             <DialogDescription>
-              {isEditing ? "Atualize os dados do cliente" : "Preencha os dados do cliente. CNPJ é obrigatório."}
+              {isConvertMode ? "Preencha os dados obrigatórios para converter o lead em cliente." : isEditing ? "Atualize os dados do cliente" : "Preencha os dados do cliente. CNPJ é obrigatório."}
             </DialogDescription>
           </DialogHeader>
 
@@ -482,7 +497,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                   </Button>
                   <Button type="submit" disabled={mutation.isPending}>
                     {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isEditing ? "Atualizar" : "Salvar Cliente"}
+                    {isConvertMode ? "Converter em Cliente" : isEditing ? "Atualizar" : "Salvar Cliente"}
                   </Button>
                 </div>
               </form>

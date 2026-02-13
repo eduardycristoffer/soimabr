@@ -8,7 +8,7 @@ import { usePipelineData } from "@/hooks/usePipelineData";
 
 import LeadFormModal, { type LeadFormValues } from "@/components/pipeline/LeadFormModal";
 import LeadDetailModal from "@/components/pipeline/LeadDetailModal";
-import ConvertLeadModal, { type ConvertFormValues } from "@/components/pipeline/ConvertLeadModal";
+import ClientFormModal from "@/components/clients/ClientFormModal";
 import PipelineStageManager from "@/components/pipeline/PipelineStageManager";
 import PipelineExport from "@/components/pipeline/PipelineExport";
 import PipelineKanban from "@/components/pipeline/PipelineKanban";
@@ -73,10 +73,10 @@ export default function Pipeline() {
     setConvertOpen(true);
   };
 
-  const handleConvertSubmit = (values: ConvertFormValues) => {
-    if (!convertingLead || !values.razao_social) return;
+  const handleConvertSuccess = (clientId: string) => {
+    if (!convertingLead) return;
     convertLeadMutation.mutate(
-      { leadId: convertingLead.id, clientData: { ...values, razao_social: values.razao_social } },
+      { leadId: convertingLead.id, clientId },
       {
         onSuccess: () => {
           setConvertOpen(false);
@@ -189,15 +189,19 @@ export default function Pipeline() {
         onConvert={() => detailLead && handleConvert(detailLead)}
       />
 
-      <ConvertLeadModal
+      <ClientFormModal
         open={convertOpen}
         onOpenChange={(open) => {
           setConvertOpen(open);
           if (!open) setConvertingLead(null);
         }}
-        lead={convertingLead}
-        onSubmit={handleConvertSubmit}
-        isLoading={convertLeadMutation.isPending}
+        leadData={convertingLead ? {
+          company_name: convertingLead.company_name || undefined,
+          contact_name: convertingLead.contact_name || undefined,
+          contact_email: convertingLead.contact_email || undefined,
+          contact_phone: convertingLead.contact_phone || undefined,
+        } : null}
+        onConvertSuccess={handleConvertSuccess}
       />
 
       {stages && (
