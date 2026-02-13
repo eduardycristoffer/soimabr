@@ -56,7 +56,7 @@ export default function Orcamentos() {
       let approverProfiles: Record<string, string> = {};
       if (approverIds.length > 0) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profiles_directory")
           .select("user_id, name")
           .in("user_id", approverIds);
         if (profiles) {

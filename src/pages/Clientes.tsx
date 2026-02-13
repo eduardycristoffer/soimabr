@@ -61,7 +61,7 @@ export default function Clientes() {
     queryFn: async () => {
       if (userIds.length === 0) return {};
       const { data } = await supabase
-        .from("profiles")
+        .from("profiles_directory")
         .select("user_id, name")
         .in("user_id", userIds);
       return Object.fromEntries((data || []).map(p => [p.user_id, p.name])) as Record<string, string>;
