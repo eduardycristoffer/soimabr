@@ -49,16 +49,7 @@ export default function StepEquipment({ data, updateData, onNext, onPrev, isInte
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur }).format(value);
 
   const selectCrane = (product: any) => {
-    if (isInternationalUsd && (product.international_price_brl == null || product.international_price_brl === 0)) {
-      toast({
-        title: "Produto indisponível",
-        description: "Esta grua não possui preço internacional configurado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const basePrice = isInternationalUsd ? product.international_price_brl : product.preco;
+    const basePrice = isInternationalUsd ? (product.international_price_brl ?? 0) : product.preco;
 
     const newItem: QuoteItemDraft = {
       product_id: product.id,
@@ -197,24 +188,20 @@ export default function StepEquipment({ data, updateData, onNext, onPrev, isInte
             {products?.map((p) => {
               const isSelected = selectedCrane?.product_id === p.id;
               const displayPrice = isInternationalUsd ? p.international_price_brl : p.preco;
-              const blocked = isInternationalUsd && (displayPrice == null || displayPrice === 0);
+              const noIntlPrice = isInternationalUsd && (displayPrice == null || displayPrice === 0);
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center justify-between p-2 rounded-md text-sm transition-colors ${
-                    blocked
-                      ? "opacity-50 cursor-not-allowed border border-transparent"
-                      : `hover:bg-accent/50 cursor-pointer ${
-                          isSelected ? "bg-primary/10 border border-primary/30" : "border border-transparent"
-                        }`
+                  className={`flex items-center justify-between p-2 rounded-md text-sm transition-colors hover:bg-accent/50 cursor-pointer ${
+                    isSelected ? "bg-primary/10 border border-primary/30" : "border border-transparent"
                   }`}
-                  onClick={() => !blocked && selectCrane(p)}
+                  onClick={() => selectCrane(p)}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>
-                      {blocked && (
-                        <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                    {noIntlPrice && (
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
                           Sem preço intl.
                         </Badge>
                       )}

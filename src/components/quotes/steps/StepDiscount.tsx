@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ShieldCheck, Send } from "lucide-react";
+import { ShieldCheck, Send, Info } from "lucide-react";
 
 interface Props {
   data: QuoteWizardData;
@@ -17,9 +17,11 @@ interface Props {
   total: number;
   onNext: () => void;
   onPrev: () => void;
+  isInternationalUsd?: boolean;
+  usdBrlRate?: number | null;
 }
 
-export default function StepDiscount({ data, updateData, subtotal, discountValue, total, onNext, onPrev }: Props) {
+export default function StepDiscount({ data, updateData, subtotal, discountValue, total, onNext, onPrev, isInternationalUsd, usdBrlRate }: Props) {
   const { role } = useAuth();
   const isAdmin = role === "admin";
 
@@ -42,8 +44,13 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
   const exceedsMax = !isAdmin && data.discount_percent > maxDiscount;
   const needsJustification = exceedsMax && !data.discount_justification.trim();
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
+  const formatBRL = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+  const formatUSD = (value: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+
+  const showDualCurrency = isInternationalUsd && usdBrlRate && usdBrlRate > 0;
 
   return (
     <div className="space-y-6">
@@ -99,19 +106,50 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">{formatCurrency(subtotal)}</span>
+              <div className="text-right">
+                <span className="font-medium">{formatBRL(subtotal)}</span>
+                {showDualCurrency && (
+                  <span className="text-xs text-muted-foreground block">
+                    ≈ {formatUSD(subtotal / usdBrlRate)}
+                  </span>
+                )}
+              </div>
             </div>
             {data.discount_percent > 0 && (
               <div className="flex justify-between text-destructive">
                 <span>Desconto ({data.discount_percent}%)</span>
-                <span className="font-medium">-{formatCurrency(discountValue)}</span>
+                <div className="text-right">
+                  <span className="font-medium">-{formatBRL(discountValue)}</span>
+                  {showDualCurrency && (
+                    <span className="text-xs text-muted-foreground block">
+                      ≈ -{formatUSD(discountValue / usdBrlRate)}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex justify-between border-t pt-2 text-base">
               <span className="font-semibold">Total</span>
-              <span className="font-bold">{formatCurrency(total)}</span>
+              <div className="text-right">
+                <span className="font-bold">{formatBRL(total)}</span>
+                {showDualCurrency && (
+                  <span className="text-xs text-muted-foreground block">
+                    ≈ {formatUSD(total / usdBrlRate)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
+          {showDualCurrency && (
+            <div className="flex items-start gap-1.5 pt-2 border-t text-xs text-muted-foreground">
+              <Info className="h-3 w-3 mt-0.5 shrink-0" />
+              <span>
+                Valor em USD estimado com base na cotação do dia (1 USD = R$ {usdBrlRate.toFixed(4)}).
+                O valor final pode variar conforme a cotação no momento do pagamento.
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

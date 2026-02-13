@@ -387,6 +387,8 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             total={wizard.total}
             onNext={wizard.nextStep}
             onPrev={wizard.prevStep}
+            isInternationalUsd={isInternationalUsd}
+            usdBrlRate={usdBrlRate}
           />
         )}
         {wizard.step === 8 && (
