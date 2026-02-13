@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -13,7 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy, Trash2 } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
@@ -26,7 +30,9 @@ const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "s
 
 export default function Orcamentos() {
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
@@ -142,6 +148,23 @@ export default function Orcamentos() {
     setWizardOpen(false);
     setEditingQuoteId(null);
     setDuplicatingQuoteId(null);
+  };
+
+  const handleDeleteQuote = async () => {
+    if (!deletingQuoteId) return;
+    try {
+      await supabase.from("quote_items").delete().eq("quote_id", deletingQuoteId);
+      await supabase.from("quote_versions").delete().eq("quote_id", deletingQuoteId);
+      await supabase.from("discount_approval_requests").delete().eq("quote_id", deletingQuoteId);
+      const { error } = await supabase.from("quotes").delete().eq("id", deletingQuoteId).eq("status", "draft");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      toast({ title: "Proposta excluída com sucesso" });
+    } catch (error: any) {
+      toast({ title: "Erro ao excluir proposta", description: error.message, variant: "destructive" });
+    } finally {
+      setDeletingQuoteId(null);
+    }
   };
 
   if (wizardOpen) {
@@ -285,6 +308,14 @@ export default function Orcamentos() {
                               Gerar PDF
                             </DropdownMenuItem>
                           )}
+                          {quote.status === "draft" && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeletingQuoteId(quote.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -301,6 +332,23 @@ export default function Orcamentos() {
         open={!!viewingQuoteId}
         onClose={() => setViewingQuoteId(null)}
       />
+
+      <AlertDialog open={!!deletingQuoteId} onOpenChange={(open) => !open && setDeletingQuoteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir proposta</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteQuote} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
