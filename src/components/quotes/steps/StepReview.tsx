@@ -233,25 +233,28 @@ export default function StepReview({
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev} disabled={isSaving}>Voltar</Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onSaveDraft} disabled={isSaving}>
+          <Button variant="outline" onClick={onSaveDraft} disabled={isSaving || data.equipment.length === 0}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
             Salvar Rascunho
           </Button>
           {needsApproval ? (
-            <Button onClick={onRequestApproval} disabled={isSaving || allItems.length === 0}>
+            <Button onClick={onRequestApproval} disabled={isSaving || data.equipment.length === 0}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Send className="mr-2 h-4 w-4" />
               Enviar para Aprovação
             </Button>
           ) : (
-            <Button onClick={onFinalize} disabled={isSaving || allItems.length === 0}>
+            <Button onClick={onFinalize} disabled={isSaving || data.equipment.length === 0}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <CheckCircle2 className="mr-2 h-4 w-4" />
               Finalizar Proposta
             </Button>
           )}
         </div>
+        {data.equipment.length === 0 && (
+          <p className="text-xs text-destructive text-center">Selecione 1 grua para salvar ou finalizar.</p>
+        )}
       </div>
     </div>
   );
