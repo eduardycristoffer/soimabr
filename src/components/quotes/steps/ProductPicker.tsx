@@ -63,17 +63,7 @@ export default function ProductPicker({
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur }).format(value);
 
   const addItem = (product: any) => {
-    // Block products without international price for international USD quotes
-    if (isInternationalUsd && (product.international_price_brl == null || product.international_price_brl === 0)) {
-      toast({
-        title: "Produto indisponível",
-        description: "Este produto não possui preço internacional configurado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const basePrice = isInternationalUsd ? product.international_price_brl : product.preco;
+    const basePrice = isInternationalUsd ? (product.international_price_brl ?? 0) : product.preco;
 
     const existing = items.find((i) => i.product_id === product.id);
     if (existing) {
@@ -121,9 +111,7 @@ export default function ProductPicker({
 
   const getDisplayPrice = (product: any) => {
     if (isInternationalUsd) {
-      const intlPrice = product.international_price_brl;
-      if (intlPrice == null || intlPrice === 0) return null;
-      return intlPrice;
+      return product.international_price_brl ?? 0;
     }
     return product.preco;
   };
@@ -157,18 +145,14 @@ export default function ProductPicker({
             {products?.map((p) => {
               const inCart = items.find((i) => i.product_id === p.id);
               const displayPrice = getDisplayPrice(p);
-              const blocked = isInternationalUsd && displayPrice === null;
+              const noIntlPrice = isInternationalUsd && (p.international_price_brl == null || p.international_price_brl === 0);
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center justify-between p-2 rounded-md text-sm transition-colors ${
-                    blocked
-                      ? "opacity-50 cursor-not-allowed border border-transparent"
-                      : `hover:bg-accent/50 cursor-pointer ${
-                          inCart ? "bg-accent/30 border border-primary/20" : "border border-transparent"
-                        }`
+                  className={`flex items-center justify-between p-2 rounded-md text-sm transition-colors hover:bg-accent/50 cursor-pointer ${
+                    inCart ? "bg-accent/30 border border-primary/20" : "border border-transparent"
                   }`}
-                  onClick={() => !blocked && addItem(p)}
+                  onClick={() => addItem(p)}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -176,8 +160,8 @@ export default function ProductPicker({
                       <Badge variant="outline" className="text-[10px] px-1 py-0">
                         {categoryLabels[p.categoria] || p.categoria}
                       </Badge>
-                      {blocked && (
-                        <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                      {noIntlPrice && (
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
                           Sem preço intl.
                         </Badge>
                       )}
@@ -185,7 +169,7 @@ export default function ProductPicker({
                     <p className="font-medium truncate">{p.nome}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-2 shrink-0">
-                    {isAdmin && displayPrice !== null && (
+                    {isAdmin && (
                       <div className="text-right">
                         <span className="text-sm font-medium">{formatCurrencyValue(displayPrice, "BRL")}</span>
                         {isInternationalUsd && usdBrlRate && (
@@ -195,7 +179,7 @@ export default function ProductPicker({
                         )}
                       </div>
                     )}
-                    {!blocked && <Plus className="h-4 w-4 text-primary" />}
+                    <Plus className="h-4 w-4 text-primary" />
                   </div>
                 </div>
               );

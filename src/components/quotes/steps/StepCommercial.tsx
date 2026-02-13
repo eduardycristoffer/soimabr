@@ -1,4 +1,5 @@
-import { QuoteWizardData } from "@/hooks/useQuoteWizard";
+import { QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,6 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Currency } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   data: QuoteWizardData;
@@ -15,15 +17,68 @@ interface Props {
   onPrev: () => void;
 }
 
+async function recalculateItems(
+  items: QuoteItemDraft[],
+  toUsd: boolean,
+): Promise<QuoteItemDraft[]> {
+  if (items.length === 0) return items;
+
+  const productIds = items.map((i) => i.product_id);
+  const { data: products, error } = await supabase
+    .from("products")
+    .select("id, preco, international_price_brl")
+    .in("id", productIds);
+
+  if (error || !products) return items;
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+  return items.map((item) => {
+    const product = productMap.get(item.product_id);
+    if (!product) return item;
+    const newPrice = toUsd ? (product.international_price_brl ?? 0) : product.preco;
+    return {
+      ...item,
+      unit_price: newPrice,
+      total_price: newPrice * item.quantity,
+    };
+  });
+}
+
 export default function StepCommercial({ data, updateData, onNext, onPrev }: Props) {
   const isInternational = data.client_type === "internacional";
+
+  const handleCurrencyChange = async (newCurrency: Currency) => {
+    if (!isInternational || (newCurrency !== "USD" && data.currency !== "USD")) {
+      updateData({ currency: newCurrency });
+      return;
+    }
+
+    const toUsd = newCurrency === "USD";
+
+    try {
+      const [equipment, components, accessories] = await Promise.all([
+        recalculateItems(data.equipment, toUsd),
+        recalculateItems(data.components, toUsd),
+        recalculateItems(data.accessories, toUsd),
+      ]);
+
+      updateData({ currency: newCurrency, equipment, components, accessories });
+    } catch {
+      toast({
+        title: "Erro ao recalcular preços",
+        description: "Não foi possível buscar os preços dos produtos.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Moeda</Label>
-          <Select value={data.currency} onValueChange={(v) => updateData({ currency: v as Currency })}>
+          <Select value={data.currency} onValueChange={(v) => handleCurrencyChange(v as Currency)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="BRL">🇧🇷 Real (BRL)</SelectItem>
