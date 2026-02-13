@@ -1,109 +1,55 @@
 
-# Precificacao Internacional com Conversao USD em Tempo Real
+# Travar 1 Grua por Proposta (Single-Grua)
 
-## Resumo
+## Situacao Atual
 
-Adicionar suporte completo a precificacao internacional: campo de preco internacional nos produtos, cotacao USD/BRL em tempo real no wizard de propostas, logica de conversao automatica, e exibicao dual (BRL + USD) no PDF.
+Hoje, o passo "Equipamento" do wizard usa o `ProductPicker` generico com multi-select, permitindo adicionar varias gruas. Dados existentes confirmam que 2 propostas antigas tem multiplas gruas (ORC260002 com 4 gruas, ORC260004 com 3 gruas). A grua e armazenada como um item normal em `quote_items` com `product_category = 'grua'`.
 
----
+## Abordagem
 
-## 1. Banco de Dados (Migracoes)
-
-### Tabela `products`
-- Adicionar coluna `international_price_brl` (numeric, nullable, default null)
-  - Quando preenchido, indica que o produto pode ser usado em propostas internacionais USD
-  - Quando null, produto bloqueado para propostas internacionais em USD
-
-### Tabela `quotes`
-- Adicionar colunas:
-  - `usd_brl_rate_used` (numeric, nullable) -- cotacao USD/BRL usada ao salvar/finalizar
-  - `usd_brl_rate_updated_at` (timestamptz, nullable) -- horario da cotacao
-
-### Tabela `quote_items`
-- Adicionar coluna `international_unit_price_brl` (numeric, nullable) -- preco internacional base usado no item
+Manter a grua dentro de `quote_items` (sem criar FK `crane_id` na tabela `quotes`) por ser a abordagem mais simples e compativel. A restricao de "1 grua por proposta" sera aplicada em 3 camadas: UI, logica do wizard, e validacao no backend (trigger SQL).
 
 ---
 
-## 2. Cadastro de Produto (`ProductFormModal.tsx`)
+## 1. Banco de Dados -- Trigger de Validacao
 
-- Adicionar campo "Preco Internacional (BRL)" ao formulario, ao lado do preco normal
-- Validacao: >= 0 quando preenchido
-- O campo e opcional (null = produto nao disponivel para proposta internacional USD)
-- Atualizar schema zod e payload de insert/update
+Criar um trigger `BEFORE INSERT` em `quote_items` que conta quantos itens com `product_category = 'grua'` ja existem para aquele `quote_id`. Se ja houver 1, bloqueia o INSERT com erro.
 
-### Tabela de Produtos (`Produtos.tsx`)
-- Adicionar coluna "Preco Intl." na tabela, mostrando o valor ou "-" quando nao configurado
+Isso garante a regra no nivel do banco, independente do frontend.
 
----
+**Propostas antigas com multiplas gruas** (ORC260002 e ORC260004): nao serao migradas automaticamente. O trigger so se aplica a novos inserts. Elas continuam funcionando como estao, mas se forem editadas o usuario precisara remover as gruas extras.
 
-## 3. Hook de Cotacao USD/BRL (`useUsdBrlRate.ts`)
+## 2. StepEquipment -- Selecao Unica
 
-Novo hook que:
-- Busca cotacao de API publica (AwesomeAPI: `https://economia.awesomeapi.com.br/json/last/USD-BRL`)
-- Polling a cada 30 segundos via `refetchInterval`
-- Retorna `{ rate, lastUpdatedAt, isLoading, isError, isStale }`
-- Fallback: se falhar, mantem ultimo valor valido e seta `isStale = true`
+Substituir o `ProductPicker` multi-select por uma interface de selecao unica:
 
----
+- Exibir o catalogo de gruas com busca (como hoje)
+- Ao clicar numa grua, ela **substitui** a grua atual (em vez de acumular)
+- Quando ja ha uma grua selecionada, mostrar um card de resumo com:
+  - Nome e codigo da grua
+  - Botao "Trocar grua"
+  - Campos de especificacoes tecnicas (lanca, altura torre, cargas, etc.) -- igual ao atual
+- Remover os botoes de +/- quantidade (grua sempre tem qty = 1)
+- Mensagem informativa: "Cada proposta permite 1 grua. Para vender mais de uma grua, crie outra proposta."
 
-## 4. Wizard de Proposta -- Alteracoes
+## 3. Validacao no Wizard (Frontend)
 
-### StepClient (`StepClient.tsx`)
-- Ao selecionar cliente, salvar `client_type` no wizard data
-- Adicionar `client_type` ao `QuoteWizardData`
+- No `StepEquipment`, bloquear o botao "Proximo" se nenhuma grua estiver selecionada
+- No `StepReview`, bloquear "Finalizar" e "Salvar Rascunho" se `equipment.length === 0`
+- Mensagem: "Selecione 1 grua para continuar."
+- O array `equipment` no wizard tera no maximo 1 item
 
-### StepCommercial (`StepCommercial.tsx`)
-- Se `client_type === "internacional"`:
-  - Remover opcao EUR do select de moeda (permitir apenas BRL e USD)
-- Se `client_type === "nacional"`:
-  - Manter BRL/USD/EUR como esta
+## 4. QuoteWizard -- Logica de Save
 
-### StepEquipment / StepComponents / StepAccessories (via `ProductPicker.tsx`)
-- Se `currency === "USD"` e `client_type === "internacional"`:
-  - Usar `international_price_brl` como base ao adicionar item
-  - Bloquear adicao de produto sem `international_price_brl` (mostrar mensagem)
-  - Exibir preco em BRL internacional + valor estimado USD (usando cotacao do hook)
-- Se nao internacional ou moeda != USD:
-  - Comportamento atual (preco normal)
+Nenhuma mudanca estrutural no save. O array `equipment` ja e salvo em `quote_items`. Com a restricao de 1 item no frontend + trigger no banco, a regra esta completa.
 
-### StepReview (`StepReview.tsx`)
-- Se proposta internacional + USD:
-  - Mostrar dual: valor BRL internacional e valor estimado USD
-  - Exibir cotacao usada e horario
-  - Mostrar disclaimer: "Valor em USD estimado com base na cotacao do dia e pode variar no momento do pagamento."
-  - Indicador de cotacao com auto-refresh e horario da ultima atualizacao
+## 5. PDF
 
-### QuoteWizard (`QuoteWizard.tsx`)
-- Instanciar `useUsdBrlRate()` e passar rate/lastUpdated para os steps relevantes
-- Ao salvar: gravar `usd_brl_rate_used` e `usd_brl_rate_updated_at` no quote
+Nenhuma mudanca estrutural necessaria. O PDF ja separa gruas de outros itens. A unica grua aparecera na secao de equipamento. A logica atual ja funciona com 1 grua.
 
-### `useQuoteWizard.ts`
-- Adicionar ao `QuoteWizardData`:
-  - `client_type: "nacional" | "internacional"`
-  - `usd_brl_rate_used: number | null`
-  - `usd_brl_rate_updated_at: string | null`
+## 6. QuoteDetailModal
 
----
-
-## 5. PDF da Proposta (`generate-pdf/index.ts`)
-
-- Se `quote.currency === "USD"` e cliente internacional:
-  - Na tabela de itens, adicionar colunas "Valor Intl. (BRL)" e "Estimado (USD)"
-  - Nos totais, mostrar ambos os valores (BRL e USD)
-  - Exibir cotacao usada: "Cotacao USD/BRL utilizada: X,XXXX (atualizada em DD/MM/YYYY HH:MM)"
-  - Adicionar disclaimer no rodape: "Valores em USD sao estimados com base na cotacao do dia e podem variar no momento do pagamento."
-- Se proposta nacional ou BRL: PDF permanece identico
-
----
-
-## 6. Validacoes e Bloqueios
-
-| Cenario | Comportamento |
-|---------|---------------|
-| Cliente internacional + USD + produto sem `international_price_brl` | Bloquear adicao com mensagem |
-| Cliente internacional + selecionar EUR | EUR nao aparece no select |
-| Cliente nacional | Comportamento atual mantido |
-| Cotacao indisponivel | Aviso visual, usa ultima cotacao valida |
+Nenhuma mudanca necessaria -- ja exibe os itens por categoria.
 
 ---
 
@@ -111,15 +57,23 @@ Novo hook que:
 
 | Arquivo | Acao |
 |---------|------|
-| Migracao SQL | Nova: adicionar colunas em products, quotes, quote_items |
-| `src/hooks/useUsdBrlRate.ts` | **Novo** -- hook de cotacao com polling |
-| `src/hooks/useQuoteWizard.ts` | Adicionar client_type e campos de cotacao ao data |
-| `src/components/products/ProductFormModal.tsx` | Campo international_price_brl |
-| `src/pages/Produtos.tsx` | Coluna "Preco Intl." na tabela |
-| `src/components/quotes/steps/StepClient.tsx` | Salvar client_type no wizard data |
-| `src/components/quotes/steps/StepCommercial.tsx` | Filtrar moedas por tipo de cliente |
-| `src/components/quotes/steps/ProductPicker.tsx` | Logica de preco internacional + bloqueio |
-| `src/components/quotes/steps/StepReview.tsx` | Exibicao dual BRL/USD + disclaimer |
-| `src/components/quotes/QuoteWizard.tsx` | Instanciar hook, salvar cotacao no quote |
-| `supabase/functions/generate-pdf/index.ts` | Tabela dual + disclaimer no PDF |
-| `src/components/quotes/QuoteDetailModal.tsx` | Exibir info de cotacao na visualizacao |
+| Migracao SQL | **Nova**: trigger `enforce_single_grua_per_quote` em `quote_items` |
+| `src/components/quotes/steps/StepEquipment.tsx` | **Refatorar**: substituir ProductPicker por selecao unica com card de resumo |
+| `src/components/quotes/steps/StepReview.tsx` | Adicionar validacao: bloquear finalizacao sem grua |
+| `src/hooks/useQuoteWizard.ts` | Sem mudanca (equipment[] ja funciona, apenas limitar a 1 item no UI) |
+| `src/components/quotes/QuoteWizard.tsx` | Sem mudanca |
+
+### Trigger SQL (resumo)
+
+```text
+BEFORE INSERT ON quote_items
+  IF NEW.product_category = 'grua' THEN
+    SELECT count(*) FROM quote_items
+      WHERE quote_id = NEW.quote_id AND product_category = 'grua';
+    IF count >= 1 THEN
+      RAISE EXCEPTION 'Apenas 1 grua permitida por proposta';
+    END IF;
+  END IF;
+```
+
+Note: o save do wizard ja faz DELETE de todos os items antes de re-inserir, entao o trigger funciona corretamente no fluxo de edicao.
