@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, LayoutGrid, List } from "lucide-react";
 import { LeadWithStage } from "@/types";
 import { toast } from "sonner";
 import { usePipelineData } from "@/hooks/usePipelineData";
@@ -12,6 +12,7 @@ import ConvertLeadModal, { type ConvertFormValues } from "@/components/pipeline/
 import PipelineStageManager from "@/components/pipeline/PipelineStageManager";
 import PipelineExport from "@/components/pipeline/PipelineExport";
 import PipelineKanban from "@/components/pipeline/PipelineKanban";
+import PipelineLeadList from "@/components/pipeline/PipelineLeadList";
 import {
   ToggleGroup, ToggleGroupItem,
 } from "@/components/ui/toggle-group";
@@ -36,6 +37,7 @@ export default function Pipeline() {
   const [convertingLead, setConvertingLead] = useState<LeadWithStage | null>(null);
   const [stageManagerOpen, setStageManagerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "lead" | "proposal">("all");
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
 
   const openCreateForm = () => {
     setEditingLead(null);
@@ -101,6 +103,14 @@ export default function Pipeline() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
+            <ToggleGroupItem value="kanban" size="sm" aria-label="Kanban">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" size="sm" aria-label="Lista">
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
           <ToggleGroup type="single" value={filter} onValueChange={(v) => v && setFilter(v as any)}>
             <ToggleGroupItem value="all" size="sm">Todos</ToggleGroupItem>
             <ToggleGroupItem value="lead" size="sm">Leads</ToggleGroupItem>
@@ -120,24 +130,32 @@ export default function Pipeline() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      {stages && stages.length > 0 ? (
-        <PipelineKanban
-          stages={stages}
+      {/* Kanban / List View */}
+      {viewMode === "kanban" ? (
+        stages && stages.length > 0 ? (
+          <PipelineKanban
+            stages={stages}
+            leads={leads || []}
+            filter={filter}
+            onDrop={handleDrop}
+            onCardClick={openDetail}
+          />
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <h3 className="text-lg font-semibold">Pipeline não configurado</h3>
+              <p className="text-muted-foreground">
+                As etapas do pipeline serão carregadas automaticamente
+              </p>
+            </CardContent>
+          </Card>
+        )
+      ) : (
+        <PipelineLeadList
           leads={leads || []}
           filter={filter}
-          onDrop={handleDrop}
           onCardClick={openDetail}
         />
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <h3 className="text-lg font-semibold">Pipeline não configurado</h3>
-            <p className="text-muted-foreground">
-              As etapas do pipeline serão carregadas automaticamente
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       {/* Modals */}
