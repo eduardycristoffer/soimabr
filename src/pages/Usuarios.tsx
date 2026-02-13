@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, UserCog, Shield, User, MoreHorizontal, Loader2, MailCheck } from "lucide-react";
+import { Plus, UserCog, Shield, User, MoreHorizontal, Loader2, MailCheck, Trash2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { AppRole } from "@/types";
 import InviteUserModal from "@/components/users/InviteUserModal";
@@ -226,6 +226,21 @@ export default function Usuarios() {
                               >
                                 <MailCheck className="mr-2 h-4 w-4" />
                                 Reenviar Convite
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setConfirmDialog({
+                                    open: true,
+                                    title: "Excluir convite pendente?",
+                                    description: "O usuário será removido permanentemente do sistema. Esta ação não pode ser desfeita.",
+                                    onConfirm: () => invokeAction("delete_user", { user_id: profile.user_id }),
+                                  });
+                                }}
+                                disabled={isSelf(profile.user_id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir Convite
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                             </>

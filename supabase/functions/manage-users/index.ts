@@ -47,6 +47,94 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    const { action, ...payload } = body;
+
+    // Use service role for operations
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // complete_profile does NOT require admin auth (called by unauthenticated users during onboarding)
+    if (action === "complete_profile") {
+      const { user_id, name, password } = payload;
+      if (!user_id || !name || !password) {
+        return new Response(JSON.stringify({ error: "user_id, name e password são obrigatórios" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (name.trim().length < 2) {
+        return new Response(JSON.stringify({ error: "Nome deve ter pelo menos 2 caracteres" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: "Senha deve ter pelo menos 6 caracteres" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify user actually has must_complete_profile flag
+      const { data: profileCheck } = await supabase
+        .from("profiles")
+        .select("must_complete_profile")
+        .eq("user_id", user_id)
+        .single();
+
+      if (!profileCheck?.must_complete_profile) {
+        return new Response(JSON.stringify({ error: "Perfil já foi completado" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update profile name and remove flag
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ name: name.trim(), must_complete_profile: false })
+        .eq("user_id", user_id);
+
+      if (profileError) {
+        return new Response(JSON.stringify({ error: profileError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update password and user metadata
+      const { error: authError } = await supabase.auth.admin.updateUserById(user_id, {
+        password,
+        user_metadata: { name: name.trim(), must_set_password: false },
+      });
+
+      if (authError) {
+        return new Response(JSON.stringify({ error: authError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Log
+      await supabase.from("security_logs").insert({
+        user_id,
+        action: "profile_completed",
+        ip_address: req.headers.get("x-forwarded-for") || null,
+        user_agent: req.headers.get("user-agent") || null,
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require admin authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), {
@@ -55,7 +143,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate caller is admin
     const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -74,12 +161,6 @@ Deno.serve(async (req) => {
 
     const callerUserId = claimsData.claims.sub;
 
-    // Use service role for admin operations
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     // Verify caller is admin
     const { data: callerRole } = await supabase
       .from("user_roles")
@@ -95,24 +176,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, ...payload } = await req.json();
-
     switch (action) {
       case "create_user": {
-        const { email, password, name } = payload;
-        if (!email || !password || !name) {
-          return new Response(JSON.stringify({ error: "Email, senha e nome são obrigatórios" }), {
+        const { email } = payload;
+        if (!email) {
+          return new Response(JSON.stringify({ error: "Email é obrigatório" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
+        // Generate temporary password and use email prefix as temporary name
+        const tempPassword = crypto.randomUUID();
+        const tempName = email.split("@")[0];
+
         // Role is always operator for new users - never trust frontend
         const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
           email,
-          password,
+          password: tempPassword,
           email_confirm: false, // Require email verification
-          user_metadata: { name },
+          user_metadata: { name: tempName, must_set_password: true },
         });
 
         if (createError) {
@@ -123,10 +206,10 @@ Deno.serve(async (req) => {
         }
 
         if (newUser.user) {
-          // Set profile as inactive until email is verified
+          // Set profile as inactive and mark must_complete_profile
           await supabase
             .from("profiles")
-            .update({ is_active: false })
+            .update({ is_active: false, must_complete_profile: true })
             .eq("user_id", newUser.user.id);
 
           // Generate verification token
@@ -141,7 +224,7 @@ Deno.serve(async (req) => {
 
           if (tokenData) {
             const verifyUrl = `${APP_URL}/auth/verify?token=${tokenData.token}`;
-            const html = getInviteEmailHTML(name, verifyUrl);
+            const html = getInviteEmailHTML(tempName, verifyUrl);
 
             // Send invite email
             try {
@@ -173,6 +256,86 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      case "delete_user": {
+        const { user_id } = payload;
+        if (!user_id) {
+          return new Response(JSON.stringify({ error: "user_id é obrigatório" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Check that user is inactive
+        const { data: targetProfile } = await supabase
+          .from("profiles")
+          .select("is_active")
+          .eq("user_id", user_id)
+          .single();
+
+        if (!targetProfile) {
+          return new Response(JSON.stringify({ error: "Usuário não encontrado" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (targetProfile.is_active) {
+          return new Response(JSON.stringify({ error: "Apenas usuários inativos (convite pendente) podem ser excluídos" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Remove verification tokens
+        await supabase
+          .from("email_verification_tokens")
+          .delete()
+          .eq("user_id", user_id);
+
+        // Remove OTP codes
+        await supabase
+          .from("login_otp_codes")
+          .delete()
+          .eq("user_id", user_id);
+
+        // Remove user_roles
+        await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", user_id);
+
+        // Remove profile
+        await supabase
+          .from("profiles")
+          .delete()
+          .eq("user_id", user_id);
+
+        // Delete auth user
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id);
+        if (deleteError) {
+          return new Response(JSON.stringify({ error: deleteError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Log security event
+        await supabase.from("security_logs").insert({
+          user_id: callerUserId,
+          action: "user_deleted",
+          metadata: { target_user_id: user_id },
+          ip_address: req.headers.get("x-forwarded-for") || null,
+          user_agent: req.headers.get("user-agent") || null,
+        });
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+
 
       case "update_role": {
         const { user_id, role } = payload;
