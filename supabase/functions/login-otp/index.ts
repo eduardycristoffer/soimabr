@@ -6,7 +6,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 30;
+
 const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo-white.webp";
+
+function getBackoffMs(attempts: number): number {
+  // Exponential backoff: 2s, 4s, 8s, 16s, 32s... capped at 5 min
+  return Math.min(Math.pow(2, attempts) * 1000, 5 * 60 * 1000);
+}
 
 function getOtpEmailHTML(code: string): string {
   return `<!DOCTYPE html>
@@ -81,6 +89,12 @@ Deno.serve(async (req) => {
           .eq("user_id", user_id)
           .is("used_at", null);
 
+        // Reset attempt counter for this user (new OTP = fresh attempts)
+        await supabase
+          .from("otp_attempts")
+          .delete()
+          .eq("user_id", user_id);
+
         // Generate 6-digit code
         const code = String(Math.floor(100000 + Math.random() * 900000));
 
@@ -94,7 +108,7 @@ Deno.serve(async (req) => {
           });
 
         if (insertError) {
-          return new Response(JSON.stringify({ error: insertError.message }), {
+          return new Response(JSON.stringify({ error: "Erro interno" }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -136,14 +150,39 @@ Deno.serve(async (req) => {
       case "verify": {
         const { user_id, code } = payload;
         if (!user_id || !code) {
-          return new Response(JSON.stringify({ error: "user_id e code são obrigatórios" }), {
+          return new Response(JSON.stringify({ error: "Dados obrigatórios ausentes" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
+        // --- BRUTE FORCE PROTECTION ---
+        // Get or create attempt record
+        const { data: attemptRecord } = await supabase
+          .from("otp_attempts")
+          .select("*")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        if (attemptRecord) {
+          // Check lockout
+          if (attemptRecord.locked_until && new Date(attemptRecord.locked_until) > new Date()) {
+            await supabase.from("security_logs").insert({
+              user_id,
+              action: "otp_locked_out",
+              ip_address: req.headers.get("x-forwarded-for") || null,
+              user_agent: req.headers.get("user-agent") || null,
+            });
+
+            return new Response(JSON.stringify({ error: "Muitas tentativas. Aguarde e tente novamente." }), {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+
         // Find valid code
-        const { data: otpRecord, error: otpError } = await supabase
+        const { data: otpRecord } = await supabase
           .from("login_otp_codes")
           .select("*")
           .eq("user_id", user_id)
@@ -153,35 +192,79 @@ Deno.serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        if (otpError || !otpRecord) {
+        // Check expiration
+        const isExpired = otpRecord && new Date(otpRecord.expires_at) < new Date();
+
+        if (!otpRecord || isExpired) {
+          // --- INCREMENT ATTEMPTS ---
+          const currentAttempts = (attemptRecord?.attempts || 0) + 1;
+          const lockedUntil = currentAttempts >= MAX_ATTEMPTS
+            ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000).toISOString()
+            : currentAttempts >= 3
+              ? new Date(Date.now() + getBackoffMs(currentAttempts)).toISOString()
+              : null;
+
+          if (attemptRecord) {
+            await supabase
+              .from("otp_attempts")
+              .update({
+                attempts: currentAttempts,
+                locked_until: lockedUntil,
+                last_attempt_at: new Date().toISOString(),
+              })
+              .eq("id", attemptRecord.id);
+          } else {
+            await supabase
+              .from("otp_attempts")
+              .insert({
+                user_id,
+                attempts: currentAttempts,
+                locked_until: lockedUntil,
+                last_attempt_at: new Date().toISOString(),
+              });
+          }
+
+          // If max attempts reached, invalidate all OTP codes
+          if (currentAttempts >= MAX_ATTEMPTS) {
+            await supabase
+              .from("login_otp_codes")
+              .update({ used_at: new Date().toISOString() })
+              .eq("user_id", user_id)
+              .is("used_at", null);
+          }
+
           await supabase.from("security_logs").insert({
             user_id,
             action: "otp_failed",
             ip_address: req.headers.get("x-forwarded-for") || null,
             user_agent: req.headers.get("user-agent") || null,
+            metadata: { attempts: currentAttempts },
           });
 
-          return new Response(JSON.stringify({ error: "Código inválido" }), {
-            status: 400,
+          const errorMsg = currentAttempts >= MAX_ATTEMPTS
+            ? "Muitas tentativas. Aguarde e tente novamente."
+            : "Código inválido ou expirado.";
+
+          return new Response(JSON.stringify({ error: errorMsg }), {
+            status: currentAttempts >= MAX_ATTEMPTS ? 429 : 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        // Check expiration
-        if (new Date(otpRecord.expires_at) < new Date()) {
-          return new Response(JSON.stringify({ error: "Código expirado. Solicite um novo." }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
+        // --- OTP VALID ---
         // Mark as used
         await supabase
           .from("login_otp_codes")
           .update({ used_at: new Date().toISOString() })
           .eq("id", otpRecord.id);
 
-        // Log
+        // Clear attempt record
+        await supabase
+          .from("otp_attempts")
+          .delete()
+          .eq("user_id", user_id);
+
+        // Log success
         await supabase.from("security_logs").insert({
           user_id,
           action: "otp_verified",
@@ -203,7 +286,7 @@ Deno.serve(async (req) => {
     }
   } catch (error: any) {
     console.error("login-otp error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
