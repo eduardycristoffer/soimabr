@@ -1,81 +1,96 @@
 
 
-# Ajustes na Proposta: Preco Internacional e Desconto em USD
+# Adicionar Idioma da Proposta no Wizard (Ingles / Portugues)
 
-## Problema Atual
+## Resumo
 
-1. **Ordem dos passos**: Produtos sao selecionados nos passos 3-5 (com preco nacional), mas a moeda so e escolhida no passo 6. Quando o usuario seleciona USD no passo 6, os precos dos itens ja adicionados nao sao recalculados para usar `international_price_brl`.
-
-2. **Bloqueio indevido**: Quando um produto nao tem `international_price_brl`, o sistema bloqueia a adicao. O usuario quer que apareca com valor zero em vez de bloquear.
-
-3. **Passo 7 (Desconto)**: Nao mostra o valor em USD nem a conversao estimada -- mostra apenas na moeda selecionada sem a informacao dual.
+Adicionar um campo "Idioma da Proposta" no passo 6 (Comercial) do wizard. O idioma escolhido sera salvo junto com a proposta e usado automaticamente ao gerar o PDF -- sem precisar perguntar na hora da exportacao.
 
 ---
 
-## Solucao
+## 1. Banco de Dados
 
-### 1. Recalcular precos ao mudar moeda no passo 6
+Adicionar coluna `language` na tabela `quotes`:
 
-Quando o usuario selecionar USD no `StepCommercial` e o cliente for internacional:
+- Tipo: `text`, default `'pt-BR'`, NOT NULL
+- Valores aceitos: `'pt-BR'` ou `'en'`
 
-- Buscar do banco os produtos correspondentes aos itens ja selecionados (equipment, components, accessories)
-- Para cada item, substituir `unit_price` e `total_price` pelo `international_price_brl` do produto
-- Se o produto nao tiver `international_price_brl`, usar **zero** (nao bloquear)
-- Quando voltar para BRL, recalcular usando o `preco` normal
-
-### 2. Permitir produtos sem preco internacional (valor zero)
-
-No `ProductPicker` e no `StepEquipment`:
-
-- Remover o bloqueio de adicao para produtos sem `international_price_brl`
-- Se o valor for null/0, adicionar o item com `unit_price = 0` e `total_price = 0`
-- Manter um aviso visual (badge "Sem preco intl.") mas permitir a adicao
-
-### 3. Mostrar USD no passo 7 (Desconto)
-
-No `StepDiscount`, quando for proposta internacional USD:
-
-- Exibir subtotal, desconto e total em BRL (valor base internacional)
-- Abaixo de cada valor, mostrar o equivalente estimado em USD usando a cotacao do dia
-- Incluir a cotacao usada e o disclaimer
+Migracao simples:
+```text
+ALTER TABLE quotes ADD COLUMN language text NOT NULL DEFAULT 'pt-BR';
+```
 
 ---
 
-## Detalhes Tecnicos
+## 2. Hook do Wizard (`useQuoteWizard.ts`)
 
-### Arquivos a modificar
+- Adicionar `language: "pt-BR" | "en"` ao `QuoteWizardData`
+- Valor inicial: `"pt-BR"`
+
+---
+
+## 3. StepCommercial -- Seletor de Idioma
+
+Adicionar um campo `Select` no grid existente ao lado dos demais campos:
+
+- Label: "Idioma da Proposta"
+- Opcoes:
+  - Portugues (BR) -- padrao
+  - English
+
+---
+
+## 4. QuoteWizard -- Salvar o campo `language`
+
+No momento do save (salvar rascunho ou finalizar), incluir `data.language` no insert/update da tabela `quotes`.
+
+---
+
+## 5. Edge Function `generate-pdf` -- Traducao completa
+
+Receber o campo `language` da proposta salva no banco (nao do request body). Criar um dicionario de traducoes com todas as labels do PDF:
+
+| Chave | pt-BR | en |
+|-------|-------|-----|
+| title | Proposta Comercial | Commercial Proposal |
+| date | Data | Date |
+| validity | Validade | Validity |
+| client | Cliente | Client |
+| razao_social | Razao Social | Company Name |
+| tipo | Tipo | Type |
+| nacional/internacional | Nacional / Internacional | National / International |
+| project | Projeto | Project |
+| name/location | Nome / Local | Name / Location |
+| crane_specs | Partes Consideradas para a Cotacao | Parts Considered for Quotation |
+| jib/tower/loads | Lanca, Altura torre, Carga max, etc. | Jib, Tower Height, Max Load, etc. |
+| items_section | Itens da Proposta | Proposal Items |
+| code/description/qty/total | Codigo, Descricao, Qtd, Total | Code, Description, Qty, Total |
+| subtotal/discount/total | Subtotal, Desconto, Total | Subtotal, Discount, Total |
+| conditions | Condicoes Comerciais | Commercial Conditions |
+| currency/delivery/payment/freight | Moeda, Prazo, Pagamento, Frete | Currency, Delivery, Payment, Freight |
+| notes | Observacoes | Notes |
+| generated_by | Documento gerado em... por... | Document generated on... by... |
+| category labels | Grua, Acessorio, Torre, etc. | Crane, Accessory, Tower, etc. |
+
+Substituir todas as strings hardcoded no HTML pelo dicionario `t.chave`.
+
+---
+
+## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `StepCommercial.tsx` | Ao mudar moeda, buscar produtos e recalcular precos dos itens |
-| `StepEquipment.tsx` | Remover bloqueio de produtos sem preco internacional, usar zero |
-| `ProductPicker.tsx` | Remover bloqueio, permitir adicao com preco zero |
-| `StepDiscount.tsx` | Adicionar exibicao dual BRL/USD com cotacao |
-| `QuoteWizard.tsx` | Passar `usdBrlRate` e `isInternationalUsd` para `StepDiscount` |
+| Migracao SQL | Adicionar coluna `language` em `quotes` |
+| `src/hooks/useQuoteWizard.ts` | Adicionar campo `language` ao state |
+| `src/components/quotes/steps/StepCommercial.tsx` | Adicionar select de idioma |
+| `src/components/quotes/QuoteWizard.tsx` | Incluir `language` no save |
+| `supabase/functions/generate-pdf/index.ts` | Ler `quote.language`, aplicar dicionario de traducoes no HTML |
 
-### Logica de recalculo no StepCommercial
+---
 
-```text
-Ao mudar currency para USD (e client_type === "internacional"):
-  1. Buscar products por IDs dos itens em equipment + components + accessories
-  2. Para cada item:
-     - Encontrar o produto correspondente
-     - item.unit_price = product.international_price_brl ?? 0
-     - item.total_price = item.unit_price * item.quantity
-  3. updateData({ equipment, components, accessories, currency: "USD" })
+## Fluxo
 
-Ao mudar de USD para BRL:
-  1. Buscar products por IDs
-  2. Para cada item:
-     - item.unit_price = product.preco
-     - item.total_price = item.unit_price * item.quantity
-  3. updateData({ equipment, components, accessories, currency: "BRL" })
-```
-
-### StepDiscount - Resumo de Valores com USD
-
-Quando `isInternationalUsd`:
-- Subtotal: R$ X.XXX,XX / aprox. US$ Y,YYY.YY
-- Desconto: -R$ X.XXX,XX
-- Total: R$ X.XXX,XX / aprox. US$ Y,YYY.YY
-- Rodape: "Valor em USD estimado com base na cotacao do dia (1 USD = R$ Z,ZZZZ)"
+1. Vendedor cria proposta no wizard
+2. No passo 6 (Comercial), escolhe o idioma: Portugues ou Ingles
+3. Salva a proposta (rascunho ou finalizada)
+4. Ao gerar PDF, o sistema usa o idioma salvo na proposta automaticamente -- sem perguntar novamente
