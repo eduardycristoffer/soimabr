@@ -10,6 +10,11 @@ export interface QuoteItemDraft {
   quantity: number;
   total_price: number;
   notes?: string;
+  grua_lanca_m?: number | null;
+  grua_altura_torre_m?: number | null;
+  grua_carga_maxima_kg?: number | null;
+  grua_carga_ponta_kg?: number | null;
+  grua_altura_trabalho_m?: number | null;
 }
 
 export interface QuoteWizardData {

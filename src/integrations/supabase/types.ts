@@ -539,6 +539,11 @@ export type Database = {
       quote_items: {
         Row: {
           created_at: string
+          grua_altura_torre_m: number | null
+          grua_altura_trabalho_m: number | null
+          grua_carga_maxima_kg: number | null
+          grua_carga_ponta_kg: number | null
+          grua_lanca_m: number | null
           id: string
           notes: string | null
           order_index: number
@@ -553,6 +558,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          grua_altura_torre_m?: number | null
+          grua_altura_trabalho_m?: number | null
+          grua_carga_maxima_kg?: number | null
+          grua_carga_ponta_kg?: number | null
+          grua_lanca_m?: number | null
           id?: string
           notes?: string | null
           order_index?: number
@@ -567,6 +577,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          grua_altura_torre_m?: number | null
+          grua_altura_trabalho_m?: number | null
+          grua_carga_maxima_kg?: number | null
+          grua_carga_ponta_kg?: number | null
+          grua_lanca_m?: number | null
           id?: string
           notes?: string | null
           order_index?: number
