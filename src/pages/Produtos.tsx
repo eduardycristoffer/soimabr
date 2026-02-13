@@ -185,6 +185,7 @@ export default function Produtos() {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
+                  <TableHead className="text-right">Preço Intl.</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -214,6 +215,11 @@ export default function Produtos() {
                     <TableCell>{product.unidade}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatPrice(product.preco)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-muted-foreground">
+                      {(product as any).international_price_brl != null
+                        ? formatPrice((product as any).international_price_brl)
+                        : "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={product.is_active ? "default" : "secondary"}>

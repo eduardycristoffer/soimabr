@@ -9,9 +9,11 @@ interface Props {
   updateData: (d: Partial<QuoteWizardData>) => void;
   onNext: () => void;
   onPrev: () => void;
+  isInternationalUsd?: boolean;
+  usdBrlRate?: number | null;
 }
 
-export default function StepEquipment({ data, updateData, onNext, onPrev }: Props) {
+export default function StepEquipment({ data, updateData, onNext, onPrev, isInternationalUsd, usdBrlRate }: Props) {
   const updateEquipmentItem = (index: number, field: keyof QuoteItemDraft, value: number | null) => {
     const updated = [...data.equipment];
     updated[index] = { ...updated[index], [field]: value };
@@ -29,6 +31,8 @@ export default function StepEquipment({ data, updateData, onNext, onPrev }: Prop
         onPrev={onPrev}
         currency={data.currency}
         hideNav
+        isInternationalUsd={isInternationalUsd}
+        usdBrlRate={usdBrlRate}
       />
 
       {data.equipment.map((item, idx) => (

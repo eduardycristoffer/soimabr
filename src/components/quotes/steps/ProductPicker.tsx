@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Minus, Trash2 } from "lucide-react";
+import { Search, Plus, Minus, Trash2, AlertTriangle } from "lucide-react";
 import { ProductCategory } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -28,9 +29,14 @@ interface Props {
   onPrev: () => void;
   currency?: string;
   hideNav?: boolean;
+  isInternationalUsd?: boolean;
+  usdBrlRate?: number | null;
 }
 
-export default function ProductPicker({ categories, items, onItemsChange, title, onNext, onPrev, currency = "BRL", hideNav }: Props) {
+export default function ProductPicker({
+  categories, items, onItemsChange, title, onNext, onPrev,
+  currency = "BRL", hideNav, isInternationalUsd = false, usdBrlRate,
+}: Props) {
   const [search, setSearch] = useState("");
   const { isAdmin } = useAuth();
 
@@ -53,10 +59,22 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
     },
   });
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  const formatCurrencyValue = (value: number, cur: string = currency) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur }).format(value);
 
   const addItem = (product: any) => {
+    // Block products without international price for international USD quotes
+    if (isInternationalUsd && (product.international_price_brl == null || product.international_price_brl === 0)) {
+      toast({
+        title: "Produto indisponível",
+        description: "Este produto não possui preço internacional configurado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const basePrice = isInternationalUsd ? product.international_price_brl : product.preco;
+
     const existing = items.find((i) => i.product_id === product.id);
     if (existing) {
       onItemsChange(
@@ -74,9 +92,9 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
           product_code: product.codigo,
           product_name: product.nome,
           product_category: product.categoria,
-          unit_price: product.preco,
+          unit_price: basePrice,
           quantity: 1,
-          total_price: product.preco,
+          total_price: basePrice,
         },
       ]);
     }
@@ -101,8 +119,27 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
 
   const itemsTotal = items.reduce((sum, i) => sum + i.total_price, 0);
 
+  const getDisplayPrice = (product: any) => {
+    if (isInternationalUsd) {
+      const intlPrice = product.international_price_brl;
+      if (intlPrice == null || intlPrice === 0) return null;
+      return intlPrice;
+    }
+    return product.preco;
+  };
+
   return (
     <div className="space-y-4">
+      {isInternationalUsd && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            Proposta internacional USD — usando preço internacional (BRL) como base.
+            {usdBrlRate && ` Cotação: 1 USD = R$ ${usdBrlRate.toFixed(4)}`}
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Product catalog */}
         <div className="space-y-3">
@@ -119,13 +156,19 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
           <div className="space-y-1 max-h-[350px] overflow-y-auto">
             {products?.map((p) => {
               const inCart = items.find((i) => i.product_id === p.id);
+              const displayPrice = getDisplayPrice(p);
+              const blocked = isInternationalUsd && displayPrice === null;
               return (
                 <div
                   key={p.id}
-                  className={`flex items-center justify-between p-2 rounded-md text-sm hover:bg-accent/50 cursor-pointer transition-colors ${
-                    inCart ? "bg-accent/30 border border-primary/20" : "border border-transparent"
+                  className={`flex items-center justify-between p-2 rounded-md text-sm transition-colors ${
+                    blocked
+                      ? "opacity-50 cursor-not-allowed border border-transparent"
+                      : `hover:bg-accent/50 cursor-pointer ${
+                          inCart ? "bg-accent/30 border border-primary/20" : "border border-transparent"
+                        }`
                   }`}
-                  onClick={() => addItem(p)}
+                  onClick={() => !blocked && addItem(p)}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -133,12 +176,26 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                       <Badge variant="outline" className="text-[10px] px-1 py-0">
                         {categoryLabels[p.categoria] || p.categoria}
                       </Badge>
+                      {blocked && (
+                        <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                          Sem preço intl.
+                        </Badge>
+                      )}
                     </div>
                     <p className="font-medium truncate">{p.nome}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-2 shrink-0">
-                    {isAdmin && <span className="text-sm font-medium">{formatCurrency(p.preco)}</span>}
-                    <Plus className="h-4 w-4 text-primary" />
+                    {isAdmin && displayPrice !== null && (
+                      <div className="text-right">
+                        <span className="text-sm font-medium">{formatCurrencyValue(displayPrice, "BRL")}</span>
+                        {isInternationalUsd && usdBrlRate && (
+                          <span className="text-xs text-muted-foreground block">
+                            ≈ {formatCurrencyValue(displayPrice / usdBrlRate, "USD")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {!blocked && <Plus className="h-4 w-4 text-primary" />}
                   </div>
                 </div>
               );
@@ -163,7 +220,7 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                         <p className="text-sm font-medium truncate">{item.product_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {item.product_code}
-                          {isAdmin && ` · ${formatCurrency(item.unit_price)}/un`}
+                          {isAdmin && ` · ${formatCurrencyValue(item.unit_price, "BRL")}/un`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 ml-2">
@@ -174,7 +231,14 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product_id, 1)}>
                           <Plus className="h-3 w-3" />
                         </Button>
-                        <span className="text-sm font-semibold w-24 text-right">{formatCurrency(item.total_price)}</span>
+                        <div className="w-28 text-right">
+                          <span className="text-sm font-semibold">{formatCurrencyValue(item.total_price, "BRL")}</span>
+                          {isInternationalUsd && usdBrlRate && (
+                            <span className="text-xs text-muted-foreground block">
+                              ≈ {formatCurrencyValue(item.total_price / usdBrlRate, "USD")}
+                            </span>
+                          )}
+                        </div>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.product_id)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -184,7 +248,14 @@ export default function ProductPicker({ categories, items, onItemsChange, title,
                 </Card>
               ))}
               <div className="flex justify-end pt-2 border-t">
-                <span className="text-sm font-semibold">Subtotal: {formatCurrency(itemsTotal)}</span>
+                <div className="text-right">
+                  <span className="text-sm font-semibold">Subtotal: {formatCurrencyValue(itemsTotal, "BRL")}</span>
+                  {isInternationalUsd && usdBrlRate && (
+                    <span className="text-xs text-muted-foreground block">
+                      ≈ {formatCurrencyValue(itemsTotal / usdBrlRate, "USD")}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}

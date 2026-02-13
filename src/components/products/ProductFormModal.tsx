@@ -31,6 +31,7 @@ const productSchema = z.object({
   categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"]),
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
   preco: z.coerce.number().min(0, "Preço não pode ser negativo"),
+  international_price_brl: z.coerce.number().min(0, "Preço não pode ser negativo").nullable().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -76,6 +77,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         categoria: p.categoria,
         unidade: p.unidade,
         preco: p.preco,
+        international_price_brl: (p as any).international_price_brl ?? null,
       };
     }
     return {
@@ -87,6 +89,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       categoria: "acessorio",
       unidade: "UN",
       preco: 0,
+      international_price_brl: null,
     };
   }
 
@@ -102,6 +105,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         unidade: data.unidade,
         preco: data.preco,
         needs_review: data.preco === 0,
+        international_price_brl: data.international_price_brl ?? null,
       };
 
       if (isEditing) {
@@ -232,6 +236,26 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                 </FormItem>
               )} />
             </div>
+
+            <FormField control={form.control} name="international_price_brl" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preço Internacional (R$)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Deixe vazio se não exportável"
+                    value={field.value === null || field.value === undefined ? "" : field.value}
+                    onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))}
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  Usado como base em propostas internacionais (USD). Vazio = produto bloqueado para exportação.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

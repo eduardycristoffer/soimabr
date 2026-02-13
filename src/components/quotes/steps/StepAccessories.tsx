@@ -6,9 +6,11 @@ interface Props {
   updateData: (d: Partial<QuoteWizardData>) => void;
   onNext: () => void;
   onPrev: () => void;
+  isInternationalUsd?: boolean;
+  usdBrlRate?: number | null;
 }
 
-export default function StepAccessories({ data, updateData, onNext, onPrev }: Props) {
+export default function StepAccessories({ data, updateData, onNext, onPrev, isInternationalUsd, usdBrlRate }: Props) {
   return (
     <ProductPicker
       categories={["acessorio"]}
@@ -18,6 +20,8 @@ export default function StepAccessories({ data, updateData, onNext, onPrev }: Pr
       onNext={onNext}
       onPrev={onPrev}
       currency={data.currency}
+      isInternationalUsd={isInternationalUsd}
+      usdBrlRate={usdBrlRate}
     />
   );
 }

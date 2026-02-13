@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, CheckCircle2, Send } from "lucide-react";
+import { Loader2, Save, CheckCircle2, Send, RefreshCw } from "lucide-react";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -25,9 +25,23 @@ interface Props {
   onRequestApproval: () => void;
   needsApproval: boolean;
   isSaving: boolean;
+  usdBrlRate?: number | null;
+  usdBrlLastUpdated?: string | null;
+  isRateStale?: boolean;
 }
 
-export default function StepReview({ data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize, onRequestApproval, needsApproval, isSaving }: Props) {
+export default function StepReview({
+  data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize,
+  onRequestApproval, needsApproval, isSaving, usdBrlRate, usdBrlLastUpdated, isRateStale,
+}: Props) {
+  const isInternationalUsd = data.client_type === "internacional" && data.currency === "USD";
+
+  const formatBrl = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+  const formatUsd = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(value);
+
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.currency }).format(value);
 
@@ -47,7 +61,20 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
               <span>{item.product_name}</span>
               <span className="text-muted-foreground text-xs">x{item.quantity}</span>
             </div>
-            <span className="font-medium">{formatCurrency(item.total_price)}</span>
+            <div className="text-right">
+              {isInternationalUsd ? (
+                <>
+                  <span className="font-medium">{formatBrl(item.total_price)}</span>
+                  {usdBrlRate && (
+                    <span className="text-xs text-muted-foreground block">
+                      ≈ {formatUsd(item.total_price / usdBrlRate)}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="font-medium">{formatCurrency(item.total_price)}</span>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -56,6 +83,23 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
 
   return (
     <div className="space-y-6">
+      {isInternationalUsd && usdBrlRate && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-blue-300 bg-blue-50 text-blue-800 text-sm">
+          <RefreshCw className={`h-4 w-4 shrink-0 ${isRateStale ? "text-amber-600" : ""}`} />
+          <div className="flex-1">
+            <span className="font-medium">Cotação USD/BRL: {usdBrlRate.toFixed(4)}</span>
+            {usdBrlLastUpdated && (
+              <span className="text-xs ml-2">(atualizada em {usdBrlLastUpdated})</span>
+            )}
+            {isRateStale && (
+              <span className="text-xs text-amber-600 block">
+                ⚠ Cotação pode estar desatualizada — usando último valor válido.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left column */}
         <div className="space-y-4">
@@ -65,6 +109,9 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             </CardHeader>
             <CardContent className="text-sm">
               <p className="font-medium">{data.client_name}</p>
+              {isInternationalUsd && (
+                <Badge variant="secondary" className="mt-1 text-xs">Internacional · USD</Badge>
+              )}
             </CardContent>
           </Card>
 
@@ -80,7 +127,7 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
             </CardContent>
           </Card>
 
-      {data.equipment.filter(item => item.grua_lanca_m || item.grua_altura_torre_m || item.grua_carga_maxima_kg || item.grua_carga_ponta_kg || item.grua_altura_trabalho_m).map((item) => (
+          {data.equipment.filter(item => item.grua_lanca_m || item.grua_altura_torre_m || item.grua_carga_maxima_kg || item.grua_carga_ponta_kg || item.grua_altura_trabalho_m).map((item) => (
             <Card key={item.product_id}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Especificações — {item.product_name}</CardTitle>
@@ -126,21 +173,53 @@ export default function StepReview({ data, subtotal, discountValue, total, onPre
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(subtotal)}</span>
+                  <div className="text-right">
+                    {isInternationalUsd ? (
+                      <>
+                        <span className="font-medium">{formatBrl(subtotal)}</span>
+                        {usdBrlRate && (
+                          <span className="text-xs text-muted-foreground block">
+                            ≈ {formatUsd(subtotal / usdBrlRate)}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    )}
+                  </div>
                 </div>
                 {data.discount_percent > 0 && (
                   <div className="flex justify-between text-destructive">
                     <span>Desconto ({data.discount_percent}%)</span>
-                    <span className="font-medium">-{formatCurrency(discountValue)}</span>
+                    <span className="font-medium">-{isInternationalUsd ? formatBrl(discountValue) : formatCurrency(discountValue)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t pt-2 text-lg">
                   <span className="font-bold">Total</span>
-                  <span className="font-bold">{formatCurrency(total)}</span>
+                  <div className="text-right">
+                    {isInternationalUsd ? (
+                      <>
+                        <span className="font-bold">{formatBrl(total)}</span>
+                        {usdBrlRate && (
+                          <span className="text-sm text-muted-foreground block font-semibold">
+                            ≈ {formatUsd(total / usdBrlRate)}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="font-bold">{formatCurrency(total)}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {isInternationalUsd && (
+            <div className="p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs">
+              Valor em USD é estimado com base na cotação do dia e pode variar no momento do pagamento.
+            </div>
+          )}
         </div>
       </div>
 
