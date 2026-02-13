@@ -6,9 +6,11 @@ interface Props {
   updateData: (d: Partial<QuoteWizardData>) => void;
   onNext: () => void;
   onPrev: () => void;
+  isInternationalUsd?: boolean;
+  usdBrlRate?: number | null;
 }
 
-export default function StepComponents({ data, updateData, onNext, onPrev }: Props) {
+export default function StepComponents({ data, updateData, onNext, onPrev, isInternationalUsd, usdBrlRate }: Props) {
   return (
     <ProductPicker
       categories={["configuracao", "torre", "tramo", "chassis"]}
@@ -18,6 +20,8 @@ export default function StepComponents({ data, updateData, onNext, onPrev }: Pro
       onNext={onNext}
       onPrev={onPrev}
       currency={data.currency}
+      isInternationalUsd={isInternationalUsd}
+      usdBrlRate={usdBrlRate}
     />
   );
 }

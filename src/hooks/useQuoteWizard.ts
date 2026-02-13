@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Currency, ProductCategory } from "@/types";
+import { ClientType, Currency, ProductCategory } from "@/types";
 
 export interface QuoteItemDraft {
   product_id: string;
@@ -21,6 +21,7 @@ export interface QuoteWizardData {
   // Step 1 - Client
   client_id: string;
   client_name: string;
+  client_type: ClientType;
 
   // Step 2 - Project
   project_name: string;
@@ -53,11 +54,16 @@ export interface QuoteWizardData {
   // Step 7 - Discount
   discount_percent: number;
   discount_justification: string;
+
+  // International pricing
+  usd_brl_rate_used: number | null;
+  usd_brl_rate_updated_at: string | null;
 }
 
 const INITIAL_DATA: QuoteWizardData = {
   client_id: "",
   client_name: "",
+  client_type: "nacional",
   project_name: "",
   project_location: "",
   equipment: [],
@@ -76,6 +82,8 @@ const INITIAL_DATA: QuoteWizardData = {
   notes: "",
   discount_percent: 0,
   discount_justification: "",
+  usd_brl_rate_used: null,
+  usd_brl_rate_updated_at: null,
 };
 
 export const WIZARD_STEPS = [

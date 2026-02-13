@@ -201,6 +201,17 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   {quote.payment_terms && <p><span className="text-muted-foreground">Pagamento:</span> {quote.payment_terms}</p>}
                   {quote.freight_terms && <p><span className="text-muted-foreground">Frete:</span> {quote.freight_terms}</p>}
                   {quote.notes && <p><span className="text-muted-foreground">Obs:</span> {quote.notes}</p>}
+                  {(quote as any).usd_brl_rate_used && (
+                    <p className="pt-1 border-t mt-2">
+                      <span className="text-muted-foreground">Cotação USD/BRL:</span>{" "}
+                      {Number((quote as any).usd_brl_rate_used).toFixed(4)}
+                      {(quote as any).usd_brl_rate_updated_at && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          (em {formatDate((quote as any).usd_brl_rate_updated_at)})
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

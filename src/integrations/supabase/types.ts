@@ -463,6 +463,7 @@ export type Database = {
           descricao: string | null
           descricao_tecnica: string | null
           id: string
+          international_price_brl: number | null
           is_active: boolean
           needs_review: boolean
           nome: string
@@ -478,6 +479,7 @@ export type Database = {
           descricao?: string | null
           descricao_tecnica?: string | null
           id?: string
+          international_price_brl?: number | null
           is_active?: boolean
           needs_review?: boolean
           nome: string
@@ -493,6 +495,7 @@ export type Database = {
           descricao?: string | null
           descricao_tecnica?: string | null
           id?: string
+          international_price_brl?: number | null
           is_active?: boolean
           needs_review?: boolean
           nome?: string
@@ -545,6 +548,7 @@ export type Database = {
           grua_carga_ponta_kg: number | null
           grua_lanca_m: number | null
           id: string
+          international_unit_price_brl: number | null
           notes: string | null
           order_index: number
           product_category: Database["public"]["Enums"]["product_category"]
@@ -564,6 +568,7 @@ export type Database = {
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
           id?: string
+          international_unit_price_brl?: number | null
           notes?: string | null
           order_index?: number
           product_category: Database["public"]["Enums"]["product_category"]
@@ -583,6 +588,7 @@ export type Database = {
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
           id?: string
+          international_unit_price_brl?: number | null
           notes?: string | null
           order_index?: number
           product_category?: Database["public"]["Enums"]["product_category"]
@@ -679,6 +685,8 @@ export type Database = {
           subtotal: number
           total: number
           updated_at: string
+          usd_brl_rate_updated_at: string | null
+          usd_brl_rate_used: number | null
           validity_days: number
         }
         Insert: {
@@ -713,6 +721,8 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          usd_brl_rate_updated_at?: string | null
+          usd_brl_rate_used?: number | null
           validity_days?: number
         }
         Update: {
@@ -747,6 +757,8 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          usd_brl_rate_updated_at?: string | null
+          usd_brl_rate_used?: number | null
           validity_days?: number
         }
         Relationships: [

@@ -118,6 +118,17 @@ const YELUM_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/obje
 const CREA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/crea-go-logo.webp";
 
 function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>) {
+  const isInternationalUsd = quote.clients?.client_type === "internacional" && quote.currency === "USD" && quote.usd_brl_rate_used;
+  const usdRate = quote.usd_brl_rate_used ? Number(quote.usd_brl_rate_used) : null;
+
+  const formatBrl = (value: number) => {
+    return `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const formatUsd = (value: number) => {
+    return `US$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const formatCurrency = (value: number) => {
     const symbols: Record<string, string> = { BRL: "R$", USD: "US$", EUR: "€" };
     const sym = symbols[quote.currency] || quote.currency;
@@ -127,6 +138,11 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const formatDate = (d: string) => {
     const date = new Date(d);
     return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+  };
+
+  const formatDateTime = (d: string) => {
+    const date = new Date(d);
+    return `${formatDate(d)} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
   };
 
   const client = quote.clients;
@@ -152,21 +168,48 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const categoryOrder = ["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"];
   const sortedCategories = categoryOrder.filter((c) => grouped[c]);
 
+  // Build items table - different columns for international vs national
   let itemsHTML = "";
   let idx = 1;
-  for (const cat of sortedCategories) {
-    itemsHTML += `<tr class="cat-header"><td colspan="5">${categoryLabels[cat] || cat}</td></tr>`;
-    for (const item of grouped[cat]) {
-      const product = productsMap[item.product_id];
-      const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
-      itemsHTML += `
-        <tr>
-          <td class="center">${idx++}</td>
-          <td>${item.product_code}</td>
-          <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
-          <td class="center">${item.quantity}</td>
-          <td class="right">${formatCurrency(item.total_price)}</td>
-        </tr>`;
+
+  if (isInternationalUsd && usdRate) {
+    // International: show BRL international + estimated USD
+    for (const cat of sortedCategories) {
+      itemsHTML += `<tr class="cat-header"><td colspan="7">${categoryLabels[cat] || cat}</td></tr>`;
+      for (const item of grouped[cat]) {
+        const product = productsMap[item.product_id];
+        const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const intlBrl = item.international_unit_price_brl || item.unit_price;
+        const totalBrl = intlBrl * item.quantity;
+        const totalUsd = totalBrl / usdRate;
+        itemsHTML += `
+          <tr>
+            <td class="center">${idx++}</td>
+            <td>${item.product_code}</td>
+            <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td class="center">${item.quantity}</td>
+            <td class="right">${formatBrl(intlBrl)}</td>
+            <td class="right">${formatBrl(totalBrl)}</td>
+            <td class="right">${formatUsd(totalUsd)}</td>
+          </tr>`;
+      }
+    }
+  } else {
+    // National: standard table
+    for (const cat of sortedCategories) {
+      itemsHTML += `<tr class="cat-header"><td colspan="5">${categoryLabels[cat] || cat}</td></tr>`;
+      for (const item of grouped[cat]) {
+        const product = productsMap[item.product_id];
+        const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        itemsHTML += `
+          <tr>
+            <td class="center">${idx++}</td>
+            <td>${item.product_code}</td>
+            <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td class="center">${item.quantity}</td>
+            <td class="right">${formatCurrency(item.total_price)}</td>
+          </tr>`;
+      }
     }
   }
 
@@ -191,6 +234,83 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     </div>`).join("")}
   </div>` : "";
 
+  // Totals section
+  let totalsHTML = "";
+  if (isInternationalUsd && usdRate) {
+    const subtotalUsd = quote.subtotal / usdRate;
+    const discountUsd = quote.discount_value / usdRate;
+    const totalUsd = quote.total / usdRate;
+    totalsHTML = `
+    <div class="totals">
+      <div class="totals-box" style="width: 350px;">
+        <div class="totals-row">
+          <span>Subtotal (BRL)</span>
+          <span>${formatBrl(quote.subtotal)}</span>
+        </div>
+        <div class="totals-row">
+          <span>Subtotal estimado (USD)</span>
+          <span>${formatUsd(subtotalUsd)}</span>
+        </div>
+        ${quote.discount_percent > 0 ? `
+        <div class="totals-row discount">
+          <span>Desconto (${Number(quote.discount_percent).toFixed(1)}%)</span>
+          <span>-${formatBrl(quote.discount_value)} / -${formatUsd(discountUsd)}</span>
+        </div>
+        ` : ""}
+        <div class="totals-row total">
+          <span>Total (BRL)</span>
+          <span>${formatBrl(quote.total)}</span>
+        </div>
+        <div class="totals-row total" style="border-top: none; margin-top: 0;">
+          <span>Total estimado (USD)</span>
+          <span>${formatUsd(totalUsd)}</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
+      Cotação USD/BRL utilizada: ${usdRate.toFixed(4)}${quote.usd_brl_rate_updated_at ? ` (atualizada em ${formatDateTime(quote.usd_brl_rate_updated_at)})` : ""}
+    </div>`;
+  } else {
+    totalsHTML = `
+    <div class="totals">
+      <div class="totals-box">
+        <div class="totals-row">
+          <span>Subtotal</span>
+          <span>${formatCurrency(quote.subtotal)}</span>
+        </div>
+        ${quote.discount_percent > 0 ? `
+        <div class="totals-row discount">
+          <span>Desconto (${Number(quote.discount_percent).toFixed(1)}%)</span>
+          <span>-${formatCurrency(quote.discount_value)}</span>
+        </div>
+        ` : ""}
+        <div class="totals-row total">
+          <span>Total</span>
+          <span>${formatCurrency(quote.total)}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Items table header
+  const tableHeaderHTML = isInternationalUsd && usdRate ? `
+    <tr>
+      <th class="center" style="width:35px">#</th>
+      <th style="width:90px">Código</th>
+      <th>Descrição</th>
+      <th class="center" style="width:40px">Qtd</th>
+      <th class="right" style="width:100px">Unit. Intl. (BRL)</th>
+      <th class="right" style="width:100px">Total (BRL)</th>
+      <th class="right" style="width:100px">Est. (USD)</th>
+    </tr>` : `
+    <tr>
+      <th class="center" style="width:40px">#</th>
+      <th style="width:100px">Código</th>
+      <th>Descrição</th>
+      <th class="center" style="width:50px">Qtd</th>
+      <th class="right" style="width:110px">Total</th>
+    </tr>`;
+
   // Company header info
   const companyName = co.company_name || "SOIMA Brasil";
   const companySubtitle = co.razao_social || "Equipamentos para Construção Civil";
@@ -198,6 +318,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const companyEmail = co.email || "";
   const companyWebsite = co.website || "";
   const companyCrea = co.crea_registration || "";
+
+  // International disclaimer
+  const disclaimerHTML = isInternationalUsd ? `
+  <div style="margin-top: 10px; padding: 8px; border: 1px solid #e0c36a; background: #fef9e7; border-radius: 4px; font-size: 9px; color: #7d6608;">
+    <strong>Nota:</strong> Valores em USD são estimados com base na cotação do dia e podem variar no momento do pagamento.
+  </div>` : "";
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -312,37 +438,15 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     <div class="section-title">Itens da Proposta</div>
     <table>
       <thead>
-        <tr>
-          <th class="center" style="width:40px">#</th>
-          <th style="width:100px">Código</th>
-          <th>Descrição</th>
-          <th class="center" style="width:50px">Qtd</th>
-          <th class="right" style="width:110px">Total</th>
-        </tr>
+        ${tableHeaderHTML}
       </thead>
       <tbody>
-        ${itemsHTML || '<tr><td colspan="5" class="center">Nenhum item</td></tr>'}
+        ${itemsHTML || `<tr><td colspan="${isInternationalUsd ? 7 : 5}" class="center">Nenhum item</td></tr>`}
       </tbody>
     </table>
 
-    <div class="totals">
-      <div class="totals-box">
-        <div class="totals-row">
-          <span>Subtotal</span>
-          <span>${formatCurrency(quote.subtotal)}</span>
-        </div>
-        ${quote.discount_percent > 0 ? `
-        <div class="totals-row discount">
-          <span>Desconto (${Number(quote.discount_percent).toFixed(1)}%)</span>
-          <span>-${formatCurrency(quote.discount_value)}</span>
-        </div>
-        ` : ""}
-        <div class="totals-row total">
-          <span>Total</span>
-          <span>${formatCurrency(quote.total)}</span>
-        </div>
-      </div>
-    </div>
+    ${totalsHTML}
+    ${disclaimerHTML}
   </div>
 
   <div class="section conditions">
@@ -367,6 +471,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
     ${co.address ? `<br>${co.address}` : ""}
     <br>Documento gerado em ${formatDate(new Date().toISOString())} por ${creator?.name || "Sistema"} (${creator?.email || ""})
+    ${isInternationalUsd ? `<br><em style="color: #7d6608;">Valores em USD são estimados com base na cotação do dia e podem variar no momento do pagamento.</em>` : ""}
     <div class="footer-logos">
       <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
       <img src="${CREA_LOGO_URL}" alt="CREA-GO" />

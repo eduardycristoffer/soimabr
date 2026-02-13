@@ -16,6 +16,8 @@ interface Props {
 }
 
 export default function StepCommercial({ data, updateData, onNext, onPrev }: Props) {
+  const isInternational = data.client_type === "internacional";
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -26,7 +28,9 @@ export default function StepCommercial({ data, updateData, onNext, onPrev }: Pro
             <SelectContent>
               <SelectItem value="BRL">🇧🇷 Real (BRL)</SelectItem>
               <SelectItem value="USD">🇺🇸 Dólar (USD)</SelectItem>
-              <SelectItem value="EUR">🇪🇺 Euro (EUR)</SelectItem>
+              {!isInternational && (
+                <SelectItem value="EUR">🇪🇺 Euro (EUR)</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

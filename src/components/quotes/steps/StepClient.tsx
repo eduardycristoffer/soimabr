@@ -39,6 +39,7 @@ export default function StepClient({ data, updateData, onNext }: Props) {
     updateData({
       client_id: client.id,
       client_name: client.nome_fantasia || client.razao_social,
+      client_type: client.client_type || "nacional",
     });
   };
 

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useQuoteWizard, WIZARD_STEPS, QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
+import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
@@ -28,6 +29,9 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
   const queryClient = useQueryClient();
   const wizard = useQuoteWizard();
 
+  const isInternationalUsd = wizard.data.client_type === "internacional" && wizard.data.currency === "USD";
+  const { rate: usdBrlRate, lastUpdatedAt: usdBrlLastUpdated, isStale: isRateStale } = useUsdBrlRate(isInternationalUsd);
+
   const sourceQuoteId = editingQuoteId || duplicatingQuoteId;
 
   // Load existing quote data for editing or duplicating
@@ -37,7 +41,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
       if (!sourceQuoteId) return null;
       const { data: quote, error } = await supabase
         .from("quotes")
-        .select("*, clients(razao_social, nome_fantasia)")
+        .select("*, clients(razao_social, nome_fantasia, client_type)")
         .eq("id", sourceQuoteId)
         .single();
       if (error) throw error;
@@ -71,6 +75,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
       wizard.updateData({
         client_id: quote.client_id,
         client_name: quote.clients?.nome_fantasia || quote.clients?.razao_social || "",
+        client_type: quote.clients?.client_type || "nacional",
         project_name: quote.project_name || "",
         project_location: quote.project_location || "",
         equipment: mapItems(["grua"]),
@@ -89,6 +94,8 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         notes: quote.notes || "",
         discount_percent: quote.discount_percent,
         discount_justification: "",
+        usd_brl_rate_used: (quote as any).usd_brl_rate_used ?? null,
+        usd_brl_rate_updated_at: (quote as any).usd_brl_rate_updated_at ?? null,
       });
 
       return quote;
@@ -126,7 +133,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
 
       // Copy specs from first grua for backward compat with quotes table
       const firstGrua = wizard.data.equipment[0];
-      const quotePayload = {
+      const quotePayload: Record<string, any> = {
         client_id: wizard.data.client_id,
         project_name: wizard.data.project_name || null,
         project_location: wizard.data.project_location || null,
@@ -148,6 +155,12 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         total: wizard.total,
         status: finalStatus as "draft" | "finalized",
       };
+
+      // Save USD rate for international quotes
+      if (isInternationalUsd && usdBrlRate) {
+        quotePayload.usd_brl_rate_used = usdBrlRate;
+        quotePayload.usd_brl_rate_updated_at = usdBrlLastUpdated || new Date().toISOString();
+      }
 
       let quoteId: string;
       let quoteNumber: string;
@@ -181,7 +194,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           .update({
             ...quotePayload,
             finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
-          })
+          } as any)
           .eq("id", editingQuoteId);
         if (updateError) throw updateError;
 
@@ -199,7 +212,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             quote_number: "TEMP", // Will be replaced by trigger
             created_by: userId,
             finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
-          })
+          } as any)
           .select("id, quote_number")
           .single();
 
@@ -232,11 +245,12 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           grua_carga_maxima_kg: item.product_category === "grua" ? (item.grua_carga_maxima_kg ?? null) : null,
           grua_carga_ponta_kg: item.product_category === "grua" ? (item.grua_carga_ponta_kg ?? null) : null,
           grua_altura_trabalho_m: item.product_category === "grua" ? (item.grua_altura_trabalho_m ?? null) : null,
+          international_unit_price_brl: isInternationalUsd ? item.unit_price : null,
         }));
 
         const { error: itemsError } = await supabase
           .from("quote_items")
-          .insert(items);
+          .insert(items as any);
 
         if (itemsError) throw itemsError;
       }
@@ -341,13 +355,25 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           <StepProject data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
         )}
         {wizard.step === 3 && (
-          <StepEquipment data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <StepEquipment
+            data={wizard.data} updateData={wizard.updateData}
+            onNext={wizard.nextStep} onPrev={wizard.prevStep}
+            isInternationalUsd={isInternationalUsd} usdBrlRate={usdBrlRate}
+          />
         )}
         {wizard.step === 4 && (
-          <StepComponents data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <StepComponents
+            data={wizard.data} updateData={wizard.updateData}
+            onNext={wizard.nextStep} onPrev={wizard.prevStep}
+            isInternationalUsd={isInternationalUsd} usdBrlRate={usdBrlRate}
+          />
         )}
         {wizard.step === 5 && (
-          <StepAccessories data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <StepAccessories
+            data={wizard.data} updateData={wizard.updateData}
+            onNext={wizard.nextStep} onPrev={wizard.prevStep}
+            isInternationalUsd={isInternationalUsd} usdBrlRate={usdBrlRate}
+          />
         )}
         {wizard.step === 6 && (
           <StepCommercial data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
@@ -375,6 +401,9 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             onRequestApproval={() => saveMutation.mutate("request_approval")}
             needsApproval={needsApproval}
             isSaving={saveMutation.isPending}
+            usdBrlRate={usdBrlRate}
+            usdBrlLastUpdated={usdBrlLastUpdated}
+            isRateStale={isRateStale}
           />
         )}
       </div>
