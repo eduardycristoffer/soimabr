@@ -26,7 +26,7 @@ export function usePipelineData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("*, pipeline_stages(*), clients(*), quotes(*)")
+        .select("*, pipeline_stages(*), clients(*), quotes!leads_quote_id_fkey(*)")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data as LeadWithStage[];
