@@ -1138,7 +1138,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_directory: {
+        Row: {
+          name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
