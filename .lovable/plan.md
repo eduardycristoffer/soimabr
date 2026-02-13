@@ -1,34 +1,64 @@
 
-# Pipeline de Vendas Completo — Implementação Concluída
+# Reordenacao de Etapas e Vista de Lista de Leads
 
-## Status: ✅ IMPLEMENTADO
+## O que sera feito
 
-### Fase 1 — Banco de Dados ✅
-- `pipeline_stages`: colunas `is_fixed`, `stage_type` adicionadas
-- Etapas fixas: Novo Lead, Primeiro Contato, Proposta, Fechamento - Ganho, Perdido
-- Etapas editáveis: Qualificação, Negociação, Proposta Enviada
-- `leads`: colunas `source`, `quote_id`, `metadata`, `lead_origin`
-- Tabela `pipeline_history` para auditoria
-- Trigger `prevent_fixed_stage_mutation` protege etapas fixas
-- Trigger `prevent_final_stage_move` bloqueia movimentação de etapas finais por operadores
+### 1. Permitir reordenacao de TODAS as etapas (fixas e editaveis)
 
-### Fase 2 — Propostas no Pipeline ✅
-- QuoteWizard auto-cria/atualiza card no pipeline ao salvar proposta
-- Cards diferenciados visualmente (Lead vs Proposta)
-- `lead_origin = 'proposal_direct'` para propostas sem lead prévio
+**Problema atual:** O trigger `prevent_fixed_stage_mutation` no banco bloqueia qualquer UPDATE em etapas fixas, incluindo mudanca de `order_index`. Isso impede reordenar etapas fixas.
 
-### Fase 3 — Funcionalidades de Lead ✅
-- Campo `source` no formulário de lead (manual, indicação, webhook, outro)
-- Conversão Lead → Cliente com modal dedicado
-- Webhook edge function `webhook-leads` para entrada externa
-- Gestão de etapas pelo admin (PipelineStageManager)
+**Solucao:**
+- Atualizar o trigger SQL para permitir alteracao de `order_index` e `color` em etapas fixas, mantendo o bloqueio apenas em `name`, `is_fixed` e `stage_type`
+- Adicionar botoes de mover para cima/baixo no `PipelineStageManager` (as setas ja estao implicitas pelo grip icon, mas nao funciona de fato)
+- Implementar reordenacao funcional com botoes de seta para todas as etapas
 
-### Fase 4 — Exportação e Melhorias ✅
-- Exportação CSV e Excel com filtros
-- Badges de tipo (Lead/Proposta), source, conversão
-- Filtro rápido por tipo (Todos/Leads/Propostas)
+### 2. Vista de Lista de todos os Leads
 
-### Decisão: leads.quote_id
-- Representa APENAS a proposta ativa associada (1:1 por ora)
-- Novas propostas para o mesmo cliente atualizam o quote_id
-- Histórico mantido em pipeline_history
+**Problema atual:** Hoje so e possivel ver leads dentro do Kanban, agrupados por etapa. Nao ha uma visao geral em lista.
+
+**Solucao:**
+- Adicionar toggle Kanban/Lista no header do Pipeline
+- Na vista Lista, mostrar uma tabela com todos os leads contendo:
+  - Titulo
+  - Empresa
+  - Contato (nome, email, telefone)
+  - Etapa atual (badge colorido)
+  - Origem (source)
+  - Valor estimado
+  - Data de criacao
+  - Status (Lead / Proposta / Convertido)
+- Clicar em um lead abre o mesmo `LeadDetailModal` (com opcao de editar)
+- O lead funciona como um **pre-cadastro** ate ser convertido em cliente
+
+---
+
+## Detalhes tecnicos
+
+### Migracao SQL
+Atualizar o trigger `prevent_fixed_stage_mutation` para:
+- Permitir `UPDATE` de `order_index` e `color` em etapas fixas
+- Continuar bloqueando `name`, `is_fixed`, `stage_type` em etapas fixas
+
+### PipelineStageManager.tsx
+- Adicionar botoes de seta (ChevronUp / ChevronDown) para TODAS as etapas
+- Ao clicar, trocar `order_index` com a etapa adjacente (swap)
+- Mutation para atualizar ambos os registros no banco
+
+### Pipeline.tsx
+- Adicionar toggle de visualizacao: "Kanban" | "Lista"
+- Quando "Lista" selecionado, renderizar novo componente `PipelineLeadList`
+
+### Novo: PipelineLeadList.tsx
+- Tabela responsiva com todos os leads (sem agrupamento por etapa)
+- Colunas: Titulo, Empresa, Contato, Etapa, Origem, Valor, Data, Status
+- Ordenacao por coluna (click no header)
+- Clicar na linha abre `LeadDetailModal`
+- Mesmo filtro de tipo (Todos/Leads/Propostas) ja existente
+
+### Arquivos modificados
+| Arquivo | Acao |
+|---------|------|
+| Migracao SQL | Atualizar trigger para permitir reorder de fixas |
+| `src/components/pipeline/PipelineStageManager.tsx` | Botoes de reordenacao para todas as etapas |
+| `src/pages/Pipeline.tsx` | Toggle Kanban/Lista |
+| `src/components/pipeline/PipelineLeadList.tsx` | Novo: vista de lista/tabela |
