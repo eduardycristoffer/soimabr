@@ -10,16 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: z.enum(["admin", "operator"]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -33,12 +29,9 @@ interface Props {
 export default function InviteUserModal({ open, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { role: "operator" },
   });
-
-  const role = watch("role");
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -84,19 +77,6 @@ export default function InviteUserModal({ open, onClose, onSuccess }: Props) {
             <Label htmlFor="password">Senha</Label>
             <Input id="password" type="password" {...register("password")} placeholder="Mínimo 6 caracteres" />
             {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Perfil</Label>
-            <Select value={role} onValueChange={(v) => setValue("role", v as "admin" | "operator")}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="operator">Operador</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <DialogFooter>

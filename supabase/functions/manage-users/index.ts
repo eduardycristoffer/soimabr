@@ -6,6 +6,41 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const APP_URL = "https://soimabr.lovable.app";
+
+const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/soima-logo.webp";
+
+function getInviteEmailHTML(userName: string, verifyUrl: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background:#1a1a2e;padding:24px;text-align:center;">
+        <img src="${SOIMA_LOGO_URL}" alt="SOIMA" height="40" style="height:40px;" />
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <h2 style="color:#1a1a2e;margin:0 0 16px;">Bem-vindo ao Sistema SOIMA</h2>
+        <p style="color:#3f3f46;line-height:1.6;">Olá <strong>${userName}</strong>,</p>
+        <p style="color:#3f3f46;line-height:1.6;">Sua conta foi criada no Sistema SOIMA. Para ativar seu acesso, clique no botão abaixo:</p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${verifyUrl}" style="background:#2563eb;color:#ffffff;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Confirmar meu e-mail</a>
+        </div>
+        <p style="color:#71717a;font-size:13px;">Este link expira em 24 horas. Se você não solicitou esta conta, ignore este e-mail.</p>
+        <p style="color:#71717a;font-size:12px;word-break:break-all;">Link direto: ${verifyUrl}</p>
+      </td></tr>
+      <tr><td style="background:#f4f4f5;padding:16px;text-align:center;font-size:12px;color:#71717a;">
+        Sistema SOIMA &bull; Este é um e-mail automático, não responda.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -64,7 +99,7 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "create_user": {
-        const { email, password, name, role } = payload;
+        const { email, password, name } = payload;
         if (!email || !password || !name) {
           return new Response(JSON.stringify({ error: "Email, senha e nome são obrigatórios" }), {
             status: 400,
@@ -72,11 +107,11 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Create user via admin API (auto-confirms email)
+        // Role is always operator for new users - never trust frontend
         const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
           email,
           password,
-          email_confirm: true,
+          email_confirm: false, // Require email verification
           user_metadata: { name },
         });
 
@@ -87,12 +122,50 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Update role if admin was selected (trigger creates 'operator' by default)
-        if (role === "admin" && newUser.user) {
+        if (newUser.user) {
+          // Set profile as inactive until email is verified
           await supabase
-            .from("user_roles")
-            .update({ role: "admin" })
+            .from("profiles")
+            .update({ is_active: false })
             .eq("user_id", newUser.user.id);
+
+          // Generate verification token
+          const { data: tokenData } = await supabase
+            .from("email_verification_tokens")
+            .insert({
+              user_id: newUser.user.id,
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            })
+            .select("token")
+            .single();
+
+          if (tokenData) {
+            const verifyUrl = `${APP_URL}/auth/verify?token=${tokenData.token}`;
+            const html = getInviteEmailHTML(name, verifyUrl);
+
+            // Send invite email
+            try {
+              await supabase.functions.invoke("send-email", {
+                body: {
+                  to: email,
+                  subject: "Confirme seu e-mail - Sistema SOIMA",
+                  html,
+                  _service_key: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+                },
+              });
+            } catch (emailErr: any) {
+              console.error("Error sending invite email:", emailErr);
+            }
+          }
+
+          // Log security event
+          await supabase.from("security_logs").insert({
+            user_id: callerUserId,
+            action: "user_created",
+            metadata: { target_user_id: newUser.user.id, target_email: email },
+            ip_address: req.headers.get("x-forwarded-for") || null,
+            user_agent: req.headers.get("user-agent") || null,
+          });
         }
 
         return new Response(JSON.stringify({ success: true, user_id: newUser.user?.id }), {
@@ -110,7 +183,14 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Prevent admin from removing their own admin role
+        // Validate role value
+        if (!["admin", "operator"].includes(role)) {
+          return new Response(JSON.stringify({ error: "Role inválida" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         if (user_id === callerUserId && role !== "admin") {
           return new Response(JSON.stringify({ error: "Você não pode remover seu próprio acesso de administrador" }), {
             status: 400,
@@ -130,6 +210,15 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Log
+        await supabase.from("security_logs").insert({
+          user_id: callerUserId,
+          action: "role_changed",
+          metadata: { target_user_id: user_id, new_role: role },
+          ip_address: req.headers.get("x-forwarded-for") || null,
+          user_agent: req.headers.get("user-agent") || null,
+        });
+
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -145,7 +234,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Prevent self-deactivation
         if (user_id === callerUserId && !is_active) {
           return new Response(JSON.stringify({ error: "Você não pode desativar sua própria conta" }), {
             status: 400,
@@ -153,7 +241,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Update profile
         const { error: profileError } = await supabase
           .from("profiles")
           .update({ is_active })
@@ -166,12 +253,20 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Ban/unban in auth
         if (!is_active) {
-          await supabase.auth.admin.updateUserById(user_id, { ban_duration: "876600h" }); // ~100 years
+          await supabase.auth.admin.updateUserById(user_id, { ban_duration: "876600h" });
         } else {
           await supabase.auth.admin.updateUserById(user_id, { ban_duration: "none" });
         }
+
+        // Log
+        await supabase.from("security_logs").insert({
+          user_id: callerUserId,
+          action: is_active ? "user_activated" : "user_deactivated",
+          metadata: { target_user_id: user_id },
+          ip_address: req.headers.get("x-forwarded-for") || null,
+          user_agent: req.headers.get("user-agent") || null,
+        });
 
         return new Response(JSON.stringify({ success: true }), {
           status: 200,

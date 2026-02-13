@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Login from "@/pages/Login";
+import VerifyEmail from "@/pages/VerifyEmail";
 import Dashboard from "@/pages/Dashboard";
 import Clientes from "@/pages/Clientes";
 import Produtos from "@/pages/Produtos";
@@ -32,6 +33,7 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/verify" element={<VerifyEmail />} />
             
             {/* Protected routes */}
             <Route element={<MainLayout />}>
