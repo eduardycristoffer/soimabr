@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Plus, Trash2, GripVertical } from "lucide-react";
+import { Lock, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -22,14 +22,50 @@ export default function PipelineStageManager({ open, onOpenChange, stages }: Pro
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("#6B7280");
 
+  const sortedStages = [...stages].sort((a, b) => a.order_index - b.order_index);
+
+  const swapOrderMutation = useMutation({
+    mutationFn: async ({ stageA, stageB }: { stageA: PipelineStage; stageB: PipelineStage }) => {
+      const { error: err1 } = await supabase
+        .from("pipeline_stages")
+        .update({ order_index: stageB.order_index })
+        .eq("id", stageA.id);
+      if (err1) throw err1;
+
+      const { error: err2 } = await supabase
+        .from("pipeline_stages")
+        .update({ order_index: stageA.order_index })
+        .eq("id", stageB.id);
+      if (err2) throw err2;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-stages"] });
+    },
+    onError: () => toast.error("Erro ao reordenar etapas"),
+  });
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0) return;
+    swapOrderMutation.mutate({
+      stageA: sortedStages[index],
+      stageB: sortedStages[index - 1],
+    });
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index >= sortedStages.length - 1) return;
+    swapOrderMutation.mutate({
+      stageA: sortedStages[index],
+      stageB: sortedStages[index + 1],
+    });
+  };
+
   const addStageMutation = useMutation({
     mutationFn: async () => {
       if (!newStageName.trim()) return;
-      // Insert before final stages (find max non-final order_index)
       const customStages = stages.filter((s) => !(s as any).is_fixed || !["final", "lost"].includes((s as any).stage_type));
       const maxOrder = Math.max(...customStages.map((s) => s.order_index), 0);
-      
-      // Shift final stages up
+
       const finalStages = stages.filter((s) => ["final", "lost"].includes((s as any).stage_type));
       for (const fs of finalStages) {
         await supabase
@@ -57,7 +93,6 @@ export default function PipelineStageManager({ open, onOpenChange, stages }: Pro
 
   const deleteStageMutation = useMutation({
     mutationFn: async (stageId: string) => {
-      // Move leads from this stage to first stage
       const firstStage = stages.find((s) => s.order_index === 1);
       if (firstStage) {
         await supabase
@@ -91,8 +126,6 @@ export default function PipelineStageManager({ open, onOpenChange, stages }: Pro
     onError: (err: any) => toast.error(err.message || "Erro ao atualizar etapa"),
   });
 
-  const sortedStages = [...stages].sort((a, b) => a.order_index - b.order_index);
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md">
@@ -100,16 +133,34 @@ export default function PipelineStageManager({ open, onOpenChange, stages }: Pro
           <SheetTitle>Gerenciar Etapas do Pipeline</SheetTitle>
         </SheetHeader>
         <div className="mt-6 space-y-4">
-          {/* Existing stages */}
           <div className="space-y-2">
-            {sortedStages.map((stage) => {
+            {sortedStages.map((stage, idx) => {
               const isFixed = (stage as any).is_fixed;
               return (
                 <div
                   key={stage.id}
                   className="flex items-center gap-2 rounded-md border p-2"
                 >
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      disabled={idx === 0 || swapOrderMutation.isPending}
+                      onClick={() => handleMoveUp(idx)}
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      disabled={idx === sortedStages.length - 1 || swapOrderMutation.isPending}
+                      onClick={() => handleMoveDown(idx)}
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </div>
                   <div
                     className="h-4 w-4 rounded-full shrink-0"
                     style={{ backgroundColor: stage.color }}
@@ -164,7 +215,6 @@ export default function PipelineStageManager({ open, onOpenChange, stages }: Pro
             })}
           </div>
 
-          {/* Add new stage */}
           <div className="border-t pt-4">
             <p className="text-sm font-medium mb-2">Nova etapa</p>
             <div className="flex items-center gap-2">
