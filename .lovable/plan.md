@@ -1,79 +1,81 @@
 
-# Travar 1 Grua por Proposta (Single-Grua)
 
-## Situacao Atual
+# Ajustes na Proposta: Preco Internacional e Desconto em USD
 
-Hoje, o passo "Equipamento" do wizard usa o `ProductPicker` generico com multi-select, permitindo adicionar varias gruas. Dados existentes confirmam que 2 propostas antigas tem multiplas gruas (ORC260002 com 4 gruas, ORC260004 com 3 gruas). A grua e armazenada como um item normal em `quote_items` com `product_category = 'grua'`.
+## Problema Atual
 
-## Abordagem
+1. **Ordem dos passos**: Produtos sao selecionados nos passos 3-5 (com preco nacional), mas a moeda so e escolhida no passo 6. Quando o usuario seleciona USD no passo 6, os precos dos itens ja adicionados nao sao recalculados para usar `international_price_brl`.
 
-Manter a grua dentro de `quote_items` (sem criar FK `crane_id` na tabela `quotes`) por ser a abordagem mais simples e compativel. A restricao de "1 grua por proposta" sera aplicada em 3 camadas: UI, logica do wizard, e validacao no backend (trigger SQL).
+2. **Bloqueio indevido**: Quando um produto nao tem `international_price_brl`, o sistema bloqueia a adicao. O usuario quer que apareca com valor zero em vez de bloquear.
 
----
-
-## 1. Banco de Dados -- Trigger de Validacao
-
-Criar um trigger `BEFORE INSERT` em `quote_items` que conta quantos itens com `product_category = 'grua'` ja existem para aquele `quote_id`. Se ja houver 1, bloqueia o INSERT com erro.
-
-Isso garante a regra no nivel do banco, independente do frontend.
-
-**Propostas antigas com multiplas gruas** (ORC260002 e ORC260004): nao serao migradas automaticamente. O trigger so se aplica a novos inserts. Elas continuam funcionando como estao, mas se forem editadas o usuario precisara remover as gruas extras.
-
-## 2. StepEquipment -- Selecao Unica
-
-Substituir o `ProductPicker` multi-select por uma interface de selecao unica:
-
-- Exibir o catalogo de gruas com busca (como hoje)
-- Ao clicar numa grua, ela **substitui** a grua atual (em vez de acumular)
-- Quando ja ha uma grua selecionada, mostrar um card de resumo com:
-  - Nome e codigo da grua
-  - Botao "Trocar grua"
-  - Campos de especificacoes tecnicas (lanca, altura torre, cargas, etc.) -- igual ao atual
-- Remover os botoes de +/- quantidade (grua sempre tem qty = 1)
-- Mensagem informativa: "Cada proposta permite 1 grua. Para vender mais de uma grua, crie outra proposta."
-
-## 3. Validacao no Wizard (Frontend)
-
-- No `StepEquipment`, bloquear o botao "Proximo" se nenhuma grua estiver selecionada
-- No `StepReview`, bloquear "Finalizar" e "Salvar Rascunho" se `equipment.length === 0`
-- Mensagem: "Selecione 1 grua para continuar."
-- O array `equipment` no wizard tera no maximo 1 item
-
-## 4. QuoteWizard -- Logica de Save
-
-Nenhuma mudanca estrutural no save. O array `equipment` ja e salvo em `quote_items`. Com a restricao de 1 item no frontend + trigger no banco, a regra esta completa.
-
-## 5. PDF
-
-Nenhuma mudanca estrutural necessaria. O PDF ja separa gruas de outros itens. A unica grua aparecera na secao de equipamento. A logica atual ja funciona com 1 grua.
-
-## 6. QuoteDetailModal
-
-Nenhuma mudanca necessaria -- ja exibe os itens por categoria.
+3. **Passo 7 (Desconto)**: Nao mostra o valor em USD nem a conversao estimada -- mostra apenas na moeda selecionada sem a informacao dual.
 
 ---
 
-## Detalhes Tecnicos -- Arquivos
+## Solucao
 
-| Arquivo | Acao |
-|---------|------|
-| Migracao SQL | **Nova**: trigger `enforce_single_grua_per_quote` em `quote_items` |
-| `src/components/quotes/steps/StepEquipment.tsx` | **Refatorar**: substituir ProductPicker por selecao unica com card de resumo |
-| `src/components/quotes/steps/StepReview.tsx` | Adicionar validacao: bloquear finalizacao sem grua |
-| `src/hooks/useQuoteWizard.ts` | Sem mudanca (equipment[] ja funciona, apenas limitar a 1 item no UI) |
-| `src/components/quotes/QuoteWizard.tsx` | Sem mudanca |
+### 1. Recalcular precos ao mudar moeda no passo 6
 
-### Trigger SQL (resumo)
+Quando o usuario selecionar USD no `StepCommercial` e o cliente for internacional:
+
+- Buscar do banco os produtos correspondentes aos itens ja selecionados (equipment, components, accessories)
+- Para cada item, substituir `unit_price` e `total_price` pelo `international_price_brl` do produto
+- Se o produto nao tiver `international_price_brl`, usar **zero** (nao bloquear)
+- Quando voltar para BRL, recalcular usando o `preco` normal
+
+### 2. Permitir produtos sem preco internacional (valor zero)
+
+No `ProductPicker` e no `StepEquipment`:
+
+- Remover o bloqueio de adicao para produtos sem `international_price_brl`
+- Se o valor for null/0, adicionar o item com `unit_price = 0` e `total_price = 0`
+- Manter um aviso visual (badge "Sem preco intl.") mas permitir a adicao
+
+### 3. Mostrar USD no passo 7 (Desconto)
+
+No `StepDiscount`, quando for proposta internacional USD:
+
+- Exibir subtotal, desconto e total em BRL (valor base internacional)
+- Abaixo de cada valor, mostrar o equivalente estimado em USD usando a cotacao do dia
+- Incluir a cotacao usada e o disclaimer
+
+---
+
+## Detalhes Tecnicos
+
+### Arquivos a modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `StepCommercial.tsx` | Ao mudar moeda, buscar produtos e recalcular precos dos itens |
+| `StepEquipment.tsx` | Remover bloqueio de produtos sem preco internacional, usar zero |
+| `ProductPicker.tsx` | Remover bloqueio, permitir adicao com preco zero |
+| `StepDiscount.tsx` | Adicionar exibicao dual BRL/USD com cotacao |
+| `QuoteWizard.tsx` | Passar `usdBrlRate` e `isInternationalUsd` para `StepDiscount` |
+
+### Logica de recalculo no StepCommercial
 
 ```text
-BEFORE INSERT ON quote_items
-  IF NEW.product_category = 'grua' THEN
-    SELECT count(*) FROM quote_items
-      WHERE quote_id = NEW.quote_id AND product_category = 'grua';
-    IF count >= 1 THEN
-      RAISE EXCEPTION 'Apenas 1 grua permitida por proposta';
-    END IF;
-  END IF;
+Ao mudar currency para USD (e client_type === "internacional"):
+  1. Buscar products por IDs dos itens em equipment + components + accessories
+  2. Para cada item:
+     - Encontrar o produto correspondente
+     - item.unit_price = product.international_price_brl ?? 0
+     - item.total_price = item.unit_price * item.quantity
+  3. updateData({ equipment, components, accessories, currency: "USD" })
+
+Ao mudar de USD para BRL:
+  1. Buscar products por IDs
+  2. Para cada item:
+     - item.unit_price = product.preco
+     - item.total_price = item.unit_price * item.quantity
+  3. updateData({ equipment, components, accessories, currency: "BRL" })
 ```
 
-Note: o save do wizard ja faz DELETE de todos os items antes de re-inserir, entao o trigger funciona corretamente no fluxo de edicao.
+### StepDiscount - Resumo de Valores com USD
+
+Quando `isInternationalUsd`:
+- Subtotal: R$ X.XXX,XX / aprox. US$ Y,YYY.YY
+- Desconto: -R$ X.XXX,XX
+- Total: R$ X.XXX,XX / aprox. US$ Y,YYY.YY
+- Rodape: "Valor em USD estimado com base na cotacao do dia (1 USD = R$ Z,ZZZZ)"
