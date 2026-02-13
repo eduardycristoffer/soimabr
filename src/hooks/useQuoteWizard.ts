@@ -35,6 +35,7 @@ export interface QuoteWizardData {
   grua_altura_torre_m: number | null;
   grua_carga_maxima_kg: number | null;
   grua_carga_ponta_kg: number | null;
+  grua_altura_trabalho_m: number | null;
 
   // Step 6 - Commercial
   currency: Currency;
@@ -61,6 +62,7 @@ const INITIAL_DATA: QuoteWizardData = {
   grua_altura_torre_m: null,
   grua_carga_maxima_kg: null,
   grua_carga_ponta_kg: null,
+  grua_altura_trabalho_m: null,
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",

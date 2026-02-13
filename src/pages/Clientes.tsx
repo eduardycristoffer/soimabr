@@ -31,6 +31,7 @@ export default function Clientes() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
+  // Fetch clients - RLS handles visibility (operator sees only own, admin sees all)
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients", search],
     queryFn: async () => {
@@ -48,6 +49,24 @@ export default function Clientes() {
       if (error) throw error;
       return data as Client[];
     },
+  });
+
+  // Fetch profiles for admin view (created_by/assigned_to names)
+  const userIds = isAdmin && clients
+    ? [...new Set([...clients.map(c => c.created_by), ...clients.map(c => (c as any).assigned_to)].filter(Boolean))]
+    : [];
+
+  const { data: profilesMap } = useQuery({
+    queryKey: ["profiles-map", userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return {};
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .in("user_id", userIds);
+      return Object.fromEntries((data || []).map(p => [p.user_id, p.name])) as Record<string, string>;
+    },
+    enabled: isAdmin && userIds.length > 0,
   });
 
   const deleteMutation = useMutation({
@@ -96,7 +115,7 @@ export default function Clientes() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground">
-            Gerencie seus clientes nacionais e internacionais
+            {isAdmin ? "Todos os clientes da empresa" : "Seus clientes cadastrados"}
           </p>
         </div>
         <Button onClick={handleNewClient}>
@@ -171,9 +190,11 @@ export default function Clientes() {
                 <TableRow>
                   <TableHead>Razão Social</TableHead>
                   <TableHead>Nome Fantasia</TableHead>
-                  <TableHead>Documento</TableHead>
+                  <TableHead>CNPJ</TableHead>
                   <TableHead>Cidade/Estado</TableHead>
                   <TableHead>Tipo</TableHead>
+                  {isAdmin && <TableHead>Cadastrado por</TableHead>}
+                  {isAdmin && <TableHead>Atribuído a</TableHead>}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -184,9 +205,7 @@ export default function Clientes() {
                       {client.razao_social}
                     </TableCell>
                     <TableCell>{client.nome_fantasia || "-"}</TableCell>
-                    <TableCell>
-                      {client.cnpj || client.cpf || client.tax_id || "-"}
-                    </TableCell>
+                    <TableCell>{client.cnpj || "-"}</TableCell>
                     <TableCell>
                       {client.cidade && client.estado
                         ? `${client.cidade}/${client.estado}`
@@ -201,6 +220,16 @@ export default function Clientes() {
                         )}
                       </Badge>
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-xs text-muted-foreground">
+                        {profilesMap?.[client.created_by || ""] || "-"}
+                      </TableCell>
+                    )}
+                    {isAdmin && (
+                      <TableCell className="text-xs text-muted-foreground">
+                        {profilesMap?.[(client as any).assigned_to || ""] || "-"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

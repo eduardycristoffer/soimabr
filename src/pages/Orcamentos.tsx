@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 
@@ -27,6 +27,7 @@ export default function Orcamentos() {
   const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
   const { data: quotes, isLoading } = useQuery({
@@ -42,7 +43,6 @@ export default function Orcamentos() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch approver profiles for quotes with discount_approved_by
       const approverIds = [...new Set(data.filter((q: any) => q.discount_approved_by).map((q: any) => q.discount_approved_by))];
       let approverProfiles: Record<string, string> = {};
       if (approverIds.length > 0) {
@@ -62,7 +62,6 @@ export default function Orcamentos() {
     },
   });
 
-  // Fetch approval requests to show status
   const { data: approvalRequests } = useQuery({
     queryKey: ["discount-approvals-for-quotes"],
     queryFn: async () => {
@@ -119,8 +118,23 @@ export default function Orcamentos() {
     }
   };
 
+  const handleEdit = (quoteId: string) => {
+    setEditingQuoteId(quoteId);
+    setWizardOpen(true);
+  };
+
+  const handleNew = () => {
+    setEditingQuoteId(null);
+    setWizardOpen(true);
+  };
+
+  const handleCloseWizard = () => {
+    setWizardOpen(false);
+    setEditingQuoteId(null);
+  };
+
   if (wizardOpen) {
-    return <QuoteWizard onClose={() => setWizardOpen(false)} />;
+    return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} />;
   }
 
   const renderApprovalBadge = (quoteId: string, discountPercent: number, discountApproved: boolean) => {
@@ -165,7 +179,7 @@ export default function Orcamentos() {
           <h1 className="text-3xl font-bold tracking-tight">Propostas Comerciais</h1>
           <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
-        <Button onClick={() => setWizardOpen(true)}>
+        <Button onClick={handleNew}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Proposta
         </Button>
@@ -237,6 +251,11 @@ export default function Orcamentos() {
                           <DropdownMenuItem>
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
+                          {quote.status === "draft" && (
+                            <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                          )}
                           {(quote.status === "finalized" || quote.status === "draft") && (
                             <DropdownMenuItem
                               onClick={() => handleGeneratePdf(quote.id)}

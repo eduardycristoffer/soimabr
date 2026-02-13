@@ -78,6 +78,17 @@ export default function StepEquipment({ data, updateData, onNext, onPrev }: Prop
                   onChange={(e) => updateData({ grua_carga_ponta_kg: e.target.value ? Number(e.target.value) : null })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="grua_altura_trabalho_m">Altura de Trabalho (m)</Label>
+                <Input
+                  id="grua_altura_trabalho_m"
+                  type="number"
+                  step="0.1"
+                  placeholder="Ex: 30"
+                  value={data.grua_altura_trabalho_m ?? ""}
+                  onChange={(e) => updateData({ grua_altura_trabalho_m: e.target.value ? Number(e.target.value) : null })}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

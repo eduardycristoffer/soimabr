@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { useQuoteWizard, WIZARD_STEPS } from "@/hooks/useQuoteWizard";
+import { useQuoteWizard, WIZARD_STEPS, QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
@@ -18,13 +18,75 @@ import StepReview from "./steps/StepReview";
 
 interface Props {
   onClose: () => void;
+  editingQuoteId?: string | null;
 }
 
-export default function QuoteWizard({ onClose }: Props) {
+export default function QuoteWizard({ onClose, editingQuoteId }: Props) {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const queryClient = useQueryClient();
   const wizard = useQuoteWizard();
+
+  // Load existing quote data for editing
+  const { isLoading: isLoadingQuote } = useQuery({
+    queryKey: ["quote-edit", editingQuoteId],
+    queryFn: async () => {
+      if (!editingQuoteId) return null;
+      const { data: quote, error } = await supabase
+        .from("quotes")
+        .select("*, clients(razao_social, nome_fantasia)")
+        .eq("id", editingQuoteId)
+        .single();
+      if (error) throw error;
+
+      const { data: items } = await supabase
+        .from("quote_items")
+        .select("*")
+        .eq("quote_id", editingQuoteId)
+        .order("order_index");
+
+      // Map items to draft format
+      const mapItems = (cats: string[]): QuoteItemDraft[] =>
+        (items || [])
+          .filter((i: any) => cats.includes(i.product_category))
+          .map((i: any) => ({
+            product_id: i.product_id || i.id,
+            product_code: i.product_code,
+            product_name: i.product_name,
+            product_category: i.product_category,
+            unit_price: i.unit_price,
+            quantity: i.quantity,
+            total_price: i.total_price,
+            notes: i.notes || undefined,
+          }));
+
+      wizard.updateData({
+        client_id: quote.client_id,
+        client_name: quote.clients?.nome_fantasia || quote.clients?.razao_social || "",
+        project_name: quote.project_name || "",
+        project_location: quote.project_location || "",
+        equipment: mapItems(["grua"]),
+        components: mapItems(["configuracao", "torre", "tramo", "chassis"]),
+        accessories: mapItems(["acessorio"]),
+        grua_lanca_m: quote.grua_lanca_m,
+        grua_altura_torre_m: quote.grua_altura_torre_m,
+        grua_carga_maxima_kg: quote.grua_carga_maxima_kg,
+        grua_carga_ponta_kg: quote.grua_carga_ponta_kg,
+        grua_altura_trabalho_m: quote.grua_altura_trabalho_m ?? null,
+        currency: quote.currency,
+        delivery_time: quote.delivery_time || "",
+        payment_terms: quote.payment_terms || "",
+        freight_terms: quote.freight_terms || "",
+        validity_days: quote.validity_days,
+        notes: quote.notes || "",
+        discount_percent: quote.discount_percent,
+        discount_justification: "",
+      });
+
+      return quote;
+    },
+    enabled: !!editingQuoteId,
+  });
 
   // Fetch operator discount limit
   const { data: operatorRule } = useQuery({
@@ -52,48 +114,89 @@ export default function QuoteWizard({ onClose }: Props) {
 
       const userId = session.session.user.id;
       const finalStatus = mode === "finalized" ? "finalized" : "draft";
-
-      // Generate quote number
-      const year = new Date().getFullYear().toString().slice(2);
-      const { count } = await supabase
-        .from("quotes")
-        .select("id", { count: "exact", head: true });
-      const seq = String((count || 0) + 1).padStart(4, "0");
-      const quoteNumber = `ORC${year}${seq}`;
-
       const discountApproved = mode === "finalized" || (mode === "draft" && !needsApproval);
 
-      // Insert quote
-      const { data: quote, error: quoteError } = await supabase
-        .from("quotes")
-        .insert({
-          quote_number: quoteNumber,
-          client_id: wizard.data.client_id,
-          created_by: userId,
-          project_name: wizard.data.project_name || null,
-          project_location: wizard.data.project_location || null,
-          grua_lanca_m: wizard.data.grua_lanca_m,
-          grua_altura_torre_m: wizard.data.grua_altura_torre_m,
-          grua_carga_maxima_kg: wizard.data.grua_carga_maxima_kg,
-          grua_carga_ponta_kg: wizard.data.grua_carga_ponta_kg,
-          currency: wizard.data.currency,
-          delivery_time: wizard.data.delivery_time || null,
-          payment_terms: wizard.data.payment_terms || null,
-          freight_terms: wizard.data.freight_terms || null,
-          validity_days: wizard.data.validity_days,
-          notes: wizard.data.notes || null,
-          discount_percent: wizard.data.discount_percent,
-          discount_value: wizard.discountValue,
-          discount_approved: discountApproved,
-          subtotal: wizard.subtotal,
-          total: wizard.total,
-          status: finalStatus as "draft" | "finalized",
-          finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
-        })
-        .select("id")
-        .single();
+      const quotePayload = {
+        client_id: wizard.data.client_id,
+        project_name: wizard.data.project_name || null,
+        project_location: wizard.data.project_location || null,
+        grua_lanca_m: wizard.data.grua_lanca_m,
+        grua_altura_torre_m: wizard.data.grua_altura_torre_m,
+        grua_carga_maxima_kg: wizard.data.grua_carga_maxima_kg,
+        grua_carga_ponta_kg: wizard.data.grua_carga_ponta_kg,
+        grua_altura_trabalho_m: wizard.data.grua_altura_trabalho_m,
+        currency: wizard.data.currency,
+        delivery_time: wizard.data.delivery_time || null,
+        payment_terms: wizard.data.payment_terms || null,
+        freight_terms: wizard.data.freight_terms || null,
+        validity_days: wizard.data.validity_days,
+        notes: wizard.data.notes || null,
+        discount_percent: wizard.data.discount_percent,
+        discount_value: wizard.discountValue,
+        discount_approved: discountApproved,
+        subtotal: wizard.subtotal,
+        total: wizard.total,
+        status: finalStatus as "draft" | "finalized",
+      };
 
-      if (quoteError) throw quoteError;
+      let quoteId: string;
+      let quoteNumber: string;
+
+      if (editingQuoteId) {
+        // Save version snapshot before updating
+        const { data: currentQuote } = await supabase
+          .from("quotes")
+          .select("*, quote_items(*)")
+          .eq("id", editingQuoteId)
+          .single();
+
+        if (currentQuote) {
+          // Count existing versions
+          const { count } = await supabase
+            .from("quote_versions")
+            .select("id", { count: "exact", head: true })
+            .eq("quote_id", editingQuoteId);
+
+          await supabase.from("quote_versions").insert({
+            quote_id: editingQuoteId,
+            version_number: (count || 0) + 1,
+            snapshot: currentQuote as any,
+            edited_by: userId,
+          });
+        }
+
+        // Update quote
+        const { error: updateError } = await supabase
+          .from("quotes")
+          .update({
+            ...quotePayload,
+            finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
+          })
+          .eq("id", editingQuoteId);
+        if (updateError) throw updateError;
+
+        // Delete old items and re-insert
+        await supabase.from("quote_items").delete().eq("quote_id", editingQuoteId);
+
+        quoteId = editingQuoteId;
+        quoteNumber = currentQuote?.quote_number || "";
+      } else {
+        // Insert new quote (quote_number generated by trigger)
+        const { data: quote, error: quoteError } = await supabase
+          .from("quotes")
+          .insert({
+            ...quotePayload,
+            quote_number: "TEMP", // Will be replaced by trigger
+            created_by: userId,
+            finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
+          })
+          .select("id, quote_number")
+          .single();
+
+        if (quoteError) throw quoteError;
+        quoteId = quote.id;
+        quoteNumber = quote.quote_number;
+      }
 
       // Insert items
       const allItems = [
@@ -104,7 +207,7 @@ export default function QuoteWizard({ onClose }: Props) {
 
       if (allItems.length > 0) {
         const items = allItems.map((item, index) => ({
-          quote_id: quote.id,
+          quote_id: quoteId,
           product_id: item.product_id,
           product_code: item.product_code,
           product_name: item.product_name,
@@ -128,7 +231,7 @@ export default function QuoteWizard({ onClose }: Props) {
         const { error: approvalError } = await supabase
           .from("discount_approval_requests")
           .insert({
-            quote_id: quote.id,
+            quote_id: quoteId,
             requested_by: userId,
             discount_percent: wizard.data.discount_percent,
             justification: wizard.data.discount_justification,
@@ -140,9 +243,10 @@ export default function QuoteWizard({ onClose }: Props) {
       return { quoteNumber, mode };
     },
     onSuccess: ({ quoteNumber, mode }) => {
+      const isEdit = !!editingQuoteId;
       const messages = {
-        finalized: { title: "Proposta finalizada!", description: `Número: ${quoteNumber}` },
-        draft: { title: "Rascunho salvo!", description: `Número: ${quoteNumber}` },
+        finalized: { title: isEdit ? "Proposta atualizada e finalizada!" : "Proposta finalizada!", description: `Número: ${quoteNumber}` },
+        draft: { title: isEdit ? "Proposta atualizada!" : "Rascunho salvo!", description: `Número: ${quoteNumber}` },
         request_approval: { title: "Enviado para aprovação!", description: `Proposta ${quoteNumber} aguardando aprovação de desconto.` },
       };
       toast(messages[mode]);
@@ -161,6 +265,14 @@ export default function QuoteWizard({ onClose }: Props) {
     },
   });
 
+  if (editingQuoteId && isLoadingQuote) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">Carregando proposta...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -169,7 +281,9 @@ export default function QuoteWizard({ onClose }: Props) {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Nova Proposta Comercial</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {editingQuoteId ? "Editar Proposta Comercial" : "Nova Proposta Comercial"}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Etapa {wizard.step} de 8 — {WIZARD_STEPS[wizard.step - 1].description}
           </p>

@@ -13,6 +13,7 @@ import {
   Percent,
   CheckCircle2,
   Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { title: "Propostas", href: "/orcamentos", icon: FileText },
   { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Aprovações", href: "/aprovacoes", icon: CheckCircle2, adminOnly: true },
+  { title: "Solicitações", href: "/solicitacoes-acesso", icon: ShieldCheck, adminOnly: true },
   { title: "Regras de Desconto", href: "/regras-desconto", icon: Percent, adminOnly: true },
   { title: "Usuários", href: "/usuarios", icon: UserCog, adminOnly: true },
   { title: "Auditoria", href: "/auditoria", icon: ClipboardList, adminOnly: true },
