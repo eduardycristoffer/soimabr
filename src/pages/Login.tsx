@@ -20,6 +20,11 @@ export default function Login() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
+  // Forgot password state
+  const [forgotStep, setForgotStep] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+
   // OTP state
   const [otpStep, setOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -169,7 +174,68 @@ export default function Login() {
             </p>
           </div>
 
-          {!otpStep ? (
+          {forgotStep ? (
+            /* Forgot password step */
+            <div className="space-y-6">
+              {forgotSent ? (
+                <div className="text-center space-y-4">
+                  <h2 className="text-xl font-semibold">E-mail enviado!</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Se existe uma conta com esse e-mail, você receberá um link para redefinir sua senha.
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={() => { setForgotStep(false); setForgotSent(false); setForgotEmail(""); }}>
+                    <ArrowLeft className="mr-1 h-4 w-4" />
+                    Voltar ao Login
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center space-y-2">
+                    <h2 className="text-xl font-semibold">Esqueci minha senha</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Informe seu e-mail para receber o link de redefinição.
+                    </p>
+                  </div>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    setLoading(true);
+                    try {
+                      await supabase.functions.invoke("reset-password", {
+                        body: { action: "request", email: forgotEmail },
+                      });
+                      setForgotSent(true);
+                    } catch {
+                      toast({ variant: "destructive", title: "Erro", description: "Não foi possível enviar o e-mail." });
+                    } finally {
+                      setLoading(false);
+                    }
+                  }} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">Email</Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Enviar Link
+                    </Button>
+                  </form>
+                  <div className="text-center">
+                    <Button variant="ghost" size="sm" onClick={() => { setForgotStep(false); setForgotEmail(""); }}>
+                      <ArrowLeft className="mr-1 h-4 w-4" />
+                      Voltar ao Login
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : !otpStep ? (
             /* Login form */
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
@@ -198,6 +264,17 @@ export default function Login() {
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => { setForgotStep(true); setForgotEmail(loginEmail); }}
+                >
+                  Esqueci minha senha
+                </Button>
+              </div>
             </form>
           ) : (
             /* OTP verification step */

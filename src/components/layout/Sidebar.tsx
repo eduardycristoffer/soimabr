@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { NavItem } from "@/types";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import logoSoima from "@/assets/logo-soima.webp";
 
 const navItems: NavItem[] = [
@@ -41,6 +42,7 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
   const filteredItems = navItems.filter(
@@ -97,14 +99,17 @@ export function Sidebar() {
       {/* User info */}
       <div className="border-t p-4">
         {!collapsed && user && (
-          <div className="mb-3">
+          <button
+            onClick={() => navigate("/perfil")}
+            className="mb-3 w-full text-left rounded-lg px-2 py-1.5 hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
+          >
             <p className="truncate text-sm font-medium text-sidebar-foreground">
               {user.name}
             </p>
             <p className="truncate text-xs text-sidebar-foreground/60">
               {user.email}
             </p>
-          </div>
+          </button>
         )}
         <Button
           variant="ghost"
