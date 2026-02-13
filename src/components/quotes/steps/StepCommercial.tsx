@@ -118,7 +118,18 @@ export default function StepCommercial({ data, updateData, onNext, onPrev }: Pro
           />
         </div>
 
-        <div className="space-y-2 md:col-span-2">
+        <div className="space-y-2">
+          <Label>Idioma da Proposta</Label>
+          <Select value={data.language} onValueChange={(v) => updateData({ language: v as "pt-BR" | "en" })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pt-BR">🇧🇷 Português (BR)</SelectItem>
+              <SelectItem value="en">🇺🇸 English</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
           <Label>Frete</Label>
           <Input
             placeholder="Ex: CIF destino, FOB fábrica"

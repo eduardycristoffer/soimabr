@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN language text NOT NULL DEFAULT 'pt-BR';

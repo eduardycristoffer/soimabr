@@ -673,6 +673,7 @@ export type Database = {
           grua_carga_ponta_kg: number | null
           grua_lanca_m: number | null
           id: string
+          language: string
           lead_id: string | null
           notes: string | null
           payment_terms: string | null
@@ -709,6 +710,7 @@ export type Database = {
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
           id?: string
+          language?: string
           lead_id?: string | null
           notes?: string | null
           payment_terms?: string | null
@@ -745,6 +747,7 @@ export type Database = {
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
           id?: string
+          language?: string
           lead_id?: string | null
           notes?: string | null
           payment_terms?: string | null
