@@ -15,6 +15,7 @@ import Usuarios from "@/pages/Usuarios";
 import Auditoria from "@/pages/Auditoria";
 import RegrasDesconto from "@/pages/RegrasDesconto";
 import Aprovacoes from "@/pages/Aprovacoes";
+import SolicitacoesAcesso from "@/pages/SolicitacoesAcesso";
 import ConfiguracaoEmpresa from "@/pages/ConfiguracaoEmpresa";
 import NotFound from "@/pages/NotFound";
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/usuarios" element={<Usuarios />} />
               <Route path="/regras-desconto" element={<RegrasDesconto />} />
               <Route path="/aprovacoes" element={<Aprovacoes />} />
+              <Route path="/solicitacoes-acesso" element={<SolicitacoesAcesso />} />
               <Route path="/auditoria" element={<Auditoria />} />
               <Route path="/configuracao-empresa" element={<ConfiguracaoEmpresa />} />
             </Route>

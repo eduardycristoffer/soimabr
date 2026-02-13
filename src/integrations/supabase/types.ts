@@ -56,12 +56,50 @@ export type Database = {
         }
         Relationships: []
       }
+      client_access_requests: {
+        Row: {
+          cnpj_digits: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_notes: string | null
+          id: string
+          reason: string | null
+          requester_id: string
+          status: Database["public"]["Enums"]["access_request_status"]
+        }
+        Insert: {
+          cnpj_digits: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_notes?: string | null
+          id?: string
+          reason?: string | null
+          requester_id: string
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Update: {
+          cnpj_digits?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_notes?: string | null
+          id?: string
+          reason?: string | null
+          requester_id?: string
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
+          assigned_to: string | null
           cep: string | null
           cidade: string | null
           client_type: Database["public"]["Enums"]["client_type"]
           cnpj: string | null
+          cnpj_digits: string | null
           contato_email: string | null
           contato_nome: string | null
           contato_telefone: string | null
@@ -83,10 +121,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
           cep?: string | null
           cidade?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           cnpj?: string | null
+          cnpj_digits?: string | null
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
@@ -108,10 +148,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
           cep?: string | null
           cidade?: string | null
           client_type?: Database["public"]["Enums"]["client_type"]
           cnpj?: string | null
+          cnpj_digits?: string | null
           contato_email?: string | null
           contato_nome?: string | null
           contato_telefone?: string | null
@@ -554,6 +596,41 @@ export type Database = {
           },
         ]
       }
+      quote_versions: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          id: string
+          quote_id: string
+          snapshot: Json
+          version_number: number
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          id?: string
+          quote_id: string
+          snapshot: Json
+          version_number?: number
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          quote_id?: string
+          snapshot?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_versions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           cancelled_at: string | null
@@ -570,6 +647,7 @@ export type Database = {
           finalized_at: string | null
           freight_terms: string | null
           grua_altura_torre_m: number | null
+          grua_altura_trabalho_m: number | null
           grua_carga_maxima_kg: number | null
           grua_carga_ponta_kg: number | null
           grua_lanca_m: number | null
@@ -603,6 +681,7 @@ export type Database = {
           finalized_at?: string | null
           freight_terms?: string | null
           grua_altura_torre_m?: number | null
+          grua_altura_trabalho_m?: number | null
           grua_carga_maxima_kg?: number | null
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
@@ -636,6 +715,7 @@ export type Database = {
           finalized_at?: string | null
           freight_terms?: string | null
           grua_altura_torre_m?: number | null
+          grua_altura_trabalho_m?: number | null
           grua_carga_maxima_kg?: number | null
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
@@ -706,6 +786,7 @@ export type Database = {
       }
     }
     Enums: {
+      access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "operator"
       approval_status: "pending" | "approved" | "rejected"
       client_type: "nacional" | "internacional"
@@ -845,6 +926,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "operator"],
       approval_status: ["pending", "approved", "rejected"],
       client_type: ["nacional", "internacional"],

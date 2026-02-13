@@ -177,7 +177,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
 
   // Grua specs block
-  const hasGruaSpecs = quote.grua_lanca_m || quote.grua_altura_torre_m || quote.grua_carga_maxima_kg || quote.grua_carga_ponta_kg;
+  const hasGruaSpecs = quote.grua_lanca_m || quote.grua_altura_torre_m || quote.grua_carga_maxima_kg || quote.grua_carga_ponta_kg || quote.grua_altura_trabalho_m;
   const gruaSpecsHTML = hasGruaSpecs ? `
   <div class="section">
     <div class="section-title">Partes Consideradas para a Cotação</div>
@@ -188,6 +188,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         ${quote.grua_altura_torre_m ? `<div><span class="label">Altura da torre:</span> <span class="value">${quote.grua_altura_torre_m} m</span></div>` : ""}
         ${quote.grua_carga_maxima_kg ? `<div><span class="label">Carga Máxima:</span> <span class="value">${Number(quote.grua_carga_maxima_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
         ${quote.grua_carga_ponta_kg ? `<div><span class="label">Carga na ponta:</span> <span class="value">${Number(quote.grua_carga_ponta_kg).toLocaleString("pt-BR")} kg</span></div>` : ""}
+        ${quote.grua_altura_trabalho_m ? `<div><span class="label">Altura de Trabalho:</span> <span class="value">${quote.grua_altura_trabalho_m} m</span></div>` : ""}
       </div>
     </div>
   </div>` : "";
