@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { LeadWithStage, PipelineStage } from "@/types";
+import { dispatchWebhookEvent } from "@/lib/dispatchWebhook";
 import type { LeadFormValues } from "@/components/pipeline/LeadFormModal";
 
 export function usePipelineData() {
@@ -85,7 +86,16 @@ export function usePipelineData() {
       if (ctx?.prev) queryClient.setQueryData(["leads"], ctx.prev);
       toast.error("Erro ao mover lead");
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
+    onSettled: (_, __, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      if (vars) {
+        dispatchWebhookEvent("pipeline.stage_changed", {
+          lead_id: vars.leadId,
+          from_stage_id: vars.fromStageId,
+          to_stage_id: vars.toStageId,
+        });
+      }
+    },
   });
 
   const createLeadMutation = useMutation({
@@ -128,9 +138,10 @@ export function usePipelineData() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Lead criado com sucesso");
+      if (data) dispatchWebhookEvent("lead.created", data);
     },
     onError: () => toast.error("Erro ao criar lead"),
   });
@@ -153,9 +164,10 @@ export function usePipelineData() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Lead atualizado");
+      dispatchWebhookEvent("lead.updated", { lead_id: vars.id, ...vars.values });
     },
     onError: () => toast.error("Erro ao atualizar lead"),
   });
@@ -219,10 +231,11 @@ export function usePipelineData() {
 
       return client;
     },
-    onSuccess: () => {
+    onSuccess: (client, vars) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Lead convertido em cliente com sucesso");
+      dispatchWebhookEvent("lead.converted", { lead_id: vars.leadId, client_id: client?.id });
     },
     onError: () => toast.error("Erro ao converter lead"),
   });

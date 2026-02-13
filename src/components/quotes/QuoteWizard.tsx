@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { dispatchWebhookEvent } from "@/lib/dispatchWebhook";
 import { useQuoteWizard, WIZARD_STEPS, QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
 import { cn } from "@/lib/utils";
@@ -343,6 +344,14 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+
+      // Dispatch webhook events
+      const eventType = isEdit ? "proposal.created" : "proposal.created";
+      dispatchWebhookEvent(eventType, { quote_number: quoteNumber, client_id: wizard.data.client_id, total: wizard.total });
+      if (mode === "finalized") {
+        dispatchWebhookEvent("proposal.finalized", { quote_number: quoteNumber, client_id: wizard.data.client_id, total: wizard.total });
+      }
+
       wizard.reset();
       onClose();
     },
