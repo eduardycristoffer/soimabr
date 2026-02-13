@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import loginPhoto from "@/assets/foto-login.webp";
 import logoSoima from "@/assets/logo-soima.webp";
 
@@ -17,6 +19,12 @@ export default function Login() {
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // OTP state
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpUserId, setOtpUserId] = useState<string | null>(null);
+  const [maskedEmail, setMaskedEmail] = useState("");
 
   if (isLoading) {
     return (
@@ -34,8 +42,35 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(loginEmail, loginPassword);
-      navigate("/dashboard");
+      // Step 1: Validate credentials
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      const userId = signInData.user?.id;
+      if (!userId) throw new Error("Erro ao obter dados do usuário");
+
+      // Sign out immediately - session only after OTP
+      await supabase.auth.signOut();
+
+      // Step 2: Request OTP
+      const { data: otpData, error: otpError } = await supabase.functions.invoke("login-otp", {
+        body: { action: "generate", user_id: userId },
+      });
+
+      if (otpError) throw otpError;
+      if (otpData?.error) throw new Error(otpData.error);
+
+      // Mask email for display
+      const emailParts = loginEmail.split("@");
+      const masked = emailParts[0].slice(0, 2) + "***@" + emailParts[1];
+      setMaskedEmail(masked);
+
+      setOtpUserId(userId);
+      setOtpStep(true);
     } catch {
       toast({
         variant: "destructive",
@@ -45,6 +80,58 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6 || !otpUserId) return;
+    setLoading(true);
+    try {
+      // Verify OTP
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("login-otp", {
+        body: { action: "verify", user_id: otpUserId, code: otpCode },
+      });
+
+      if (verifyError) throw verifyError;
+      if (verifyData?.error) throw new Error(verifyData.error);
+
+      // OTP valid - now do the real sign in
+      await signIn(loginEmail, loginPassword);
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Código inválido",
+        description: err.message || "Verifique o código e tente novamente.",
+      });
+      setOtpCode("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!otpUserId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("login-otp", {
+        body: { action: "generate", user_id: otpUserId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Código reenviado", description: "Verifique seu e-mail." });
+      setOtpCode("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Erro", description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setOtpStep(false);
+    setOtpCode("");
+    setOtpUserId(null);
+    setLoginPassword("");
   };
 
   return (
@@ -82,35 +169,96 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Login form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
-              <Input
-                id="login-email"
-                type="email"
-                placeholder="seu@email.com"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                required
-              />
+          {!otpStep ? (
+            /* Login form */
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Senha</Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Entrar
+              </Button>
+            </form>
+          ) : (
+            /* OTP verification step */
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-xl font-semibold">Verificação de segurança</h2>
+                <p className="text-sm text-muted-foreground">
+                  Enviamos um código de 6 dígitos para{" "}
+                  <strong>{maskedEmail}</strong>
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={setOtpCode}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  className="w-full"
+                  onClick={handleVerifyOtp}
+                  disabled={loading || otpCode.length !== 6}
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Verificar Código
+                </Button>
+
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToLogin}
+                    disabled={loading}
+                  >
+                    <ArrowLeft className="mr-1 h-4 w-4" />
+                    Voltar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResendOtp}
+                    disabled={loading}
+                  >
+                    Reenviar código
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Senha</Label>
-              <Input
-                id="login-password"
-                type="password"
-                placeholder="••••••••"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Entrar
-            </Button>
-          </form>
+          )}
         </div>
       </div>
     </div>

@@ -73,6 +73,13 @@ Deno.serve(async (req) => {
       .update({ is_active: true })
       .eq("user_id", tokenRecord.user_id);
 
+    // Check if user must complete profile
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("must_complete_profile")
+      .eq("user_id", tokenRecord.user_id)
+      .single();
+
     // Log security event
     await supabase.from("security_logs").insert({
       user_id: tokenRecord.user_id,
@@ -81,7 +88,12 @@ Deno.serve(async (req) => {
       user_agent: req.headers.get("user-agent") || null,
     });
 
-    return new Response(JSON.stringify({ success: true, message: "E-mail verificado com sucesso!" }), {
+    return new Response(JSON.stringify({
+      success: true,
+      message: "E-mail verificado com sucesso!",
+      must_complete_profile: profileData?.must_complete_profile || false,
+      user_id: tokenRecord.user_id,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

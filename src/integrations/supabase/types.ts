@@ -518,6 +518,33 @@ export type Database = {
           },
         ]
       }
+      login_otp_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       outbound_webhooks: {
         Row: {
           created_at: string
@@ -700,6 +727,7 @@ export type Database = {
           email: string
           id: string
           is_active: boolean
+          must_complete_profile: boolean
           name: string
           updated_at: string
           user_id: string
@@ -710,6 +738,7 @@ export type Database = {
           email: string
           id?: string
           is_active?: boolean
+          must_complete_profile?: boolean
           name: string
           updated_at?: string
           user_id: string
@@ -720,6 +749,7 @@ export type Database = {
           email?: string
           id?: string
           is_active?: boolean
+          must_complete_profile?: boolean
           name?: string
           updated_at?: string
           user_id?: string
