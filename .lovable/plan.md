@@ -1,86 +1,51 @@
 
 
-## Adaptar PDF com Capa e Contracapa Premium
+## Corrigir Capa e Contracapa do PDF (imagens nao carregam)
 
-### Resumo
-Adicionar uma pagina de capa (com overlay de dados da proposta) e uma contracapa ao PDF existente, usando as imagens fornecidas. O conteudo interno permanece inalterado.
+### Problema
+As imagens da capa e contracapa sao referenciadas via URL externa (`https://soimabr.lovable.app/images/pdf-cover.jpg`). Como o PDF e gerado server-side via Edge Function e o HTML e aberto no navegador, o browser tenta buscar essas imagens na URL -- que nao existe ainda (app nao publicado com as imagens). Resultado: paginas em branco.
 
----
+### Solucao
+Embutir as imagens como **base64 data URIs** diretamente no HTML gerado. Isso elimina qualquer dependencia de URLs externas e garante que as imagens sempre aparecerao, independente do estado de publicacao.
 
 ### Etapas
 
-#### 1. Salvar imagens no projeto
-- Copiar as duas imagens enviadas para `public/images/`:
-  - `pdf-cover.jpg` (capa)
-  - `pdf-backcover.jpg` (contracapa)
-- Essas imagens serao servidas via URL publica do preview/deploy
+#### 1. Criar script de conversao das imagens para base64
+- Ler os arquivos `public/images/pdf-cover.jpg` e `public/images/pdf-backcover.jpg`
+- Converter para base64 strings
+- Salvar como constantes em um arquivo auxiliar dentro da Edge Function
 
-#### 2. Modificar a Edge Function `generate-pdf`
+#### 2. Criar arquivo de constantes com as imagens base64
+- Novo arquivo: `supabase/functions/generate-pdf/images.ts`
+- Conter duas constantes exportadas:
+  - `COVER_BASE64` (data URI da capa)
+  - `BACKCOVER_BASE64` (data URI da contracapa)
 
-Alterar apenas a funcao `generateQuoteHTML` para:
-
-**a) Adicionar CSS de paginas full-bleed:**
-- Capa e contracapa com `width: 210mm; height: 297mm; margin: 0; padding: 0` e `page-break-after: always`
-- Imagem de fundo via `background-image` cobrindo 100% da pagina
-- Overlay discreto no canto inferior esquerdo da capa com:
-  - Numero da proposta
-  - Nome do cliente (razao_social ou nome_fantasia)
-  - Cidade / UF
-  - Data de emissao
-- Estilo do overlay: fonte 11px, cor branca, opacidade ~75%, sem caixas pesadas, alinhado ao canto inferior esquerdo
-
-**b) Estrutura HTML final do PDF:**
-1. Pagina de capa (imagem full-bleed + overlay)
-2. `page-break-after: always`
-3. Conteudo atual (sem alteracoes)
-4. `page-break-before: always`
-5. Contracapa (imagem full-bleed, sem overlay)
-
-**c) Ajuste de `@page`:**
-- Regra `@page` para paginas internas mantendo margens de 15mm
-- Capa e contracapa com margens zero
-
----
+#### 3. Atualizar a Edge Function `generate-pdf/index.ts`
+- Importar as constantes base64 de `./images.ts`
+- Substituir as URLs externas pelas data URIs base64
+- Trocar `background-image: url('https://...')` por `background-image: url('data:image/jpeg;base64,...')`
+- Remover as constantes `PDF_COVER_URL` e `PDF_BACKCOVER_URL`
 
 ### Detalhes Tecnicos
 
-**URLs das imagens:** Serao referenciadas via URL absoluta do deploy (`https://soimabr.lovable.app/images/pdf-cover.jpg`). Isso garante que o HTML do PDF consiga carregar as imagens ao ser aberto em nova janela para impressao.
-
-**CSS da capa:**
-```css
-.cover-page {
-  width: 210mm;
-  height: 297mm;
-  margin: 0;
-  padding: 0;
-  position: relative;
-  background-size: cover;
-  background-position: center;
-  page-break-after: always;
-}
-.cover-overlay {
-  position: absolute;
-  bottom: 40px;
-  left: 40px;
-  color: white;
-  font-size: 11px;
-  opacity: 0.85;
-  line-height: 1.6;
-}
+**Estrutura do data URI:**
+```
+data:image/jpeg;base64,/9j/4AAQ...
 ```
 
-**Overlay da capa (exemplo):**
-```
-Proposta n. 0234
-Cliente: Joao da Silva
-Anapolis - GO
-Emitida em: 12/03/2026
+**Alteracao no HTML gerado:**
+```html
+<!-- Antes -->
+<div class="cover-page" style="background-image: url('https://soimabr.lovable.app/images/pdf-cover.jpg');">
+
+<!-- Depois -->
+<div class="cover-page" style="background-image: url('${COVER_BASE64}');">
 ```
 
-**Contracapa:** Apenas imagem full-bleed sem texto programatico (a arte ja contem as informacoes de contato da SOIMA).
+**Nota sobre tamanho:** Imagens JPG em base64 aumentam ~33% em tamanho. As imagens da capa e contracapa devem ser razoaveis (< 500KB cada), resultando em um HTML um pouco maior mas totalmente auto-contido e funcional.
 
 #### Arquivos modificados:
-- `supabase/functions/generate-pdf/index.ts` (unico arquivo alterado)
-- `public/images/pdf-cover.jpg` (novo)
-- `public/images/pdf-backcover.jpg` (novo)
+- `supabase/functions/generate-pdf/images.ts` (novo -- constantes base64)
+- `supabase/functions/generate-pdf/index.ts` (importar base64 e substituir URLs)
 
