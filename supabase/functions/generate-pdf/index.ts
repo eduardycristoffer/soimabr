@@ -306,6 +306,10 @@ const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/obje
 const YELUM_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/yelum-logo.png";
 const CREA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/crea-go-logo.webp";
 
+// Cover & backcover images (served from published app)
+const PDF_COVER_URL = "https://soimabr.lovable.app/images/pdf-cover.jpg";
+const PDF_BACKCOVER_URL = "https://soimabr.lovable.app/images/pdf-backcover.jpg";
+
 function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>, t: Translations, lang: string) {
   const isInternationalUsd = quote.clients?.client_type === "internacional" && quote.currency === "USD" && quote.usd_brl_rate_used;
   const usdRate = quote.usd_brl_rate_used ? Number(quote.usd_brl_rate_used) : null;
@@ -521,6 +525,11 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 
   const htmlLang = lang === "en" ? "en" : "pt-BR";
 
+  // Cover overlay data
+  const clientName = client?.nome_fantasia || client?.razao_social || "-";
+  const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} \u2022 ${client.estado}` : (client?.cidade || client?.estado || "");
+  const coverDate = formatDate(quote.created_at);
+
   return `<!DOCTYPE html>
 <html lang="${htmlLang}">
 <head>
@@ -530,6 +539,38 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   @page { size: A4; margin: 15mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+  /* Cover & backcover full-bleed pages */
+  .cover-page, .backcover-page {
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    page-break-after: always;
+    overflow: hidden;
+  }
+  .cover-overlay {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    color: white;
+    font-size: 11px;
+    opacity: 0.80;
+    line-height: 1.8;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    letter-spacing: 0.3px;
+  }
+  .cover-overlay .cover-label {
+    font-size: 10px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0047AB; padding-bottom: 12px; margin-bottom: 16px; }
   .header-left { display: flex; align-items: flex-start; gap: 12px; }
   .header-logo { height: 50px; width: auto; }
@@ -580,6 +621,17 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 </style>
 </head>
 <body>
+  <!-- CAPA -->
+  <div class="cover-page" style="background-image: url('${PDF_COVER_URL}');">
+    <div class="cover-overlay">
+      ${lang === "en" ? "Proposal" : "Proposta"} nº ${quote.quote_number}<br>
+      ${clientName}<br>
+      ${clientCityUf ? `${clientCityUf}<br>` : ""}
+      ${lang === "en" ? "Issued on" : "Emitida em"}: ${coverDate}
+    </div>
+  </div>
+
+  <!-- CONTEÚDO INTERNO -->
   <div class="header">
     <div class="header-left">
       <img src="${SOIMA_LOGO_URL}" alt="SOIMA" class="header-logo" />
@@ -673,6 +725,9 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
     </div>
   </div>
+
+  <!-- CONTRACAPA -->
+  <div class="backcover-page" style="background-image: url('${PDF_BACKCOVER_URL}'); page-break-before: always;"></div>
 </body>
 </html>`;
 }
