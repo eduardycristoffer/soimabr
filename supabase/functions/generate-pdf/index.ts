@@ -536,9 +536,16 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 <meta charset="UTF-8">
 <title>${t.title} ${quote.quote_number}</title>
 <style>
-  @page { size: A4; margin: 15mm; }
+  @page { size: A4; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+  /* Content pages get padding to simulate margins */
+  .content-page {
+    padding: 15mm;
+    width: 100%;
+    box-sizing: border-box;
+  }
 
   /* Cover & backcover full-bleed pages */
   .cover-page, .backcover-page {
@@ -555,16 +562,6 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
-  }
-  @media print {
-    .cover-page, .backcover-page {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      margin: -15mm;
-      width: calc(210mm + 30mm);
-      height: calc(297mm + 30mm);
-    }
   }
   .cover-overlay {
     position: absolute;
@@ -645,6 +642,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   </div>
 
   <!-- CONTEÚDO INTERNO -->
+  <div class="content-page">
   <div class="header">
     <div class="header-left">
       <img src="${SOIMA_LOGO_URL}" alt="SOIMA" class="header-logo" />
@@ -738,6 +736,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
     </div>
   </div>
+
+  </div><!-- end content-page -->
 
   <!-- CONTRACAPA -->
   <div class="backcover-page" style="background-image: url('${PDF_BACKCOVER_URL}'); page-break-before: always;"></div>
