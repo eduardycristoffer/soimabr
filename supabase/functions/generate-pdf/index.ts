@@ -306,9 +306,9 @@ const SOIMA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/obje
 const YELUM_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/yelum-logo.png";
 const CREA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/crea-go-logo.webp";
 
-// Cover & backcover images (served from published app)
-const PDF_COVER_URL = "https://soimabr.lovable.app/images/pdf-cover.jpg";
-const PDF_BACKCOVER_URL = "https://soimabr.lovable.app/images/pdf-backcover.jpg";
+// Cover & backcover images (served from Supabase storage)
+const PDF_COVER_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/pdf-cover.jpg";
+const PDF_BACKCOVER_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/pdf-backcover.jpg";
 
 function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>, t: Translations, lang: string) {
   const isInternationalUsd = quote.clients?.client_type === "internacional" && quote.currency === "USD" && quote.usd_brl_rate_used;
