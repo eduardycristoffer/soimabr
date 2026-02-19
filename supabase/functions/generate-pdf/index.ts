@@ -555,11 +555,11 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   }
   .cover-overlay {
     position: absolute;
-    bottom: 40px;
+    top: 40px;
     left: 40px;
     color: white;
     font-size: 11px;
-    opacity: 0.80;
+    opacity: 1;
     line-height: 1.8;
     font-family: 'Segoe UI', Arial, sans-serif;
     letter-spacing: 0.3px;
