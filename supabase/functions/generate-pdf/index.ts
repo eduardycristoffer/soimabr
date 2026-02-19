@@ -552,6 +552,19 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     background-repeat: no-repeat;
     page-break-after: always;
     overflow: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  @media print {
+    .cover-page, .backcover-page {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      margin: -15mm;
+      width: calc(210mm + 30mm);
+      height: calc(297mm + 30mm);
+    }
   }
   .cover-overlay {
     position: absolute;
