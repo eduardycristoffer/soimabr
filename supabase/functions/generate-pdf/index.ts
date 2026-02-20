@@ -673,7 +673,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   /* Content pages get padding to simulate margins */
   .content-page {
     padding: 15mm;
-    padding-bottom: 30mm;
+    padding-bottom: 40mm;
     width: 100%;
     box-sizing: border-box;
   }
