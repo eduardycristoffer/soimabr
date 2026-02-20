@@ -825,6 +825,17 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   .motor-table td { padding: 5px 10px; border-bottom: 1px solid #e0e0e0; font-size: 10px; }
   .motor-table tr:nth-child(even) { background: #f0f4fa; }
 
+  /* Summary box */
+  .summary-box { background: #f7f8fa; border: 1px solid #d0d5dd; border-radius: 4px; padding: 10px 14px; margin-bottom: 14px; }
+  .summary-box .summary-title { font-size: 11px; font-weight: 700; color: #0047AB; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 6px; }
+  .summary-box .summary-items { list-style: none; padding: 0; margin: 0 0 6px 0; }
+  .summary-box .summary-items li { font-size: 9.5px; padding: 1px 0 1px 14px; position: relative; color: #333; }
+  .summary-box .summary-items li::before { content: "•"; position: absolute; left: 2px; color: #0047AB; font-weight: bold; }
+  .summary-box .summary-totals { font-size: 10px; border-top: 1px solid #ddd; padding-top: 4px; margin-top: 2px; }
+  .summary-box .summary-totals .summary-total-row { display: flex; justify-content: space-between; padding: 1px 0; }
+  .summary-box .summary-totals .summary-total-row.grand { font-weight: 700; color: #0047AB; font-size: 11px; }
+  .summary-box .summary-totals .summary-total-row.discount { color: #c0392b; }
+
   /* Warranty */
   .warranty-section { page-break-inside: avoid; }
   .warranty-intro { font-size: 10px; line-height: 1.6; margin-bottom: 8px; color: #333; }
@@ -987,9 +998,45 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   const warrantyHTML = buildWarrantyHTML(quote, items, productsMap, t, lang);
 
+  // Build summary box
+  const categoryLabels: Record<string, string> = {
+    grua: t.cat_grua, configuracao: t.cat_configuracao, torre: t.cat_torre,
+    tramo: t.cat_tramo, chassis: t.cat_chassis, acessorio: t.cat_acessorio,
+  };
+  const formatCurrency = (value: number) => {
+    const symbols: Record<string, string> = { BRL: "R$", USD: "US$", EUR: "€" };
+    const sym = symbols[quote.currency] || quote.currency;
+    return `${sym} ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  const summaryItems = (items || []).map((item: any) => {
+    const catLabel = categoryLabels[item.product_category] || item.product_category;
+    return `<li>${catLabel} - ${item.product_name} (x${item.quantity})</li>`;
+  }).join("");
+
+  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${formatCurrency(quote.subtotal)}</span></div>`;
+  if (quote.discount_percent > 0) {
+    summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount" : "Desconto"} (${quote.discount_percent}%):</span><span>-${formatCurrency(quote.discount_value)}</span></div>`;
+  }
+  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
+
+  if (isInternationalUsd && quote.usd_brl_rate_used) {
+    const usdRate = Number(quote.usd_brl_rate_used);
+    const totalUsd = quote.total / usdRate;
+    summaryTotals += `<div class="summary-total-row" style="font-size:9px;color:#666;"><span>${lang === "en" ? "Estimated (USD):" : "Estimado (USD):"}</span><span>US$ ${totalUsd.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>`;
+  }
+
+  const summaryBoxHTML = `
+  <div class="summary-box">
+    <div class="summary-title">${lang === "en" ? "PROPOSAL SUMMARY" : "RESUMO DA PROPOSTA"}</div>
+    <ul class="summary-items">${summaryItems}</ul>
+    <div class="summary-totals">${summaryTotals}</div>
+  </div>`;
+
   return `
   <div class="content-page">
     ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
+
+    ${summaryBoxHTML}
 
     <div class="section conditions">
       <div class="section-title">${t.conditions}</div>
