@@ -1,28 +1,40 @@
 
 
-## Ajustes Finais no PDF
+## Ajuste do padding-bottom para evitar sobreposicao do rodape fixo
 
-### 1. Esconder rodape na capa e contracapa
+### Problema
 
-O problema: `position: fixed` no CSS de impressao faz o rodape aparecer em TODAS as paginas, incluindo capa e contracapa. Nao e possivel excluir paginas especificas com CSS puro.
+O rodape fixo (`.page-footer`) com `position: fixed; bottom: 0` ocupa aproximadamente 20-25mm de altura (logos de 35px + texto + padding + border). O `padding-bottom: 30mm` atual no `.content-page` nao e suficiente em todas as paginas, especialmente quando o conteudo flui ate o final da pagina e o navegador faz a quebra de pagina automatica.
 
-**Solucao**: dar z-index mais alto para as imagens de capa/contracapa (z-index: 20) e overlay (z-index: 21), mantendo o rodape com z-index: 10. Como as imagens cobrem 100% da pagina, elas ficam POR CIMA do rodape nas paginas de capa/contracapa, escondendo-o visualmente.
+### Solucao
 
-### 2. Restaurar titulo da secao Escopo do Fornecimento
-
-Na ultima edicao, a linha com o titulo da secao foi acidentalmente removida:
-```html
-<div class="section-title">ESCOPO DO FORNECIMENTO: SGT 3610 TL</div>
-```
-Sera restaurada antes da tabela de especificacoes.
-
-### 3. Remover regra CSS vazia
-
-A regra `.cover-page ~ .page-footer` esta vazia e nao faz nada. Sera removida e substituida pelo comentario explicando a estrategia de z-index.
+Aumentar o `padding-bottom` de `30mm` para `40mm` no `.content-page` para garantir que o conteudo nunca sobreponha o rodape em nenhuma pagina. Tambem adicionar uma regra `@media print` especifica para reforcar esse espaco.
 
 ### Arquivo modificado
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | Adicionar z-index: 20 ao cover-bg-img e z-index: 21 ao cover-overlay; restaurar section-title do escopo; limpar CSS vazio |
+| `supabase/functions/generate-pdf/index.ts` | Aumentar `padding-bottom` de 30mm para 40mm no `.content-page`; adicionar `@page { margin-bottom: 0; }` no print media para evitar margens duplas |
 
+### Detalhes tecnicos
+
+Linha 676 do arquivo atual:
+```css
+/* Antes */
+.content-page {
+  padding: 15mm;
+  padding-bottom: 30mm;
+}
+
+/* Depois */
+.content-page {
+  padding: 15mm;
+  padding-bottom: 40mm;
+}
+```
+
+O aumento de 10mm extras garante espaco suficiente para o rodape fixo que contem:
+- Border-top de 2px
+- Texto da empresa (9px + padding)
+- Logos Yelum e CREA-GO (35px de altura)
+- Gap e padding interno
