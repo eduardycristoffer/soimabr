@@ -665,15 +665,28 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   .print-toolbar button:hover { background: #e8eef7; }
   .print-toolbar p { margin: 0; opacity: 0.85; font-size: 12px; }
 
-  @media print {
+   @media print {
     .print-toolbar { display: none !important; }
     body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   }
 
+  /* Fixed header on all content pages (hidden behind covers via z-index) */
+  .page-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 15mm;
+    font-size: 7px;
+    color: #999;
+    text-align: right;
+    z-index: 10;
+    background: white;
+  }
+
   /* Content pages get padding to simulate margins */
   .content-page {
-    padding: 15mm;
-    padding-bottom: 40mm;
+    padding: 20mm 15mm 45mm 15mm;
     width: 100%;
     box-sizing: border-box;
   }
@@ -838,6 +851,11 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     </div>
   </div>
 
+  <!-- FIXED HEADER (repeats on all printed pages, hidden behind covers) -->
+  <div class="page-header">
+    ${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
+  </div>
+
   <!-- FIXED FOOTER (repeats on all printed pages) -->
   <div class="page-footer">
     <span class="footer-company-legal">${co.razao_social || companyName}</span>
@@ -937,10 +955,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     <div class="sig-line">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
   </div>
 
-  <div style="margin-top: 24px; font-size: 9px; color: #555; text-align: center;">
-    ${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
-    ${isInternationalUsd ? `<br><em style="color: #7d6608;">${t.usd_disclaimer}</em>` : ""}
-  </div>
+  ${isInternationalUsd ? `<div style="margin-top: 24px; font-size: 9px; color: #7d6608; text-align: center; font-style: italic;">${t.usd_disclaimer}</div>` : ""}
 
   </div><!-- end content-page -->
 
