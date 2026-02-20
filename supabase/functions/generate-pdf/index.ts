@@ -977,7 +977,6 @@ function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<str
   if (!scopeHTML && !panelHTML) return "";
   return `
   <div class="content-page">
-    ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
     ${scopeHTML}
     ${panelHTML}
   </div>`;
@@ -1034,8 +1033,6 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   return `
   <div class="content-page">
-    ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
-
     ${summaryBoxHTML}
 
     <div class="section conditions">
