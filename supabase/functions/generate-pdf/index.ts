@@ -686,36 +686,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 
   /* Content pages get padding to simulate margins */
   .content-page {
-    padding: 20mm 15mm 45mm 15mm;
+    padding: 20mm 15mm 20mm 15mm;
     width: 100%;
     box-sizing: border-box;
     page-break-after: always;
   }
 
-  /* Fixed footer on all content pages */
-  .page-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 9px;
-    padding: 8px 15mm;
-    border-top: 2px solid #0047AB;
-    background: white;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-  .page-footer .footer-company-legal { font-weight: 600; color: #333; }
-  .page-footer .footer-logos-row { display: flex; justify-content: center; align-items: center; gap: 24px; }
-  .page-footer .footer-logos-row img { height: 35px; width: auto; }
-
-  @media print {
-    .page-footer { position: fixed; bottom: 0; }
-  }
+  /* Fixed footer removed — now inline only on final page */
 
    /* Footer is hidden on cover/backcover via z-index: cover images (z-index:20) sit above footer (z-index:10) */
 
@@ -868,16 +845,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
   </div>
 
-  <!-- FIXED FOOTER (repeats on all printed pages) -->
-  <div class="page-footer">
-    <span class="footer-company-legal">${co.razao_social || companyName}</span>
-    ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
-    ${co.address ? ` · ${co.address}` : ""}
-    <div class="footer-logos-row">
-      <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
-      <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
-    </div>
-  </div>
+  <!-- Footer removed from here — now inline only on final page -->
 
   <!-- CONTEÚDO - PÁGINA 1: Cliente / Projeto / Itens / Totais -->
   <div class="content-page">
@@ -929,7 +897,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 
   ${buildContentPage2HTML(quote, items, productsMap, quotePanelItems, defaultPanelItems, t, lang, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate)}
 
-  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd)}
+  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd, co)}
 
   <!-- CONTRACAPA -->
   <div class="backcover-page" style="page-break-before: always;">
@@ -983,7 +951,7 @@ function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<str
 }
 
 // ── Final Page (always: Conditions + Warranty + Validity + Signatures) ──
-function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean): string {
+function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean, co: any): string {
   // Truncate notes if too long
   let notesText = quote.notes || "";
   if (notesText.length > 1500) {
@@ -1077,6 +1045,15 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     </div>
 
     ${isInternationalUsd ? `<div style="margin-top: 16px; font-size: 9px; color: #7d6608; text-align: center; font-style: italic;">${t.usd_disclaimer}</div>` : ""}
+
+    <div class="footer">
+      <div class="company-legal">${co.razao_social || companyName}</div>
+      ${co.cnpj ? `CNPJ: ${co.cnpj}` : ""}${co.address ? ` · ${co.address}` : ""}
+      <div class="footer-logos">
+        <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
+        <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
+      </div>
+    </div>
   </div>`;
 }
 
