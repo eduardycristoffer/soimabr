@@ -1,64 +1,28 @@
 
 
-## Ajustes no PDF da Proposta
+## Ajustes Finais no PDF
 
-### 1. Informacoes da capa no canto superior direito
+### 1. Esconder rodape na capa e contracapa
 
-Atualmente o overlay da capa (numero da proposta, cliente, cidade, data) esta posicionado no canto inferior esquerdo (`bottom: 60px; left: 40px`). Sera movido para o canto superior direito:
+O problema: `position: fixed` no CSS de impressao faz o rodape aparecer em TODAS as paginas, incluindo capa e contracapa. Nao e possivel excluir paginas especificas com CSS puro.
 
-- CSS: mudar de `bottom: 60px; left: 40px` para `top: 40px; right: 40px; text-align: right`
-- Manter a cor azul escuro (#1a365d) para contraste com a capa branca
+**Solucao**: dar z-index mais alto para as imagens de capa/contracapa (z-index: 20) e overlay (z-index: 21), mantendo o rodape com z-index: 10. Como as imagens cobrem 100% da pagina, elas ficam POR CIMA do rodape nas paginas de capa/contracapa, escondendo-o visualmente.
 
-### 2. Logos Yelum e CREA-GO fixos no rodape de TODAS as paginas
+### 2. Restaurar titulo da secao Escopo do Fornecimento
 
-Atualmente os logos so aparecem no rodape da ultima pagina de conteudo. Para que aparecam em todas as paginas de conteudo, sera usado um rodape fixo via CSS `@media print` com `position: fixed; bottom: 0`:
+Na ultima edicao, a linha com o titulo da secao foi acidentalmente removida:
+```html
+<div class="section-title">ESCOPO DO FORNECIMENTO: SGT 3610 TL</div>
+```
+Sera restaurada antes da tabela de especificacoes.
 
-- Criar um elemento `.page-footer` com os logos Yelum e CREA-GO + dados da empresa
-- Usar `position: fixed; bottom: 0` que no contexto de impressao repete o elemento em todas as paginas
-- Adicionar `padding-bottom` extra no `.content-page` para que o conteudo nao sobreponha o rodape fixo
-- O rodape fixo sera oculto na capa e contracapa via CSS
+### 3. Remover regra CSS vazia
 
-### 3. Remover padding superior excessivo do Escopo do Fornecimento
-
-A secao "Escopo do Fornecimento" tem `page-break-inside: avoid` e herda o `margin-bottom: 14px` da classe `.section`, mas pode estar sendo empurrada para uma nova pagina pelo layout. Ajustes:
-
-- Adicionar `margin-top: 0` ao primeiro `.section` apos o bloco de condicoes comerciais
-- Ou reduzir o `page-break-before` que pode estar forcando espaco extra
-- Garantir que a secao comece sem espaco desnecessario no topo quando cai em nova pagina
+A regra `.cover-page ~ .page-footer` esta vazia e nao faz nada. Sera removida e substituida pelo comentario explicando a estrategia de z-index.
 
 ### Arquivo modificado
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | Mover overlay da capa para top-right; criar rodape fixo com logos em todas as paginas; reduzir padding superior do escopo |
+| `supabase/functions/generate-pdf/index.ts` | Adicionar z-index: 20 ao cover-bg-img e z-index: 21 ao cover-overlay; restaurar section-title do escopo; limpar CSS vazio |
 
-### Detalhes tecnicos
-
-**Rodape fixo em todas as paginas (CSS print)**:
-```css
-.page-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 9px;
-  padding: 8px 15mm;
-  border-top: 2px solid #0047AB;
-}
-```
-Esse padrao funciona em navegadores baseados em Chromium (Chrome, Edge) no modo de impressao, repetindo o rodape em cada pagina impressa.
-
-**Overlay da capa**:
-```css
-.cover-overlay {
-  position: absolute;
-  top: 40px;
-  right: 40px;
-  text-align: right;
-  color: #1a365d;
-}
-```
-
-**Escopo sem padding extra**:
-A secao de escopo tera `margin-top: 0; padding-top: 0` para ficar colada ao topo quando iniciar em nova pagina. O `page-break-before: always` sera adicionado para garantir que comece limpa em pagina nova sem espaco morto.
