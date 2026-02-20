@@ -1,34 +1,43 @@
 
 
-## Remover cabecalho repetido das paginas 2 e 3 do PDF
+## Remover rodape fixo e adicionar rodape apenas na penultima pagina
 
 ### O que muda
 
-O cabecalho com logo SOIMA, dados da empresa e numero da proposta (`buildPageHeader()`) esta sendo chamado em **todas** as content-pages (1, 2 e 3). O usuario quer que ele apareca **somente na primeira pagina de conteudo** (pagina 1, logo apos a capa).
-
-As paginas 2 (escopo/painel) e 3 (final/condicoes/assinaturas) ficam sem o cabecalho grande -- apenas com o conteudo das secoes.
+O rodape fixo (`position: fixed; bottom: 0`) com razao social, CNPJ, endereco e logos (Yelum/CREA-GO) aparece em **todas** as paginas impressas. O usuario quer que ele apareca **somente na penultima pagina** (pagina final de conteudo, onde ficam condicoes/garantia/assinaturas).
 
 ### Detalhes tecnicos
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | Remover 2 chamadas de `buildPageHeader()` |
+| `supabase/functions/generate-pdf/index.ts` | 3 alteracoes |
 
-#### 1. Pagina 2 (escopo/painel) - linha 980
+#### 1. Remover o bloco HTML do rodape fixo (linhas 871-880)
 
-Remover a chamada `${buildPageHeader(...)}` dentro de `buildContentPage2HTML()`. O div `content-page` continua existindo com o padding correto, mas sem o bloco de cabecalho.
+Remover completamente o `<div class="page-footer">...</div>` que esta no corpo do HTML e aparece em todas as paginas.
 
-#### 2. Pagina final (condicoes/garantia/assinaturas) - linha 1037
+#### 2. Remover/comentar o CSS do `.page-footer` (linhas 695-718)
 
-Remover a chamada `${buildPageHeader(...)}` dentro de `buildFinalPageHTML()`. O resumo da proposta (`summaryBoxHTML`) passara a ser o primeiro elemento visivel no topo da pagina final.
+Remover os estilos `.page-footer`, `.page-footer .footer-company-legal`, `.page-footer .footer-logos-row` e o bloco `@media print` relacionado, ja que o elemento nao existira mais.
 
-#### 3. Simplificar assinaturas das funcoes
+#### 3. Adicionar rodape inline na penultima pagina (dentro de `buildFinalPageHTML`)
 
-Como `buildContentPage2HTML` e `buildFinalPageHTML` nao precisarao mais dos parametros de cabecalho (companyName, companySubtitle, companyPhone, etc.), esses parametros podem ser removidos das assinaturas para simplificar o codigo. Porem, para minimizar alteracoes, a abordagem mais segura e simplesmente remover a linha de chamada do `buildPageHeader` e manter os parametros (sem uso).
+Inserir um rodape estatico (nao fixo) no final do conteudo da pagina final, logo apos a linha de aceite e antes do fechamento do `</div>` da content-page. Usara os estilos `.footer` e `.footer-logos` que ja existem no CSS (linhas 804-807) mas nao estao sendo utilizados.
+
+O rodape tera:
+- Razao social da empresa
+- CNPJ e endereco
+- Logos Yelum e CREA-GO
+
+#### 4. Reduzir padding-bottom das paginas 1 e 2
+
+Como nao ha mais rodape fixo, o `padding-bottom: 45mm` da classe `.content-page` pode ser reduzido (para ~20mm), liberando mais espaco util para conteudo. A penultima pagina mantera espaco suficiente para o rodape inline.
 
 ### Resultado esperado
 
-- **Pagina 1**: Cabecalho completo (logo + empresa + PRO262628 + data + validade + status) + cliente + itens
-- **Pagina 2**: Apenas escopo e painel (sem cabecalho)
-- **Pagina 3 (final)**: Resumo da proposta + condicoes + garantia + assinaturas (sem cabecalho)
-- **Capa e contracapa**: Sem alteracao
+- **Capa**: Sem rodape
+- **Pagina 1**: Sem rodape (mais espaco para itens)
+- **Pagina 2 (opcional)**: Sem rodape
+- **Pagina final**: Rodape com razao social, CNPJ, endereco e logos ao final
+- **Contracapa**: Sem rodape
+
