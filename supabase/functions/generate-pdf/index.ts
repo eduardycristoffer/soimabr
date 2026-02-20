@@ -703,9 +703,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     .page-footer { position: fixed; bottom: 0; }
   }
 
-  /* Hide footer on cover/backcover pages */
-  .cover-page ~ .page-footer,
-  .backcover-page ~ .page-footer { }
+   /* Footer is hidden on cover/backcover via z-index: cover images (z-index:20) sit above footer (z-index:10) */
 
   /* Cover & backcover full-bleed pages */
   .cover-page, .backcover-page {
@@ -720,12 +718,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
-  .cover-bg-img {
+   .cover-bg-img {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
+    z-index: 20;
   }
   .cover-overlay {
     position: absolute;
@@ -738,7 +737,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     line-height: 1.8;
     font-family: 'Segoe UI', Arial, sans-serif;
     letter-spacing: 0.3px;
-    z-index: 2;
+     z-index: 21;
   }
   .cover-overlay .cover-label {
     font-size: 10px;
@@ -984,9 +983,10 @@ function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, an
   const filledRows = rows.filter(([_, v]) => v != null && v !== "");
   if (filledRows.length === 0) return "";
   const rowsHTML = filledRows.map(([label, value]) => `<tr><td class="label-cell">${label}</td><td>${value}</td></tr>`).join("");
-  const breakStyle = forcePageBreak ? 'page-break-before: always; margin-top: 0; padding-top: 0;' : '';
+   const breakStyle = forcePageBreak ? 'page-break-before: always; margin-top: 0; padding-top: 0;' : '';
   return `
   <div class="section" style="page-break-inside: avoid; ${breakStyle}">
+    <div class="section-title">${t.scope_title}: ${modelName}</div>
     <table class="scope-table">
       <thead><tr><th colspan="2">${lang === "en" ? "DESCRIPTION" : "DESCRIÇÃO"}</th></tr></thead>
       <tbody>${rowsHTML}</tbody>
