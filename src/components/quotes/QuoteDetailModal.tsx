@@ -84,7 +84,6 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
       if (printWindow) {
         printWindow.document.write(html);
         printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
       }
       toast({ title: "PDF gerado!", description: `Proposta ${quote_number} pronta para impressão` });
     } catch (error: any) {

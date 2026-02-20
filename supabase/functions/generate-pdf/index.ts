@@ -650,6 +650,26 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
 
+  /* Print toolbar - hidden during print */
+  .print-toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: #0047AB; color: white; padding: 12px 24px;
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .print-toolbar button {
+    background: white; color: #0047AB; border: none; padding: 8px 24px;
+    border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .print-toolbar button:hover { background: #e8eef7; }
+  .print-toolbar p { margin: 0; opacity: 0.85; font-size: 12px; }
+
+  @media print {
+    .print-toolbar { display: none !important; }
+    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  }
+
   /* Content pages get padding to simulate margins */
   .content-page {
     padding: 15mm;
@@ -664,25 +684,30 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     margin: 0;
     padding: 0;
     position: relative;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     page-break-after: always;
     overflow: hidden;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
+  .cover-bg-img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
   .cover-overlay {
     position: absolute;
-    top: 40px;
+    bottom: 60px;
     left: 40px;
-    color: white;
+    color: #1a365d;
     font-size: 11px;
     opacity: 1;
     line-height: 1.8;
     font-family: 'Segoe UI', Arial, sans-serif;
     letter-spacing: 0.3px;
+    z-index: 2;
   }
   .cover-overlay .cover-label {
     font-size: 10px;
@@ -766,8 +791,15 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 </style>
 </head>
 <body>
+  <!-- PRINT TOOLBAR -->
+  <div class="print-toolbar">
+    <button onclick="window.print()">📄 Salvar como PDF</button>
+    <p>Clique no botão acima e selecione "Salvar como PDF" no destino da impressora</p>
+  </div>
+
   <!-- CAPA -->
-  <div class="cover-page" style="background-image: url('${PDF_COVER_URL}');">
+  <div class="cover-page">
+    <img src="${PDF_COVER_URL}" class="cover-bg-img" alt="Capa" />
     <div class="cover-overlay">
       ${lang === "en" ? "Proposal" : "Proposta"} nº ${quote.quote_number}<br>
       ${clientName}<br>
@@ -879,7 +911,9 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   </div><!-- end content-page -->
 
   <!-- CONTRACAPA -->
-  <div class="backcover-page" style="background-image: url('${PDF_BACKCOVER_URL}'); page-break-before: always;"></div>
+  <div class="backcover-page" style="page-break-before: always;">
+    <img src="${PDF_BACKCOVER_URL}" class="cover-bg-img" alt="Contracapa" />
+  </div>
 </body>
 </html>`;
 }
