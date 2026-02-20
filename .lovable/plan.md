@@ -1,57 +1,34 @@
 
 
-## Adicionar resumo de contratacao na pagina final do PDF
+## Remover cabecalho repetido das paginas 2 e 3 do PDF
 
 ### O que muda
 
-A pagina final (penultima, antes da contracapa) ja existe com Condicoes Comerciais, Garantia, Validade e Assinaturas. O usuario quer adicionar um **resumo do que esta sendo contratado e o valor total** no topo dessa pagina, logo abaixo do cabecalho da empresa.
+O cabecalho com logo SOIMA, dados da empresa e numero da proposta (`buildPageHeader()`) esta sendo chamado em **todas** as content-pages (1, 2 e 3). O usuario quer que ele apareca **somente na primeira pagina de conteudo** (pagina 1, logo apos a capa).
 
-### Estrutura da pagina final (atualizada)
-
-```text
-+-------------------------------------+
-|  Cabecalho empresa (logo + PRO...)  |
-|-------------------------------------|
-|  RESUMO DA PROPOSTA                 |
-|  - Grua modelo X (qtd x)           |
-|  - Torre modelo Y (qtd x)          |
-|  - Acessorio Z (qtd x)             |
-|  Total: R$ 600.000,00              |
-|  (Desconto: 5% se aplicavel)       |
-|-------------------------------------|
-|  CONDICOES COMERCIAIS               |
-|  Moeda: BRL | Validade: 30 dias    |
-|  Entrega: 90 dias | Pagamento: ... |
-|-------------------------------------|
-|  GARANTIA                           |
-|  (bullets existentes)               |
-|-------------------------------------|
-|  VALIDADE DA PROPOSTA               |
-|-------------------------------------|
-|  ASSINATURAS                        |
-|  Soima          |     Cliente       |
-|  Aceite: ___/___/______             |
-+-------------------------------------+
-```
+As paginas 2 (escopo/painel) e 3 (final/condicoes/assinaturas) ficam sem o cabecalho grande -- apenas com o conteudo das secoes.
 
 ### Detalhes tecnicos
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | Adicionar bloco de resumo no inicio de `buildFinalPageHTML()` |
+| `supabase/functions/generate-pdf/index.ts` | Remover 2 chamadas de `buildPageHeader()` |
 
-#### Alteracao em `buildFinalPageHTML()`
+#### 1. Pagina 2 (escopo/painel) - linha 980
 
-Adicionar um bloco HTML no topo (logo apos o `buildPageHeader()`) que:
+Remover a chamada `${buildPageHeader(...)}` dentro de `buildContentPage2HTML()`. O div `content-page` continua existindo com o padding correto, mas sem o bloco de cabecalho.
 
-1. Lista os itens agrupados por categoria (ex: "Grua - SOIMA S48 (x1)") de forma compacta
-2. Mostra subtotal, desconto (se houver) e total final
-3. Para clientes internacionais USD, mostra tambem o equivalente em USD
-4. Usa estilo compacto (fonte 9-10px) para nao ocupar muito espaco vertical
+#### 2. Pagina final (condicoes/garantia/assinaturas) - linha 1037
 
-Os dados necessarios (`items`, `quote.subtotal`, `quote.discount_percent`, `quote.discount_value`, `quote.total`, `quote.currency`) ja estao disponiveis como parametros da funcao.
+Remover a chamada `${buildPageHeader(...)}` dentro de `buildFinalPageHTML()`. O resumo da proposta (`summaryBoxHTML`) passara a ser o primeiro elemento visivel no topo da pagina final.
 
-#### CSS adicional
+#### 3. Simplificar assinaturas das funcoes
 
-Adicionar estilo `.summary-box` com fundo cinza claro, borda, e tipografia compacta para o resumo ficar visualmente separado das condicoes comerciais.
+Como `buildContentPage2HTML` e `buildFinalPageHTML` nao precisarao mais dos parametros de cabecalho (companyName, companySubtitle, companyPhone, etc.), esses parametros podem ser removidos das assinaturas para simplificar o codigo. Porem, para minimizar alteracoes, a abordagem mais segura e simplesmente remover a linha de chamada do `buildPageHeader` e manter os parametros (sem uso).
 
+### Resultado esperado
+
+- **Pagina 1**: Cabecalho completo (logo + empresa + PRO262628 + data + validade + status) + cliente + itens
+- **Pagina 2**: Apenas escopo e painel (sem cabecalho)
+- **Pagina 3 (final)**: Resumo da proposta + condicoes + garantia + assinaturas (sem cabecalho)
+- **Capa e contracapa**: Sem alteracao
