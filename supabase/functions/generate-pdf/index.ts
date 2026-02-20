@@ -66,6 +66,37 @@ interface Translations {
   cat_tramo: string;
   cat_chassis: string;
   cat_acessorio: string;
+  // New technical sections
+  scope_title: string;
+  scope_type: string;
+  scope_jib_length: string;
+  scope_tower_height: string;
+  scope_working_height: string;
+  scope_tip_load: string;
+  scope_max_load: string;
+  scope_vel_elevation: string;
+  scope_vel_rotation: string;
+  scope_vel_translation: string;
+  panel_title: string;
+  panel_voltage_label: string;
+  panel_motor_item: string;
+  panel_motor_spec: string;
+  panel_motor_elevation: string;
+  panel_motor_translation: string;
+  panel_motor_rotation: string;
+  warranty_title: string;
+  warranty_intro: string;
+  warranty_certificate: string;
+  warranty_delivery: string;
+  warranty_maintenance: string;
+  warranty_norms: string;
+  warranty_years_text: string;
+  warranty_not_included: string;
+  warranty_year_singular: string;
+  warranty_year_plural: string;
+  warranty_structural: string;
+  warranty_paint: string;
+  warranty_components: string;
 }
 
 const translations: Record<string, Translations> = {
@@ -128,6 +159,36 @@ const translations: Record<string, Translations> = {
     cat_tramo: "Tramo",
     cat_chassis: "Chassis",
     cat_acessorio: "Acessório",
+    scope_title: "ESCOPO DO FORNECIMENTO",
+    scope_type: "Tipo",
+    scope_jib_length: "Comprimento da lança",
+    scope_tower_height: "Altura da torre da grua total",
+    scope_working_height: "Altura de elevação / altura de trabalho",
+    scope_tip_load: "Carga à ponta",
+    scope_max_load: "Carga máxima absoluta",
+    scope_vel_elevation: "Velocidade de elevação",
+    scope_vel_rotation: "Velocidade de rotação",
+    scope_vel_translation: "Velocidade de translação",
+    panel_title: "ITENS INTEGRANTES DO PAINEL",
+    panel_voltage_label: "Tensão de alimentação",
+    panel_motor_item: "Item",
+    panel_motor_spec: "Especificação",
+    panel_motor_elevation: "Motorredutor de elevação",
+    panel_motor_translation: "Motorredutor de translação",
+    panel_motor_rotation: "Motorredutor de rotação",
+    warranty_title: "GARANTIA",
+    warranty_intro: "A SOIMA Brasil Equipamentos garante os equipamentos fornecidos conforme as condições abaixo, a partir da data de entrega técnica:",
+    warranty_certificate: "Certificado de garantia com os seguintes prazos:",
+    warranty_delivery: "Entrega técnica com testes e laudo técnico de conformidade",
+    warranty_maintenance: "Plano de manutenção preventiva recomendado",
+    warranty_norms: "Normas e recomendações aos operadores conforme ABNT NBR 8400",
+    warranty_years_text: "anos",
+    warranty_not_included: "Garantia não inclusa nesta proposta",
+    warranty_year_singular: "ano",
+    warranty_year_plural: "anos",
+    warranty_structural: "no estrutural",
+    warranty_paint: "na pintura",
+    warranty_components: "nos componentes elétricos, motores e mecânicos",
   },
   en: {
     title: "Commercial Proposal",
@@ -188,6 +249,36 @@ const translations: Record<string, Translations> = {
     cat_tramo: "Tower Section",
     cat_chassis: "Chassis",
     cat_acessorio: "Accessory",
+    scope_title: "SUPPLY SCOPE",
+    scope_type: "Type",
+    scope_jib_length: "Jib length",
+    scope_tower_height: "Total tower height",
+    scope_working_height: "Working height",
+    scope_tip_load: "Tip load",
+    scope_max_load: "Maximum absolute load",
+    scope_vel_elevation: "Hoisting speed",
+    scope_vel_rotation: "Slewing speed",
+    scope_vel_translation: "Trolley speed",
+    panel_title: "PANEL COMPONENTS",
+    panel_voltage_label: "Supply voltage",
+    panel_motor_item: "Item",
+    panel_motor_spec: "Specification",
+    panel_motor_elevation: "Hoisting gearmotor",
+    panel_motor_translation: "Trolley gearmotor",
+    panel_motor_rotation: "Slewing gearmotor",
+    warranty_title: "WARRANTY",
+    warranty_intro: "SOIMA Brasil Equipamentos warrants the supplied equipment under the conditions below, from the date of technical delivery:",
+    warranty_certificate: "Warranty certificate with the following terms:",
+    warranty_delivery: "Technical delivery with tests and compliance report",
+    warranty_maintenance: "Recommended preventive maintenance plan",
+    warranty_norms: "Standards and recommendations for operators per ABNT NBR 8400",
+    warranty_years_text: "years",
+    warranty_not_included: "Warranty not included in this proposal",
+    warranty_year_singular: "year",
+    warranty_year_plural: "years",
+    warranty_structural: "on structural",
+    warranty_paint: "on paint",
+    warranty_components: "on electrical components, motors and mechanical parts",
   },
 };
 
@@ -267,13 +358,13 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    // Fetch products for tech descriptions
+    // Fetch products for tech descriptions (full data for defaults)
     const productIds = (items || []).map((i: any) => i.product_id).filter(Boolean);
     let productsMap: Record<string, any> = {};
     if (productIds.length > 0) {
       const { data: products } = await supabase
         .from("products")
-        .select("id, descricao_tecnica, show_tech_desc_pdf")
+        .select("*")
         .in("id", productIds);
       if (products) {
         for (const p of products) {
@@ -282,12 +373,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fetch quote panel items
+    const { data: quotePanelItems } = await supabase
+      .from("quote_panel_items")
+      .select("*")
+      .eq("quote_id", quoteId)
+      .order("order_index");
+
+    // If no panel items on quote, try loading defaults from the grua product
+    const gruaItem = (items || []).find((i: any) => i.product_category === "grua");
+    let defaultPanelItems: any[] = [];
+    if ((!quotePanelItems || quotePanelItems.length === 0) && gruaItem?.product_id) {
+      const { data: dpi } = await supabase
+        .from("default_panel_items")
+        .select("*")
+        .eq("product_id", gruaItem.product_id)
+        .order("order_index");
+      defaultPanelItems = dpi || [];
+    }
+
     // Resolve language
     const lang = quote.language || "pt-BR";
     const t = translations[lang] || translations["pt-BR"];
 
     // Generate HTML for the PDF
-    const html = generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang);
+    const html = generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
 
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
@@ -310,7 +420,7 @@ const CREA_LOGO_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/objec
 const PDF_COVER_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/pdf-cover.jpg";
 const PDF_BACKCOVER_URL = "https://untvhsyorhojoviyplax.supabase.co/storage/v1/object/public/logos/pdf-backcover.jpg";
 
-function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>, t: Translations, lang: string) {
+function generateQuoteHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>, t: Translations, lang: string, quotePanelItems: any[], defaultPanelItems: any[]) {
   const isInternationalUsd = quote.clients?.client_type === "internacional" && quote.currency === "USD" && quote.usd_brl_rate_used;
   const usdRate = quote.usd_brl_rate_used ? Number(quote.usd_brl_rate_used) : null;
 
@@ -628,6 +738,31 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   .footer .company-legal { font-weight: 600; color: #333; }
   .signature { margin-top: 40px; display: flex; justify-content: space-around; }
   .sig-line { width: 200px; text-align: center; border-top: 1px solid #333; padding-top: 4px; font-size: 10px; }
+
+  /* Scope table */
+  .scope-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .scope-table th { background: #0047AB; color: white; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }
+  .scope-table td { padding: 6px 12px; border-bottom: 1px solid #e0e0e0; font-size: 10px; }
+  .scope-table tr:nth-child(even) { background: #f0f4fa; }
+  .scope-table .label-cell { font-weight: 600; color: #333; width: 45%; }
+
+  /* Panel list */
+  .panel-list { list-style: none; padding: 0; margin: 8px 0; }
+  .panel-list li { padding: 4px 0 4px 20px; position: relative; font-size: 10px; line-height: 1.5; }
+  .panel-list li::before { content: "\\2713"; position: absolute; left: 0; color: #0047AB; font-weight: bold; }
+
+  .motor-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .motor-table th { background: #0047AB; color: white; padding: 6px 10px; text-align: left; font-size: 10px; }
+  .motor-table td { padding: 5px 10px; border-bottom: 1px solid #e0e0e0; font-size: 10px; }
+  .motor-table tr:nth-child(even) { background: #f0f4fa; }
+
+  /* Warranty */
+  .warranty-section { page-break-inside: avoid; }
+  .warranty-intro { font-size: 10px; line-height: 1.6; margin-bottom: 8px; color: #333; }
+  .warranty-list { list-style: none; padding: 0; margin: 8px 0; }
+  .warranty-list li { padding: 4px 0 4px 20px; position: relative; font-size: 10px; line-height: 1.5; }
+  .warranty-list li::before { content: "\\2022"; position: absolute; left: 6px; color: #0047AB; font-weight: bold; }
+  .warranty-terms { font-size: 10px; font-weight: 600; color: #0047AB; margin-top: 8px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -720,6 +855,10 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${quote.notes}</span></div>` : ""}
   </div>
 
+  ${buildScopeHTML(quote, items, productsMap, t, lang)}
+  ${buildPanelHTML(quote, quotePanelItems, defaultPanelItems, productsMap, items, t, lang)}
+  ${buildWarrantyHTML(quote, items, productsMap, t, lang)}
+
   <div class="signature">
     <div class="sig-line">${companyName}</div>
     <div class="sig-line">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
@@ -743,4 +882,120 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   <div class="backcover-page" style="background-image: url('${PDF_BACKCOVER_URL}'); page-break-before: always;"></div>
 </body>
 </html>`;
+}
+
+// ── Helper: format kg with thousand separator ──
+function formatKg(val: number | null | undefined): string {
+  if (val == null) return "";
+  return `${Number(val).toLocaleString("pt-BR")} kg`;
+}
+
+// ── ESCOPO DO FORNECIMENTO ──
+function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
+  const gruaItem = items.find((i: any) => i.product_category === "grua");
+  if (!gruaItem) return "";
+  const product = productsMap[gruaItem.product_id] || {};
+  const modelName = gruaItem.product_name || "";
+  const resolve = (qf: string, pf: string) => {
+    if (quote.spec_override_enabled && quote[qf]) return quote[qf];
+    if (product[pf]) return product[pf];
+    return null;
+  };
+  const rows: [string, string | null][] = [
+    [t.scope_type, resolve("spec_tipo", "spec_tipo")],
+    [t.scope_jib_length, gruaItem.grua_lanca_m ? `${gruaItem.grua_lanca_m} m` : (quote.grua_lanca_m ? `${quote.grua_lanca_m} m` : null)],
+    [t.scope_tower_height, gruaItem.grua_altura_torre_m ? `${gruaItem.grua_altura_torre_m} m` : (quote.grua_altura_torre_m ? `${quote.grua_altura_torre_m} m` : null)],
+    [t.scope_working_height, gruaItem.grua_altura_trabalho_m ? `${gruaItem.grua_altura_trabalho_m} m` : (quote.grua_altura_trabalho_m ? `${quote.grua_altura_trabalho_m} m` : null)],
+    [t.scope_tip_load, gruaItem.grua_carga_ponta_kg ? formatKg(gruaItem.grua_carga_ponta_kg) : (quote.grua_carga_ponta_kg ? formatKg(quote.grua_carga_ponta_kg) : null)],
+    [t.scope_max_load, gruaItem.grua_carga_maxima_kg ? formatKg(gruaItem.grua_carga_maxima_kg) : (quote.grua_carga_maxima_kg ? formatKg(quote.grua_carga_maxima_kg) : null)],
+    [t.scope_vel_elevation, resolve("spec_vel_elevacao", "spec_vel_elevacao")],
+    [t.scope_vel_rotation, resolve("spec_vel_rotacao", "spec_vel_rotacao")],
+    [t.scope_vel_translation, resolve("spec_vel_translacao", "spec_vel_translacao")],
+  ];
+  const filledRows = rows.filter(([_, v]) => v != null && v !== "");
+  if (filledRows.length === 0) return "";
+  const rowsHTML = filledRows.map(([label, value]) => `<tr><td class="label-cell">${label}</td><td>${value}</td></tr>`).join("");
+  return `
+  <div class="section" style="page-break-inside: avoid;">
+    <div class="section-title">${t.scope_title}: ${modelName}</div>
+    <table class="scope-table">
+      <thead><tr><th colspan="2">${lang === "en" ? "DESCRIPTION" : "DESCRIÇÃO"}</th></tr></thead>
+      <tbody>${rowsHTML}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── ITENS INTEGRANTES DO PAINEL ──
+function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: any[], productsMap: Record<string, any>, items: any[], t: Translations, lang: string): string {
+  const panelItems = quotePanelItems.length > 0 ? quotePanelItems : defaultPanelItems;
+  const hasVoltage = quote.panel_voltage && quote.panel_voltage !== "";
+  const hasMotors = quote.panel_include_motors;
+  if (panelItems.length === 0 && !hasVoltage && !hasMotors) return "";
+  let listHTML = panelItems.map((pi: any) => `<li>${pi.item_text}</li>`).join("");
+  if (hasVoltage) listHTML += `<li>${t.panel_voltage_label}: ${quote.panel_voltage}V</li>`;
+  let motorHTML = "";
+  if (hasMotors) {
+    const gruaItem = items.find((i: any) => i.product_category === "grua");
+    const product = productsMap[gruaItem?.product_id] || {};
+    const resolveMotor = (qKw: string, qHp: string, qVel: string, pKw: string, pHp: string, pVel: string) => {
+      const kw = quote[qKw] ?? product[pKw] ?? null;
+      const hp = quote[qHp] ?? product[pHp] ?? null;
+      const vel = quote[qVel] || product[pVel] || "";
+      if (!kw && !hp && !vel) return null;
+      const parts: string[] = [];
+      if (kw) parts.push(`${kw} kW`);
+      if (hp) parts.push(`${hp} HP`);
+      const spec = parts.join(" / ");
+      return vel ? `${spec} - ${vel}` : spec;
+    };
+    const motorRows: [string, string | null][] = [
+      [t.panel_motor_elevation, resolveMotor("panel_motor_elev_kw", "panel_motor_elev_hp", "panel_motor_elev_vel", "default_motor_elev_kw", "default_motor_elev_hp", "default_motor_elev_vel")],
+      [t.panel_motor_translation, resolveMotor("panel_motor_trans_kw", "panel_motor_trans_hp", "panel_motor_trans_vel", "default_motor_trans_kw", "default_motor_trans_hp", "default_motor_trans_vel")],
+      [t.panel_motor_rotation, resolveMotor("panel_motor_rot_kw", "panel_motor_rot_hp", "panel_motor_rot_vel", "default_motor_rot_kw", "default_motor_rot_hp", "default_motor_rot_vel")],
+    ];
+    const filledMotors = motorRows.filter(([_, v]) => v != null);
+    if (filledMotors.length > 0) {
+      motorHTML = `<table class="motor-table"><thead><tr><th>${t.panel_motor_item}</th><th>${t.panel_motor_spec}</th></tr></thead><tbody>${filledMotors.map(([l, s]) => `<tr><td>${l}</td><td>${s}</td></tr>`).join("")}</tbody></table>`;
+    }
+  }
+  return `
+  <div class="section" style="page-break-inside: avoid;">
+    <div class="section-title">${t.panel_title}</div>
+    <ul class="panel-list">${listHTML}</ul>
+    ${motorHTML}
+  </div>`;
+}
+
+// ── GARANTIA ──
+function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
+  const gruaItem = items.find((i: any) => i.product_category === "grua");
+  const product = productsMap[gruaItem?.product_id] || {};
+  const sy = quote.warranty_struct_years ?? product.default_warranty_struct_years ?? 3;
+  const py = quote.warranty_paint_years ?? product.default_warranty_paint_years ?? 2;
+  const cy = quote.warranty_components_years ?? product.default_warranty_components_years ?? 1;
+  const allZero = sy === 0 && py === 0 && cy === 0;
+  const pl = (n: number) => n === 1 ? t.warranty_year_singular : t.warranty_year_plural;
+  let termsPhrase = "";
+  if (allZero) { termsPhrase = t.warranty_not_included; }
+  else {
+    const parts: string[] = [];
+    if (sy > 0) parts.push(`${sy} ${pl(sy)} ${t.warranty_structural}`);
+    if (py > 0) parts.push(`${py} ${pl(py)} ${t.warranty_paint}`);
+    if (cy > 0) parts.push(`${cy} ${pl(cy)} ${t.warranty_components}`);
+    if (parts.length === 1) termsPhrase = parts[0];
+    else if (parts.length === 2) termsPhrase = `${parts[0]} ${lang === "en" ? "and" : "e"} ${parts[1]}`;
+    else termsPhrase = `${parts.slice(0, -1).join(", ")} ${lang === "en" ? "and" : "e"} ${parts[parts.length - 1]}`;
+  }
+  return `
+  <div class="section warranty-section">
+    <div class="section-title">${t.warranty_title}</div>
+    <p class="warranty-intro">${t.warranty_intro}</p>
+    <ul class="warranty-list">
+      ${!allZero ? `<li>${t.warranty_certificate} <strong>${termsPhrase}</strong></li>` : `<li>${t.warranty_not_included}</li>`}
+      <li>${t.warranty_delivery}</li>
+      <li>${t.warranty_maintenance}</li>
+      <li>${t.warranty_norms}</li>
+    </ul>
+    ${!allZero ? `<div class="warranty-terms">${termsPhrase}.</div>` : ""}
+  </div>`;
 }

@@ -14,6 +14,7 @@ import StepProject from "./steps/StepProject";
 import StepEquipment from "./steps/StepEquipment";
 import StepComponents from "./steps/StepComponents";
 import StepAccessories from "./steps/StepAccessories";
+import StepTechnical from "./steps/StepTechnical";
 import StepCommercial from "./steps/StepCommercial";
 import StepDiscount from "./steps/StepDiscount";
 import StepReview from "./steps/StepReview";
@@ -73,6 +74,19 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             grua_altura_trabalho_m: i.grua_altura_trabalho_m ?? null,
           }));
 
+      // Load panel items
+      const { data: panelItems } = await supabase
+        .from("quote_panel_items")
+        .select("*")
+        .eq("quote_id", sourceQuoteId)
+        .order("order_index");
+
+      const panelItemsDraft = (panelItems || []).map((pi: any) => ({
+        text: pi.item_text,
+        order: pi.order_index,
+      }));
+
+      const q = quote as any;
       wizard.updateData({
         client_id: quote.client_id,
         client_name: quote.clients?.nome_fantasia || quote.clients?.razao_social || "",
@@ -87,17 +101,39 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         grua_carga_maxima_kg: null,
         grua_carga_ponta_kg: null,
         grua_altura_trabalho_m: null,
+        // Technical fields
+        spec_override_enabled: q.spec_override_enabled ?? false,
+        spec_tipo: q.spec_tipo || "",
+        spec_vel_elevacao: q.spec_vel_elevacao || "",
+        spec_vel_rotacao: q.spec_vel_rotacao || "",
+        spec_vel_translacao: q.spec_vel_translacao || "",
+        panel_items: panelItemsDraft,
+        panel_voltage: q.panel_voltage || "380",
+        panel_include_motors: q.panel_include_motors ?? false,
+        panel_motor_elev_kw: q.panel_motor_elev_kw ?? null,
+        panel_motor_elev_hp: q.panel_motor_elev_hp ?? null,
+        panel_motor_elev_vel: q.panel_motor_elev_vel || "",
+        panel_motor_trans_kw: q.panel_motor_trans_kw ?? null,
+        panel_motor_trans_hp: q.panel_motor_trans_hp ?? null,
+        panel_motor_trans_vel: q.panel_motor_trans_vel || "",
+        panel_motor_rot_kw: q.panel_motor_rot_kw ?? null,
+        panel_motor_rot_hp: q.panel_motor_rot_hp ?? null,
+        panel_motor_rot_vel: q.panel_motor_rot_vel || "",
+        warranty_struct_years: q.warranty_struct_years ?? 3,
+        warranty_paint_years: q.warranty_paint_years ?? 2,
+        warranty_components_years: q.warranty_components_years ?? 1,
+        // Commercial
         currency: quote.currency,
         delivery_time: quote.delivery_time || "",
         payment_terms: quote.payment_terms || "",
         freight_terms: quote.freight_terms || "",
         validity_days: quote.validity_days,
         notes: quote.notes || "",
-        language: (quote as any).language || "pt-BR",
+        language: q.language || "pt-BR",
         discount_percent: quote.discount_percent,
         discount_justification: "",
-        usd_brl_rate_used: (quote as any).usd_brl_rate_used ?? null,
-        usd_brl_rate_updated_at: (quote as any).usd_brl_rate_updated_at ?? null,
+        usd_brl_rate_used: q.usd_brl_rate_used ?? null,
+        usd_brl_rate_updated_at: q.usd_brl_rate_updated_at ?? null,
       });
 
       return quote;
@@ -157,6 +193,26 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         subtotal: wizard.subtotal,
         total: wizard.total,
         status: finalStatus as "draft" | "finalized",
+        // Technical fields
+        spec_override_enabled: wizard.data.spec_override_enabled,
+        spec_tipo: wizard.data.spec_tipo || null,
+        spec_vel_elevacao: wizard.data.spec_vel_elevacao || null,
+        spec_vel_rotacao: wizard.data.spec_vel_rotacao || null,
+        spec_vel_translacao: wizard.data.spec_vel_translacao || null,
+        panel_voltage: wizard.data.panel_voltage || "380",
+        panel_include_motors: wizard.data.panel_include_motors,
+        panel_motor_elev_kw: wizard.data.panel_motor_elev_kw ?? null,
+        panel_motor_elev_hp: wizard.data.panel_motor_elev_hp ?? null,
+        panel_motor_elev_vel: wizard.data.panel_motor_elev_vel || null,
+        panel_motor_trans_kw: wizard.data.panel_motor_trans_kw ?? null,
+        panel_motor_trans_hp: wizard.data.panel_motor_trans_hp ?? null,
+        panel_motor_trans_vel: wizard.data.panel_motor_trans_vel || null,
+        panel_motor_rot_kw: wizard.data.panel_motor_rot_kw ?? null,
+        panel_motor_rot_hp: wizard.data.panel_motor_rot_hp ?? null,
+        panel_motor_rot_vel: wizard.data.panel_motor_rot_vel || null,
+        warranty_struct_years: wizard.data.warranty_struct_years,
+        warranty_paint_years: wizard.data.warranty_paint_years,
+        warranty_components_years: wizard.data.warranty_components_years,
       };
 
       // Save USD rate for international quotes
@@ -203,6 +259,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
 
         // Delete old items and re-insert
         await supabase.from("quote_items").delete().eq("quote_id", editingQuoteId);
+        await supabase.from("quote_panel_items").delete().eq("quote_id", editingQuoteId);
 
         quoteId = editingQuoteId;
         quoteNumber = currentQuote?.quote_number || "";
@@ -256,6 +313,21 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           .insert(items as any);
 
         if (itemsError) throw itemsError;
+      }
+
+      // Insert panel items
+      if (wizard.data.panel_items.length > 0) {
+        const panelItems = wizard.data.panel_items.map((item, index) => ({
+          quote_id: quoteId,
+          item_text: item.text,
+          order_index: index,
+        }));
+
+        const { error: panelError } = await supabase
+          .from("quote_panel_items")
+          .insert(panelItems as any);
+
+        if (panelError) throw panelError;
       }
 
       // If requesting approval, create approval request
@@ -384,7 +456,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             {editingQuoteId ? "Editar Proposta Comercial" : duplicatingQuoteId ? "Duplicar Proposta Comercial" : "Nova Proposta Comercial"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Etapa {wizard.step} de 8 — {WIZARD_STEPS[wizard.step - 1].description}
+            Etapa {wizard.step} de 9 — {WIZARD_STEPS[wizard.step - 1].description}
           </p>
         </div>
       </div>
@@ -446,9 +518,12 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           />
         )}
         {wizard.step === 6 && (
-          <StepCommercial data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <StepTechnical data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
         )}
         {wizard.step === 7 && (
+          <StepCommercial data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+        )}
+        {wizard.step === 8 && (
           <StepDiscount
             data={wizard.data}
             updateData={wizard.updateData}
@@ -461,7 +536,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             usdBrlRate={usdBrlRate}
           />
         )}
-        {wizard.step === 8 && (
+        {wizard.step === 9 && (
           <StepReview
             data={wizard.data}
             subtotal={wizard.subtotal}

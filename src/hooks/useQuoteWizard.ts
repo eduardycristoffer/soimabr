@@ -17,6 +17,11 @@ export interface QuoteItemDraft {
   grua_altura_trabalho_m?: number | null;
 }
 
+export interface PanelItemDraft {
+  text: string;
+  order: number;
+}
+
 export interface QuoteWizardData {
   // Step 1 - Client
   client_id: string;
@@ -43,7 +48,33 @@ export interface QuoteWizardData {
   grua_carga_ponta_kg: number | null;
   grua_altura_trabalho_m: number | null;
 
-  // Step 6 - Commercial
+  // Step 6 - Technical / Scope
+  spec_override_enabled: boolean;
+  spec_tipo: string;
+  spec_vel_elevacao: string;
+  spec_vel_rotacao: string;
+  spec_vel_translacao: string;
+
+  // Panel
+  panel_items: PanelItemDraft[];
+  panel_voltage: string;
+  panel_include_motors: boolean;
+  panel_motor_elev_kw: number | null;
+  panel_motor_elev_hp: number | null;
+  panel_motor_elev_vel: string;
+  panel_motor_trans_kw: number | null;
+  panel_motor_trans_hp: number | null;
+  panel_motor_trans_vel: string;
+  panel_motor_rot_kw: number | null;
+  panel_motor_rot_hp: number | null;
+  panel_motor_rot_vel: string;
+
+  // Warranty
+  warranty_struct_years: number;
+  warranty_paint_years: number;
+  warranty_components_years: number;
+
+  // Step 7 - Commercial
   currency: Currency;
   delivery_time: string;
   payment_terms: string;
@@ -52,7 +83,7 @@ export interface QuoteWizardData {
   notes: string;
   language: "pt-BR" | "en";
 
-  // Step 7 - Discount
+  // Step 8 - Discount
   discount_percent: number;
   discount_justification: string;
 
@@ -75,6 +106,26 @@ const INITIAL_DATA: QuoteWizardData = {
   grua_carga_maxima_kg: null,
   grua_carga_ponta_kg: null,
   grua_altura_trabalho_m: null,
+  spec_override_enabled: false,
+  spec_tipo: "",
+  spec_vel_elevacao: "",
+  spec_vel_rotacao: "",
+  spec_vel_translacao: "",
+  panel_items: [],
+  panel_voltage: "380",
+  panel_include_motors: false,
+  panel_motor_elev_kw: null,
+  panel_motor_elev_hp: null,
+  panel_motor_elev_vel: "",
+  panel_motor_trans_kw: null,
+  panel_motor_trans_hp: null,
+  panel_motor_trans_vel: "",
+  panel_motor_rot_kw: null,
+  panel_motor_rot_hp: null,
+  panel_motor_rot_vel: "",
+  warranty_struct_years: 3,
+  warranty_paint_years: 2,
+  warranty_components_years: 1,
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",
@@ -94,9 +145,10 @@ export const WIZARD_STEPS = [
   { id: 3, title: "Equipamento", description: "Grua principal" },
   { id: 4, title: "Componentes", description: "Torres, tramos e chassis" },
   { id: 5, title: "Acessórios", description: "Itens complementares" },
-  { id: 6, title: "Comercial", description: "Condições comerciais" },
-  { id: 7, title: "Descontos", description: "Desconto geral" },
-  { id: 8, title: "Revisão", description: "Resumo e finalização" },
+  { id: 6, title: "Técnico", description: "Escopo, painel e garantia" },
+  { id: 7, title: "Comercial", description: "Condições comerciais" },
+  { id: 8, title: "Descontos", description: "Desconto geral" },
+  { id: 9, title: "Revisão", description: "Resumo e finalização" },
 ];
 
 export function useQuoteWizard() {
@@ -108,7 +160,7 @@ export function useQuoteWizard() {
   }, []);
 
   const nextStep = useCallback(() => {
-    setStep((s) => Math.min(s + 1, 8));
+    setStep((s) => Math.min(s + 1, 9));
   }, []);
 
   const prevStep = useCallback(() => {
@@ -116,7 +168,7 @@ export function useQuoteWizard() {
   }, []);
 
   const goToStep = useCallback((s: number) => {
-    setStep(Math.max(1, Math.min(s, 8)));
+    setStep(Math.max(1, Math.min(s, 9)));
   }, []);
 
   const reset = useCallback(() => {
