@@ -422,7 +422,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                   )} />
                   <FormField control={form.control} name="spec_vel_elevacao" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Vel. Elevação</FormLabel>
+                      <FormLabel>Vel. Distribuição</FormLabel>
                       <FormControl><Input placeholder="Ex: MULT SPEED 2.5/58 m/min" {...field} /></FormControl>
                     </FormItem>
                   )} />
