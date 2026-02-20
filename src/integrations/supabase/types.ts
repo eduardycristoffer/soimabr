@@ -221,6 +221,38 @@ export type Database = {
         }
         Relationships: []
       }
+      default_panel_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_text: string
+          order_index: number
+          product_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_text: string
+          order_index?: number
+          product_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_text?: string
+          order_index?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "default_panel_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_approval_requests: {
         Row: {
           created_at: string
@@ -728,6 +760,20 @@ export type Database = {
           categoria: Database["public"]["Enums"]["product_category"]
           codigo: string
           created_at: string
+          default_motor_elev_hp: number | null
+          default_motor_elev_kw: number | null
+          default_motor_elev_vel: string | null
+          default_motor_rot_hp: number | null
+          default_motor_rot_kw: number | null
+          default_motor_rot_vel: string | null
+          default_motor_trans_hp: number | null
+          default_motor_trans_kw: number | null
+          default_motor_trans_vel: string | null
+          default_panel_include_motors: boolean | null
+          default_panel_voltage: string | null
+          default_warranty_components_years: number | null
+          default_warranty_paint_years: number | null
+          default_warranty_struct_years: number | null
           descricao: string | null
           descricao_tecnica: string | null
           id: string
@@ -737,6 +783,10 @@ export type Database = {
           nome: string
           preco: number
           show_tech_desc_pdf: boolean
+          spec_tipo: string | null
+          spec_vel_elevacao: string | null
+          spec_vel_rotacao: string | null
+          spec_vel_translacao: string | null
           unidade: string
           updated_at: string
         }
@@ -744,6 +794,20 @@ export type Database = {
           categoria: Database["public"]["Enums"]["product_category"]
           codigo: string
           created_at?: string
+          default_motor_elev_hp?: number | null
+          default_motor_elev_kw?: number | null
+          default_motor_elev_vel?: string | null
+          default_motor_rot_hp?: number | null
+          default_motor_rot_kw?: number | null
+          default_motor_rot_vel?: string | null
+          default_motor_trans_hp?: number | null
+          default_motor_trans_kw?: number | null
+          default_motor_trans_vel?: string | null
+          default_panel_include_motors?: boolean | null
+          default_panel_voltage?: string | null
+          default_warranty_components_years?: number | null
+          default_warranty_paint_years?: number | null
+          default_warranty_struct_years?: number | null
           descricao?: string | null
           descricao_tecnica?: string | null
           id?: string
@@ -753,6 +817,10 @@ export type Database = {
           nome: string
           preco?: number
           show_tech_desc_pdf?: boolean
+          spec_tipo?: string | null
+          spec_vel_elevacao?: string | null
+          spec_vel_rotacao?: string | null
+          spec_vel_translacao?: string | null
           unidade?: string
           updated_at?: string
         }
@@ -760,6 +828,20 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["product_category"]
           codigo?: string
           created_at?: string
+          default_motor_elev_hp?: number | null
+          default_motor_elev_kw?: number | null
+          default_motor_elev_vel?: string | null
+          default_motor_rot_hp?: number | null
+          default_motor_rot_kw?: number | null
+          default_motor_rot_vel?: string | null
+          default_motor_trans_hp?: number | null
+          default_motor_trans_kw?: number | null
+          default_motor_trans_vel?: string | null
+          default_panel_include_motors?: boolean | null
+          default_panel_voltage?: string | null
+          default_warranty_components_years?: number | null
+          default_warranty_paint_years?: number | null
+          default_warranty_struct_years?: number | null
           descricao?: string | null
           descricao_tecnica?: string | null
           id?: string
@@ -769,6 +851,10 @@ export type Database = {
           nome?: string
           preco?: number
           show_tech_desc_pdf?: boolean
+          spec_tipo?: string | null
+          spec_vel_elevacao?: string | null
+          spec_vel_rotacao?: string | null
+          spec_vel_translacao?: string | null
           unidade?: string
           updated_at?: string
         }
@@ -888,6 +974,38 @@ export type Database = {
           },
         ]
       }
+      quote_panel_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_text: string
+          order_index: number
+          quote_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_text: string
+          order_index?: number
+          quote_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_text?: string
+          order_index?: number
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_panel_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_versions: {
         Row: {
           edited_at: string
@@ -947,12 +1065,28 @@ export type Database = {
           language: string
           lead_id: string | null
           notes: string | null
+          panel_include_motors: boolean | null
+          panel_motor_elev_hp: number | null
+          panel_motor_elev_kw: number | null
+          panel_motor_elev_vel: string | null
+          panel_motor_rot_hp: number | null
+          panel_motor_rot_kw: number | null
+          panel_motor_rot_vel: string | null
+          panel_motor_trans_hp: number | null
+          panel_motor_trans_kw: number | null
+          panel_motor_trans_vel: string | null
+          panel_voltage: string | null
           payment_terms: string | null
           pdf_generated_at: string | null
           pdf_hash: string | null
           project_location: string | null
           project_name: string | null
           quote_number: string
+          spec_override_enabled: boolean | null
+          spec_tipo: string | null
+          spec_vel_elevacao: string | null
+          spec_vel_rotacao: string | null
+          spec_vel_translacao: string | null
           status: Database["public"]["Enums"]["quote_status"]
           subtotal: number
           total: number
@@ -960,6 +1094,9 @@ export type Database = {
           usd_brl_rate_updated_at: string | null
           usd_brl_rate_used: number | null
           validity_days: number
+          warranty_components_years: number | null
+          warranty_paint_years: number | null
+          warranty_struct_years: number | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -984,12 +1121,28 @@ export type Database = {
           language?: string
           lead_id?: string | null
           notes?: string | null
+          panel_include_motors?: boolean | null
+          panel_motor_elev_hp?: number | null
+          panel_motor_elev_kw?: number | null
+          panel_motor_elev_vel?: string | null
+          panel_motor_rot_hp?: number | null
+          panel_motor_rot_kw?: number | null
+          panel_motor_rot_vel?: string | null
+          panel_motor_trans_hp?: number | null
+          panel_motor_trans_kw?: number | null
+          panel_motor_trans_vel?: string | null
+          panel_voltage?: string | null
           payment_terms?: string | null
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           project_location?: string | null
           project_name?: string | null
           quote_number: string
+          spec_override_enabled?: boolean | null
+          spec_tipo?: string | null
+          spec_vel_elevacao?: string | null
+          spec_vel_rotacao?: string | null
+          spec_vel_translacao?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal?: number
           total?: number
@@ -997,6 +1150,9 @@ export type Database = {
           usd_brl_rate_updated_at?: string | null
           usd_brl_rate_used?: number | null
           validity_days?: number
+          warranty_components_years?: number | null
+          warranty_paint_years?: number | null
+          warranty_struct_years?: number | null
         }
         Update: {
           cancelled_at?: string | null
@@ -1021,12 +1177,28 @@ export type Database = {
           language?: string
           lead_id?: string | null
           notes?: string | null
+          panel_include_motors?: boolean | null
+          panel_motor_elev_hp?: number | null
+          panel_motor_elev_kw?: number | null
+          panel_motor_elev_vel?: string | null
+          panel_motor_rot_hp?: number | null
+          panel_motor_rot_kw?: number | null
+          panel_motor_rot_vel?: string | null
+          panel_motor_trans_hp?: number | null
+          panel_motor_trans_kw?: number | null
+          panel_motor_trans_vel?: string | null
+          panel_voltage?: string | null
           payment_terms?: string | null
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           project_location?: string | null
           project_name?: string | null
           quote_number?: string
+          spec_override_enabled?: boolean | null
+          spec_tipo?: string | null
+          spec_vel_elevacao?: string | null
+          spec_vel_rotacao?: string | null
+          spec_vel_translacao?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal?: number
           total?: number
@@ -1034,6 +1206,9 @@ export type Database = {
           usd_brl_rate_updated_at?: string | null
           usd_brl_rate_used?: number | null
           validity_days?: number
+          warranty_components_years?: number | null
+          warranty_paint_years?: number | null
+          warranty_struct_years?: number | null
         }
         Relationships: [
           {

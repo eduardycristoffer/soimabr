@@ -155,6 +155,25 @@ export default function StepReview({
               {data.notes && <p><span className="text-muted-foreground">Obs:</span> {data.notes}</p>}
             </CardContent>
           </Card>
+
+          {/* Technical summary */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Técnico / Escopo</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-1">
+              {data.spec_tipo && <p><span className="text-muted-foreground">Tipo:</span> {data.spec_tipo}</p>}
+              {data.spec_vel_elevacao && <p><span className="text-muted-foreground">Vel. elevação:</span> {data.spec_vel_elevacao}</p>}
+              {data.spec_vel_rotacao && <p><span className="text-muted-foreground">Vel. rotação:</span> {data.spec_vel_rotacao}</p>}
+              {data.spec_vel_translacao && <p><span className="text-muted-foreground">Vel. translação:</span> {data.spec_vel_translacao}</p>}
+              <p><span className="text-muted-foreground">Itens do painel:</span> {data.panel_items.length} item(ns)</p>
+              <p><span className="text-muted-foreground">Tensão:</span> {data.panel_voltage}V</p>
+              <p>
+                <span className="text-muted-foreground">Garantia:</span>{" "}
+                {data.warranty_struct_years}a estrutural, {data.warranty_paint_years}a pintura, {data.warranty_components_years}a componentes
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right column - items and totals */}
