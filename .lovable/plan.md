@@ -1,43 +1,49 @@
 
 
-## Remover rodape fixo e adicionar rodape apenas na penultima pagina
+## Posicionar rodape no fundo da penultima pagina
 
 ### O que muda
 
-O rodape fixo (`position: fixed; bottom: 0`) com razao social, CNPJ, endereco e logos (Yelum/CREA-GO) aparece em **todas** as paginas impressas. O usuario quer que ele apareca **somente na penultima pagina** (pagina final de conteudo, onde ficam condicoes/garantia/assinaturas).
+O rodape inline (razao social, CNPJ, logos) esta colado logo apos o conteudo na penultima pagina. O usuario quer que ele fique **fixo no rodape da pagina** para dar a impressao de pagina completa/inteira.
 
 ### Detalhes tecnicos
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | 3 alteracoes |
+| `supabase/functions/generate-pdf/index.ts` | 2 alteracoes |
 
-#### 1. Remover o bloco HTML do rodape fixo (linhas 871-880)
+#### 1. Tornar a content-page da pagina final um container flex
 
-Remover completamente o `<div class="page-footer">...</div>` que esta no corpo do HTML e aparece em todas as paginas.
+Adicionar uma classe especifica (`.final-page`) ao div da pagina final com `display: flex; flex-direction: column; min-height: 100vh;` (ou altura da pagina A4). Isso permite que o rodape seja empurrado para o fundo usando `margin-top: auto`.
 
-#### 2. Remover/comentar o CSS do `.page-footer` (linhas 695-718)
+CSS a adicionar:
 
-Remover os estilos `.page-footer`, `.page-footer .footer-company-legal`, `.page-footer .footer-logos-row` e o bloco `@media print` relacionado, ja que o elemento nao existira mais.
+```
+.final-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(297mm - 40mm); /* A4 height minus top+bottom padding */
+}
+```
 
-#### 3. Adicionar rodape inline na penultima pagina (dentro de `buildFinalPageHTML`)
+#### 2. Adicionar `margin-top: auto` ao `.footer` dentro da pagina final
 
-Inserir um rodape estatico (nao fixo) no final do conteudo da pagina final, logo apos a linha de aceite e antes do fechamento do `</div>` da content-page. Usara os estilos `.footer` e `.footer-logos` que ja existem no CSS (linhas 804-807) mas nao estao sendo utilizados.
+Alterar o estilo do `.footer` (ou aplicar inline no HTML da pagina final) para usar `margin-top: auto` em vez de `margin-top: 24px`. Isso empurra o rodape para o fundo da pagina, preenchendo o espaco vazio automaticamente.
 
-O rodape tera:
-- Razao social da empresa
-- CNPJ e endereco
-- Logos Yelum e CREA-GO
+O HTML do footer passa a ser:
+```html
+<div class="footer" style="margin-top: auto;">
+  ...
+</div>
+```
 
-#### 4. Reduzir padding-bottom das paginas 1 e 2
+#### 3. Envolver o conteudo principal em um div
 
-Como nao ha mais rodape fixo, o `padding-bottom: 45mm` da classe `.content-page` pode ser reduzido (para ~20mm), liberando mais espaco util para conteudo. A penultima pagina mantera espaco suficiente para o rodape inline.
+Todo o conteudo acima do footer (resumo, condicoes, garantia, assinaturas) fica dentro de um `<div>` normal, e o footer fica como ultimo filho direto do flex container. Assim o flexbox empurra o footer para baixo.
 
 ### Resultado esperado
 
-- **Capa**: Sem rodape
-- **Pagina 1**: Sem rodape (mais espaco para itens)
-- **Pagina 2 (opcional)**: Sem rodape
-- **Pagina final**: Rodape com razao social, CNPJ, endereco e logos ao final
-- **Contracapa**: Sem rodape
+- Conteudo da penultima pagina (resumo, condicoes, garantia, assinaturas) no topo
+- Rodape (razao social, CNPJ, logos) fixo no rodape da pagina
+- Impressao visual de pagina inteira/completa
 
