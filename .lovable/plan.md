@@ -1,49 +1,80 @@
 
 
-## Posicionar rodape no fundo da penultima pagina
+## Adicionar campos internacionais e dados padrao da grua no cadastro de produtos
 
-### O que muda
+### Resumo
 
-O rodape inline (razao social, CNPJ, logos) esta colado logo apos o conteudo na penultima pagina. O usuario quer que ele fique **fixo no rodape da pagina** para dar a impressao de pagina completa/inteira.
+3 grandes mudancas:
+
+1. **Nome e Descricao em Ingles** no cadastro de produtos (gruas) -- usados automaticamente em propostas com idioma ingles/USD
+2. **Dados padrao da grua** (lanca, altura torre, cargas, altura trabalho) cadastrados no produto e puxados automaticamente na proposta (com opcao de sobrescrever)
+3. **Renomear "Painel" para "Grua"** em todo o sistema: "Itens Integrantes do Painel" vira "Itens Integrantes da Grua"
+
+---
 
 ### Detalhes tecnicos
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | 2 alteracoes |
+#### 1. Migracao do banco de dados
 
-#### 1. Tornar a content-page da pagina final um container flex
+Adicionar 7 novas colunas na tabela `products`:
 
-Adicionar uma classe especifica (`.final-page`) ao div da pagina final com `display: flex; flex-direction: column; min-height: 100vh;` (ou altura da pagina A4). Isso permite que o rodape seja empurrado para o fundo usando `margin-top: auto`.
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| `nome_en` | text, nullable | Nome do produto em ingles |
+| `descricao_en` | text, nullable | Descricao do produto em ingles |
+| `default_lanca_m` | numeric, nullable | Lanca padrao (m) |
+| `default_altura_torre_m` | numeric, nullable | Altura da torre padrao (m) |
+| `default_carga_maxima_kg` | numeric, nullable | Carga maxima padrao (kg) |
+| `default_carga_ponta_kg` | numeric, nullable | Carga na ponta padrao (kg) |
+| `default_altura_trabalho_m` | numeric, nullable | Altura de trabalho padrao (m) |
 
-CSS a adicionar:
+#### 2. Formulario de produto (`ProductFormModal.tsx`)
 
-```
-.final-page {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(297mm - 40mm); /* A4 height minus top+bottom padding */
-}
-```
+Quando a categoria for **grua**, exibir campos adicionais:
+- Nome em Ingles (`nome_en`)
+- Descricao em Ingles (`descricao_en`)
+- Secao "Especificacoes padrao da grua":
+  - Lanca (m), Altura torre (m), Carga maxima (kg), Carga na ponta (kg), Altura de trabalho (m)
+  - Tipo, Velocidade elevacao, Velocidade rotacao, Velocidade translacao (ja existem na tabela)
+  - Tensao de alimentacao padrao (ja existe: `default_panel_voltage`)
+- Todos esses campos ja existentes no banco serao expostos no formulario quando categoria = grua
 
-#### 2. Adicionar `margin-top: auto` ao `.footer` dentro da pagina final
+O modal precisa ser ampliado (`max-w-2xl`) para acomodar os campos extras.
 
-Alterar o estilo do `.footer` (ou aplicar inline no HTML da pagina final) para usar `margin-top: auto` em vez de `margin-top: 24px`. Isso empurra o rodape para o fundo da pagina, preenchendo o espaco vazio automaticamente.
+#### 3. Wizard da proposta - puxar dados automaticos
 
-O HTML do footer passa a ser:
-```html
-<div class="footer" style="margin-top: auto;">
-  ...
-</div>
-```
+**StepEquipment.tsx**: Ao selecionar uma grua, preencher automaticamente os campos de lanca, torre, cargas e altura de trabalho com os valores padrao do produto (se existirem). O usuario pode editar.
 
-#### 3. Envolver o conteudo principal em um div
+**StepTechnical.tsx**: 
+- O botao "Preencher com padrao" ja funciona para spec_tipo e velocidades -- manter
+- Ao carregar itens do painel, tambem puxar `default_panel_voltage` automaticamente -- ja funciona
+- Tensao de alimentacao: ja puxa do produto, sem alteracao necessaria
 
-Todo o conteudo acima do footer (resumo, condicoes, garantia, assinaturas) fica dentro de um `<div>` normal, e o footer fica como ultimo filho direto do flex container. Assim o flexbox empurra o footer para baixo.
+#### 4. PDF (`generate-pdf/index.ts`)
 
-### Resultado esperado
+- Quando o idioma da proposta for `en`, usar `nome_en` (se preenchido) em vez de `nome` para exibir o nome do produto nos itens
+- Renomear `panel_title` de "ITENS INTEGRANTES DO PAINEL" para "ITENS INTEGRANTES DA GRUA" (pt-BR) e "CRANE COMPONENTS" (en)
 
-- Conteudo da penultima pagina (resumo, condicoes, garantia, assinaturas) no topo
-- Rodape (razao social, CNPJ, logos) fixo no rodape da pagina
-- Impressao visual de pagina inteira/completa
+#### 5. Renomear "Painel" para "Grua" no sistema
+
+Arquivos afetados:
+- `StepTechnical.tsx`: Titulo "Itens Integrantes do Painel" vira "Itens Integrantes da Grua", descricao "painel eletrico" vira "grua"
+- `generate-pdf/index.ts`: Traducoes pt-BR e en do `panel_title`
+
+#### 6. Tabela de produtos (`Produtos.tsx`)
+
+Sem alteracao visual na listagem -- os novos campos sao editados apenas no modal.
+
+---
+
+### Arquivos modificados
+
+| Arquivo | Tipo de alteracao |
+|---------|-------------------|
+| Migracao SQL | Adicionar 7 colunas |
+| `src/components/products/ProductFormModal.tsx` | Campos extras para gruas |
+| `src/components/quotes/steps/StepEquipment.tsx` | Auto-preencher specs da grua |
+| `src/components/quotes/steps/StepTechnical.tsx` | Renomear "Painel" para "Grua" |
+| `supabase/functions/generate-pdf/index.ts` | nome_en no PDF + renomear titulo |
+| `src/hooks/useQuoteWizard.ts` | Sem alteracao (campos ja existem) |
 
