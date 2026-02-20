@@ -120,12 +120,12 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         panel_motor_rot_hp: q.panel_motor_rot_hp ?? null,
         panel_motor_rot_vel: q.panel_motor_rot_vel || "",
         warranty_struct_years: q.warranty_struct_years ?? 3,
-        warranty_paint_years: q.warranty_paint_years ?? 2,
         warranty_components_years: q.warranty_components_years ?? 1,
         // Commercial
         currency: quote.currency,
         delivery_time: quote.delivery_time || "",
         payment_terms: quote.payment_terms || "",
+        payment_terms_items: (quote as any).payment_terms_items || [],
         freight_terms: quote.freight_terms || "",
         validity_days: quote.validity_days,
         notes: quote.notes || "",
@@ -211,8 +211,8 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         panel_motor_rot_hp: wizard.data.panel_motor_rot_hp ?? null,
         panel_motor_rot_vel: wizard.data.panel_motor_rot_vel || null,
         warranty_struct_years: wizard.data.warranty_struct_years,
-        warranty_paint_years: wizard.data.warranty_paint_years,
         warranty_components_years: wizard.data.warranty_components_years,
+        payment_terms_items: wizard.data.payment_terms_items,
       };
 
       // Save USD rate for international quotes

@@ -1098,6 +1098,7 @@ export type Database = {
           panel_motor_trans_vel: string | null
           panel_voltage: string | null
           payment_terms: string | null
+          payment_terms_items: Json | null
           pdf_generated_at: string | null
           pdf_hash: string | null
           project_location: string | null
@@ -1154,6 +1155,7 @@ export type Database = {
           panel_motor_trans_vel?: string | null
           panel_voltage?: string | null
           payment_terms?: string | null
+          payment_terms_items?: Json | null
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           project_location?: string | null
@@ -1210,6 +1212,7 @@ export type Database = {
           panel_motor_trans_vel?: string | null
           panel_voltage?: string | null
           payment_terms?: string | null
+          payment_terms_items?: Json | null
           pdf_generated_at?: string | null
           pdf_hash?: string | null
           project_location?: string | null

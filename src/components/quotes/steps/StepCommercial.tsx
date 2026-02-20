@@ -1,4 +1,4 @@
-import { QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
+import { QuoteWizardData, QuoteItemDraft, PaymentTermItem } from "@/hooks/useQuoteWizard";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Currency } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { Plus, Trash2 } from "lucide-react";
 
 interface Props {
   data: QuoteWizardData;
@@ -71,6 +72,22 @@ export default function StepCommercial({ data, updateData, onNext, onPrev }: Pro
         variant: "destructive",
       });
     }
+  };
+
+  const addPaymentTopic = () => {
+    updateData({ payment_terms_items: [...data.payment_terms_items, { text: "" }] });
+  };
+
+  const removePaymentTopic = (index: number) => {
+    updateData({ payment_terms_items: data.payment_terms_items.filter((_, i) => i !== index) });
+  };
+
+  const updatePaymentTopic = (index: number, text: string) => {
+    updateData({
+      payment_terms_items: data.payment_terms_items.map((item, i) =>
+        i === index ? { ...item, text } : item
+      ),
+    });
   };
 
   return (
@@ -137,17 +154,44 @@ export default function StepCommercial({ data, updateData, onNext, onPrev }: Pro
             onChange={(e) => updateData({ freight_terms: e.target.value })}
           />
         </div>
+      </div>
 
-        <div className="space-y-2 md:col-span-2">
-          <Label>Observações</Label>
-          <Textarea
-            placeholder="Notas adicionais da proposta..."
-            className="resize-none"
-            rows={3}
-            value={data.notes}
-            onChange={(e) => updateData({ notes: e.target.value })}
-          />
+      {/* Payment Topics */}
+      <div className="space-y-3">
+        <Label>Tópicos de Pagamento</Label>
+        <p className="text-xs text-muted-foreground">
+          Adicione condições específicas de pagamento (parcelas, prazos, etc.)
+        </p>
+        <div className="space-y-2">
+          {data.payment_terms_items.map((item, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <Input
+                value={item.text}
+                onChange={(e) => updatePaymentTopic(index, e.target.value)}
+                placeholder="Ex: 50% na aprovação do pedido"
+                className="flex-1"
+              />
+              <Button variant="ghost" size="icon" onClick={() => removePaymentTopic(index)} className="shrink-0">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={addPaymentTopic}>
+            <Plus className="mr-1 h-3 w-3" />
+            Adicionar tópico
+          </Button>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Observações</Label>
+        <Textarea
+          placeholder="Notas adicionais da proposta..."
+          className="resize-none"
+          rows={3}
+          value={data.notes}
+          onChange={(e) => updateData({ notes: e.target.value })}
+        />
       </div>
 
       <div className="flex justify-between pt-4">
