@@ -22,6 +22,10 @@ export interface PanelItemDraft {
   order: number;
 }
 
+export interface PaymentTermItem {
+  text: string;
+}
+
 export interface QuoteWizardData {
   // Step 1 - Client
   client_id: string;
@@ -71,13 +75,13 @@ export interface QuoteWizardData {
 
   // Warranty
   warranty_struct_years: number;
-  warranty_paint_years: number;
   warranty_components_years: number;
 
   // Step 7 - Commercial
   currency: Currency;
   delivery_time: string;
   payment_terms: string;
+  payment_terms_items: PaymentTermItem[];
   freight_terms: string;
   validity_days: number;
   notes: string;
@@ -124,11 +128,11 @@ const INITIAL_DATA: QuoteWizardData = {
   panel_motor_rot_hp: null,
   panel_motor_rot_vel: "",
   warranty_struct_years: 3,
-  warranty_paint_years: 2,
   warranty_components_years: 1,
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",
+  payment_terms_items: [],
   freight_terms: "",
   validity_days: 30,
   notes: "",

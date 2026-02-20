@@ -95,7 +95,6 @@ interface Translations {
   warranty_year_singular: string;
   warranty_year_plural: string;
   warranty_structural: string;
-  warranty_paint: string;
   warranty_components: string;
 }
 
@@ -181,13 +180,12 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Certificado de garantia com os seguintes prazos:",
     warranty_delivery: "Entrega técnica com testes e laudo técnico de conformidade",
     warranty_maintenance: "Plano de manutenção preventiva recomendado",
-    warranty_norms: "Normas e recomendações aos operadores conforme ABNT NBR 8400",
+    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 - NR 12 – NR 18 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019",
     warranty_years_text: "anos",
     warranty_not_included: "Garantia não inclusa nesta proposta",
     warranty_year_singular: "ano",
     warranty_year_plural: "anos",
     warranty_structural: "no estrutural",
-    warranty_paint: "na pintura",
     warranty_components: "nos componentes elétricos, motores e mecânicos",
   },
   en: {
@@ -271,13 +269,12 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Warranty certificate with the following terms:",
     warranty_delivery: "Technical delivery with tests and compliance report",
     warranty_maintenance: "Recommended preventive maintenance plan",
-    warranty_norms: "Standards and recommendations for operators per ABNT NBR 8400",
+    warranty_norms: "Applied standards: F.E.M. 1.001-A3 - NR 12 – NR 18 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019",
     warranty_years_text: "years",
     warranty_not_included: "Warranty not included in this proposal",
     warranty_year_singular: "year",
     warranty_year_plural: "years",
     warranty_structural: "on structural",
-    warranty_paint: "on paint",
     warranty_components: "on electrical components, motors and mechanical parts",
   },
 };
@@ -1021,6 +1018,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
         ${quote.payment_terms ? `<div><span class="label">${t.payment}:</span> <span class="value">${quote.payment_terms}</span></div>` : ""}
         ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
       </div>
+      ${buildPaymentTopicsHTML(quote, lang)}
       ${notesText ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${notesText}</span></div>` : ""}
     </div>
 
@@ -1064,6 +1062,22 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
         <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
       </div>
     </div>
+  </div>`;
+}
+
+// ── Payment Topics ──
+function buildPaymentTopicsHTML(quote: any, lang: string): string {
+  const items = quote.payment_terms_items;
+  if (!items || !Array.isArray(items) || items.length === 0) return "";
+  const filtered = items.filter((i: any) => i.text && i.text.trim());
+  if (filtered.length === 0) return "";
+  const title = lang === "en" ? "Payment Terms" : "Condições de Pagamento";
+  return `
+  <div style="margin-top: 6px;">
+    <span class="label">${title}:</span>
+    <ul style="margin: 4px 0 0 16px; padding: 0; font-size: 10px; line-height: 1.6;">
+      ${filtered.map((i: any) => `<li>${i.text}</li>`).join("")}
+    </ul>
   </div>`;
 }
 
@@ -1154,20 +1168,17 @@ function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string,
   const gruaItem = items.find((i: any) => i.product_category === "grua");
   const product = productsMap[gruaItem?.product_id] || {};
   const sy = quote.warranty_struct_years ?? product.default_warranty_struct_years ?? 3;
-  const py = quote.warranty_paint_years ?? product.default_warranty_paint_years ?? 2;
   const cy = quote.warranty_components_years ?? product.default_warranty_components_years ?? 1;
-  const allZero = sy === 0 && py === 0 && cy === 0;
+  const allZero = sy === 0 && cy === 0;
   const pl = (n: number) => n === 1 ? t.warranty_year_singular : t.warranty_year_plural;
   let termsPhrase = "";
   if (allZero) { termsPhrase = t.warranty_not_included; }
   else {
     const parts: string[] = [];
     if (sy > 0) parts.push(`${sy} ${pl(sy)} ${t.warranty_structural}`);
-    if (py > 0) parts.push(`${py} ${pl(py)} ${t.warranty_paint}`);
     if (cy > 0) parts.push(`${cy} ${pl(cy)} ${t.warranty_components}`);
     if (parts.length === 1) termsPhrase = parts[0];
-    else if (parts.length === 2) termsPhrase = `${parts[0]} ${lang === "en" ? "and" : "e"} ${parts[1]}`;
-    else termsPhrase = `${parts.slice(0, -1).join(", ")} ${lang === "en" ? "and" : "e"} ${parts[parts.length - 1]}`;
+    else termsPhrase = `${parts[0]} ${lang === "en" ? "and" : "e"} ${parts[1]}`;
   }
   return `
   <div class="section warranty-section">

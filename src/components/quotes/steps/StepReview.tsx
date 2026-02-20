@@ -151,6 +151,16 @@ export default function StepReview({
               <p><span className="text-muted-foreground">Validade:</span> {data.validity_days} dias</p>
               {data.delivery_time && <p><span className="text-muted-foreground">Entrega:</span> {data.delivery_time}</p>}
               {data.payment_terms && <p><span className="text-muted-foreground">Pagamento:</span> {data.payment_terms}</p>}
+              {data.payment_terms_items && data.payment_terms_items.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Tópicos:</span>
+                  <ul className="list-disc list-inside ml-2 mt-1">
+                    {data.payment_terms_items.filter(i => i.text).map((item, idx) => (
+                      <li key={idx}>{item.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {data.freight_terms && <p><span className="text-muted-foreground">Frete:</span> {data.freight_terms}</p>}
               {data.notes && <p><span className="text-muted-foreground">Obs:</span> {data.notes}</p>}
             </CardContent>
@@ -170,7 +180,7 @@ export default function StepReview({
               <p><span className="text-muted-foreground">Tensão:</span> {data.panel_voltage}V</p>
               <p>
                 <span className="text-muted-foreground">Garantia:</span>{" "}
-                {data.warranty_struct_years}a estrutural, {data.warranty_paint_years}a pintura, {data.warranty_components_years}a componentes
+                {data.warranty_struct_years}a estrutural, {data.warranty_components_years}a componentes
               </p>
             </CardContent>
           </Card>

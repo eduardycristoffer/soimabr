@@ -198,6 +198,16 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   <p><span className="text-muted-foreground">Validade:</span> {quote.validity_days} dias</p>
                   {quote.delivery_time && <p><span className="text-muted-foreground">Entrega:</span> {quote.delivery_time}</p>}
                   {quote.payment_terms && <p><span className="text-muted-foreground">Pagamento:</span> {quote.payment_terms}</p>}
+                  {(quote as any).payment_terms_items && Array.isArray((quote as any).payment_terms_items) && (quote as any).payment_terms_items.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Tópicos:</span>
+                      <ul className="list-disc list-inside ml-2 mt-1 text-xs">
+                        {(quote as any).payment_terms_items.filter((i: any) => i.text).map((item: any, idx: number) => (
+                          <li key={idx}>{item.text}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {quote.freight_terms && <p><span className="text-muted-foreground">Frete:</span> {quote.freight_terms}</p>}
                   {quote.notes && <p><span className="text-muted-foreground">Obs:</span> {quote.notes}</p>}
                   {(quote as any).usd_brl_rate_used && (

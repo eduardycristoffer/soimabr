@@ -95,7 +95,6 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
     const pd = productDefaults as any;
     updateData({
       warranty_struct_years: pd.default_warranty_struct_years ?? 3,
-      warranty_paint_years: pd.default_warranty_paint_years ?? 2,
       warranty_components_years: pd.default_warranty_components_years ?? 1,
     });
   };
@@ -141,7 +140,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
     }
 
     // Warranty (if still at initial values)
-    if (data.warranty_struct_years === 3 && data.warranty_paint_years === 2 && data.warranty_components_years === 1) {
+    if (data.warranty_struct_years === 3 && data.warranty_components_years === 1) {
       loadWarrantyDefaults();
     }
   }, [productDefaults, defaultPanelItems, selectedGruaId]);
@@ -388,21 +387,13 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Estrutural (anos)</Label>
               <Input
                 type="number" min={0} max={10} step={1}
                 value={data.warranty_struct_years}
                 onChange={(e) => updateData({ warranty_struct_years: parseIntSafe(e.target.value) })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Pintura (anos)</Label>
-              <Input
-                type="number" min={0} max={10} step={1}
-                value={data.warranty_paint_years}
-                onChange={(e) => updateData({ warranty_paint_years: parseIntSafe(e.target.value) })}
               />
             </div>
             <div className="space-y-2">
