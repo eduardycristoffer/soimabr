@@ -20,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 
 const productSchema = z.object({
@@ -32,6 +33,21 @@ const productSchema = z.object({
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
   preco: z.coerce.number().min(0, "Preço não pode ser negativo"),
   international_price_brl: z.coerce.number().min(0, "Preço não pode ser negativo").nullable().optional(),
+  // English fields
+  nome_en: z.string().trim().max(200).optional().or(z.literal("")),
+  descricao_en: z.string().trim().max(1000).optional().or(z.literal("")),
+  // Crane default specs
+  default_lanca_m: z.coerce.number().min(0).nullable().optional(),
+  default_altura_torre_m: z.coerce.number().min(0).nullable().optional(),
+  default_carga_maxima_kg: z.coerce.number().min(0).nullable().optional(),
+  default_carga_ponta_kg: z.coerce.number().min(0).nullable().optional(),
+  default_altura_trabalho_m: z.coerce.number().min(0).nullable().optional(),
+  // Existing crane spec fields
+  spec_tipo: z.string().trim().max(200).optional().or(z.literal("")),
+  spec_vel_elevacao: z.string().trim().max(200).optional().or(z.literal("")),
+  spec_vel_rotacao: z.string().trim().max(200).optional().or(z.literal("")),
+  spec_vel_translacao: z.string().trim().max(200).optional().or(z.literal("")),
+  default_panel_voltage: z.string().trim().max(10).optional().or(z.literal("")),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -60,6 +76,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
     defaultValues: getDefaults(product),
   });
 
+  const watchedCategory = form.watch("categoria");
+  const isGrua = watchedCategory === "grua";
+
   useEffect(() => {
     if (open) {
       form.reset(getDefaults(product));
@@ -67,17 +86,30 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
   }, [open, product]);
 
   function getDefaults(p?: Product | null): ProductFormData {
+    const pa = p as any;
     if (p) {
       return {
         codigo: p.codigo,
         nome: p.nome,
         descricao: p.descricao || "",
-        descricao_tecnica: (p as any).descricao_tecnica || "",
-        show_tech_desc_pdf: (p as any).show_tech_desc_pdf ?? false,
+        descricao_tecnica: pa?.descricao_tecnica || "",
+        show_tech_desc_pdf: pa?.show_tech_desc_pdf ?? false,
         categoria: p.categoria,
         unidade: p.unidade,
         preco: p.preco,
-        international_price_brl: (p as any).international_price_brl ?? null,
+        international_price_brl: pa?.international_price_brl ?? null,
+        nome_en: pa?.nome_en || "",
+        descricao_en: pa?.descricao_en || "",
+        default_lanca_m: pa?.default_lanca_m ?? null,
+        default_altura_torre_m: pa?.default_altura_torre_m ?? null,
+        default_carga_maxima_kg: pa?.default_carga_maxima_kg ?? null,
+        default_carga_ponta_kg: pa?.default_carga_ponta_kg ?? null,
+        default_altura_trabalho_m: pa?.default_altura_trabalho_m ?? null,
+        spec_tipo: pa?.spec_tipo || "",
+        spec_vel_elevacao: pa?.spec_vel_elevacao || "",
+        spec_vel_rotacao: pa?.spec_vel_rotacao || "",
+        spec_vel_translacao: pa?.spec_vel_translacao || "",
+        default_panel_voltage: pa?.default_panel_voltage || "380",
       };
     }
     return {
@@ -90,12 +122,24 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       unidade: "UN",
       preco: 0,
       international_price_brl: null,
+      nome_en: "",
+      descricao_en: "",
+      default_lanca_m: null,
+      default_altura_torre_m: null,
+      default_carga_maxima_kg: null,
+      default_carga_ponta_kg: null,
+      default_altura_trabalho_m: null,
+      spec_tipo: "",
+      spec_vel_elevacao: "",
+      spec_vel_rotacao: "",
+      spec_vel_translacao: "",
+      default_panel_voltage: "380",
     };
   }
 
   const mutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
-      const payload = {
+      const payload: Record<string, any> = {
         codigo: data.codigo,
         nome: data.nome,
         descricao: data.descricao || null,
@@ -108,14 +152,30 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         international_price_brl: data.international_price_brl ?? null,
       };
 
+      // Add crane-specific fields only when category is grua
+      if (data.categoria === "grua") {
+        payload.nome_en = data.nome_en || null;
+        payload.descricao_en = data.descricao_en || null;
+        payload.default_lanca_m = data.default_lanca_m ?? null;
+        payload.default_altura_torre_m = data.default_altura_torre_m ?? null;
+        payload.default_carga_maxima_kg = data.default_carga_maxima_kg ?? null;
+        payload.default_carga_ponta_kg = data.default_carga_ponta_kg ?? null;
+        payload.default_altura_trabalho_m = data.default_altura_trabalho_m ?? null;
+        payload.spec_tipo = data.spec_tipo || null;
+        payload.spec_vel_elevacao = data.spec_vel_elevacao || null;
+        payload.spec_vel_rotacao = data.spec_vel_rotacao || null;
+        payload.spec_vel_translacao = data.spec_vel_translacao || null;
+        payload.default_panel_voltage = data.default_panel_voltage || "380";
+      }
+
       if (isEditing) {
         const { error } = await supabase
           .from("products")
-          .update(payload)
+          .update(payload as any)
           .eq("id", product!.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("products").insert([payload]);
+        const { error } = await supabase.from("products").insert([payload as any]);
         if (error) throw error;
       }
     },
@@ -135,9 +195,15 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
     },
   });
 
+  const numFieldValue = (val: number | null | undefined) =>
+    val === null || val === undefined ? "" : val;
+
+  const parseNumField = (val: string) =>
+    val === "" ? null : parseFloat(val);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${isGrua ? "max-w-2xl" : "max-w-lg"} max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           <DialogDescription>
@@ -188,6 +254,31 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                 <FormMessage />
               </FormItem>
             )} />
+
+            {/* English fields for crane */}
+            {isGrua && (
+              <>
+                <Separator />
+                <h4 className="text-sm font-semibold text-primary">🌐 Nome e Descrição em Inglês</h4>
+                <p className="text-xs text-muted-foreground">Usado automaticamente em propostas com idioma inglês / USD</p>
+
+                <FormField control={form.control} name="nome_en" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name (English)</FormLabel>
+                    <FormControl><Input placeholder="Product name in English" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="descricao_en" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (English)</FormLabel>
+                    <FormControl><Textarea placeholder="Product description in English..." className="resize-none" rows={2} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </>
+            )}
 
             <FormField control={form.control} name="descricao_tecnica" render={({ field }) => (
               <FormItem>
@@ -256,6 +347,116 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                 <FormMessage />
               </FormItem>
             )} />
+
+            {/* Crane default specs */}
+            {isGrua && (
+              <>
+                <Separator />
+                <h4 className="text-sm font-semibold text-primary">🏗️ Especificações Padrão da Grua</h4>
+                <p className="text-xs text-muted-foreground">
+                  Esses valores serão preenchidos automaticamente na proposta ao selecionar esta grua
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="default_lanca_m" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lança (m)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" min="0" placeholder="Ex: 36"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="default_altura_torre_m" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Altura Torre (m)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" min="0" placeholder="Ex: 27"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="default_carga_maxima_kg" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Carga Máxima (kg)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" min="0" placeholder="Ex: 6000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="default_carga_ponta_kg" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Carga na Ponta (kg)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" min="0" placeholder="Ex: 1400"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="default_altura_trabalho_m" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Altura Trabalho (m)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" min="0" placeholder="Ex: 30"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Especificações técnicas padrão</h5>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="spec_tipo" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo</FormLabel>
+                      <FormControl><Input placeholder="Ex: Torre ascensional" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="spec_vel_elevacao" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vel. Elevação</FormLabel>
+                      <FormControl><Input placeholder="Ex: MULT SPEED 2.5/58 m/min" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="spec_vel_rotacao" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vel. Rotação</FormLabel>
+                      <FormControl><Input placeholder="Ex: 0 – 0,9 rpm" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="spec_vel_translacao" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vel. Translação</FormLabel>
+                      <FormControl><Input placeholder="Ex: 0 – 50 m/min" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+
+                <FormField control={form.control} name="default_panel_voltage" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tensão de Alimentação Padrão</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || "380"}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="220">220V</SelectItem>
+                        <SelectItem value="380">380V</SelectItem>
+                        <SelectItem value="440">440V</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+              </>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

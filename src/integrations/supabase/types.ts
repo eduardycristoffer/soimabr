@@ -760,6 +760,11 @@ export type Database = {
           categoria: Database["public"]["Enums"]["product_category"]
           codigo: string
           created_at: string
+          default_altura_torre_m: number | null
+          default_altura_trabalho_m: number | null
+          default_carga_maxima_kg: number | null
+          default_carga_ponta_kg: number | null
+          default_lanca_m: number | null
           default_motor_elev_hp: number | null
           default_motor_elev_kw: number | null
           default_motor_elev_vel: string | null
@@ -775,12 +780,14 @@ export type Database = {
           default_warranty_paint_years: number | null
           default_warranty_struct_years: number | null
           descricao: string | null
+          descricao_en: string | null
           descricao_tecnica: string | null
           id: string
           international_price_brl: number | null
           is_active: boolean
           needs_review: boolean
           nome: string
+          nome_en: string | null
           preco: number
           show_tech_desc_pdf: boolean
           spec_tipo: string | null
@@ -794,6 +801,11 @@ export type Database = {
           categoria: Database["public"]["Enums"]["product_category"]
           codigo: string
           created_at?: string
+          default_altura_torre_m?: number | null
+          default_altura_trabalho_m?: number | null
+          default_carga_maxima_kg?: number | null
+          default_carga_ponta_kg?: number | null
+          default_lanca_m?: number | null
           default_motor_elev_hp?: number | null
           default_motor_elev_kw?: number | null
           default_motor_elev_vel?: string | null
@@ -809,12 +821,14 @@ export type Database = {
           default_warranty_paint_years?: number | null
           default_warranty_struct_years?: number | null
           descricao?: string | null
+          descricao_en?: string | null
           descricao_tecnica?: string | null
           id?: string
           international_price_brl?: number | null
           is_active?: boolean
           needs_review?: boolean
           nome: string
+          nome_en?: string | null
           preco?: number
           show_tech_desc_pdf?: boolean
           spec_tipo?: string | null
@@ -828,6 +842,11 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["product_category"]
           codigo?: string
           created_at?: string
+          default_altura_torre_m?: number | null
+          default_altura_trabalho_m?: number | null
+          default_carga_maxima_kg?: number | null
+          default_carga_ponta_kg?: number | null
+          default_lanca_m?: number | null
           default_motor_elev_hp?: number | null
           default_motor_elev_kw?: number | null
           default_motor_elev_vel?: string | null
@@ -843,12 +862,14 @@ export type Database = {
           default_warranty_paint_years?: number | null
           default_warranty_struct_years?: number | null
           descricao?: string | null
+          descricao_en?: string | null
           descricao_tecnica?: string | null
           id?: string
           international_price_brl?: number | null
           is_active?: boolean
           needs_review?: boolean
           nome?: string
+          nome_en?: string | null
           preco?: number
           show_tech_desc_pdf?: boolean
           spec_tipo?: string | null
