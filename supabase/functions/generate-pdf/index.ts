@@ -820,6 +820,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   .warranty-list li { padding: 4px 0 4px 20px; position: relative; font-size: 10px; line-height: 1.5; }
   .warranty-list li::before { content: "\\2022"; position: absolute; left: 6px; color: #0047AB; font-weight: bold; }
   .warranty-terms { font-size: 10px; font-weight: 600; color: #0047AB; margin-top: 8px; line-height: 1.6; }
+
+  .final-page {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(297mm - 40mm);
+  }
 </style>
 </head>
 <body>
@@ -1000,7 +1006,8 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
   </div>`;
 
   return `
-  <div class="content-page">
+  <div class="content-page final-page">
+    <div>
     ${summaryBoxHTML}
 
     <div class="section conditions">
@@ -1045,8 +1052,9 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     </div>
 
     ${isInternationalUsd ? `<div style="margin-top: 16px; font-size: 9px; color: #7d6608; text-align: center; font-style: italic;">${t.usd_disclaimer}</div>` : ""}
+    </div>
 
-    <div class="footer">
+    <div class="footer" style="margin-top: auto;">
       <div class="company-legal">${co.razao_social || companyName}</div>
       ${co.cnpj ? `CNPJ: ${co.cnpj}` : ""}${co.address ? ` · ${co.address}` : ""}
       <div class="footer-logos">
