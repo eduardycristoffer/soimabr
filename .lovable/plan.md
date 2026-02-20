@@ -1,40 +1,46 @@
 
 
-## Ajuste do padding-bottom para evitar sobreposicao do rodape fixo
+## Ajustes no PDF: Cabecalho fixo + correcao de sobreposicao do rodape
 
-### Problema
+### Problema 1: "Documento gerado em..." deve ser cabecalho fixo
 
-O rodape fixo (`.page-footer`) com `position: fixed; bottom: 0` ocupa aproximadamente 20-25mm de altura (logos de 35px + texto + padding + border). O `padding-bottom: 30mm` atual no `.content-page` nao e suficiente em todas as paginas, especialmente quando o conteudo flui ate o final da pagina e o navegador faz a quebra de pagina automatica.
+Atualmente o texto "Documento gerado em 20/02/2026 por Eduardy Cristoffer (eduardycristoffer@outlook.com)" esta no final do conteudo (linha 940-943 do codigo). O usuario quer que seja um cabecalho fixo, pequeno e discreto, presente em todas as paginas de conteudo (exceto capa e contracapa).
+
+### Problema 2: Rodape sobrepondo conteudo
+
+O `padding-bottom: 40mm` ainda nao e suficiente. Na pagina 2 do PDF gerado, a secao "Condicoes Comerciais" esta sendo cortada pelo rodape fixo -- informacoes como "Prazo de Entrega" ficam escondidas. Sera aumentado para `45mm` e adicionado `padding-top` extra para acomodar o cabecalho fixo.
 
 ### Solucao
 
-Aumentar o `padding-bottom` de `30mm` para `40mm` no `.content-page` para garantir que o conteudo nunca sobreponha o rodape em nenhuma pagina. Tambem adicionar uma regra `@media print` especifica para reforcar esse espaco.
-
-### Arquivo modificado
-
 | Arquivo | Alteracao |
 |---------|-----------|
-| `supabase/functions/generate-pdf/index.ts` | Aumentar `padding-bottom` de 30mm para 40mm no `.content-page`; adicionar `@page { margin-bottom: 0; }` no print media para evitar margens duplas |
+| `supabase/functions/generate-pdf/index.ts` | 3 alteracoes descritas abaixo |
 
-### Detalhes tecnicos
+#### 1. Criar cabecalho fixo discreto (`.page-header`)
 
-Linha 676 do arquivo atual:
+Novo elemento HTML com `position: fixed; top: 0` que repete em todas as paginas impressas. Contera o texto "Documento gerado em [data] por [nome] ([email])" com fonte pequena (7px), cor cinza claro (#999), alinhado a direita. Mesma estrategia de z-index: o cabecalho fica com `z-index: 10` e as imagens de capa/contracapa com `z-index: 20`, escondendo-o nessas paginas.
+
 ```css
-/* Antes */
-.content-page {
-  padding: 15mm;
-  padding-bottom: 30mm;
-}
-
-/* Depois */
-.content-page {
-  padding: 15mm;
-  padding-bottom: 40mm;
+.page-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 15mm;
+  font-size: 7px;
+  color: #999;
+  text-align: right;
+  z-index: 10;
+  background: white;
 }
 ```
 
-O aumento de 10mm extras garante espaco suficiente para o rodape fixo que contem:
-- Border-top de 2px
-- Texto da empresa (9px + padding)
-- Logos Yelum e CREA-GO (35px de altura)
-- Gap e padding interno
+#### 2. Aumentar padding para evitar sobreposicao
+
+- `padding-top`: de `15mm` para `20mm` (espaco para o cabecalho fixo)
+- `padding-bottom`: de `40mm` para `45mm` (mais margem para o rodape fixo)
+
+#### 3. Remover texto "gerado em" do final do conteudo
+
+O bloco na linha 940-943 que exibia o texto inline sera removido, pois agora o cabecalho fixo cumpre essa funcao.
+
