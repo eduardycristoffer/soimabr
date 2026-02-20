@@ -673,9 +673,39 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   /* Content pages get padding to simulate margins */
   .content-page {
     padding: 15mm;
+    padding-bottom: 30mm;
     width: 100%;
     box-sizing: border-box;
   }
+
+  /* Fixed footer on all content pages */
+  .page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    padding: 8px 15mm;
+    border-top: 2px solid #0047AB;
+    background: white;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .page-footer .footer-company-legal { font-weight: 600; color: #333; }
+  .page-footer .footer-logos-row { display: flex; justify-content: center; align-items: center; gap: 24px; }
+  .page-footer .footer-logos-row img { height: 35px; width: auto; }
+
+  @media print {
+    .page-footer { position: fixed; bottom: 0; }
+  }
+
+  /* Hide footer on cover/backcover pages */
+  .cover-page ~ .page-footer,
+  .backcover-page ~ .page-footer { }
 
   /* Cover & backcover full-bleed pages */
   .cover-page, .backcover-page {
@@ -699,8 +729,9 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   }
   .cover-overlay {
     position: absolute;
-    bottom: 60px;
-    left: 40px;
+    top: 40px;
+    right: 40px;
+    text-align: right;
     color: #1a365d;
     font-size: 11px;
     opacity: 1;
@@ -808,6 +839,17 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     </div>
   </div>
 
+  <!-- FIXED FOOTER (repeats on all printed pages) -->
+  <div class="page-footer">
+    <span class="footer-company-legal">${co.razao_social || companyName}</span>
+    ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
+    ${co.address ? ` · ${co.address}` : ""}
+    <div class="footer-logos-row">
+      <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
+      <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
+    </div>
+  </div>
+
   <!-- CONTEÚDO INTERNO -->
   <div class="content-page">
   <div class="header">
@@ -887,7 +929,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${quote.notes}</span></div>` : ""}
   </div>
 
-  ${buildScopeHTML(quote, items, productsMap, t, lang)}
+  ${buildScopeHTML(quote, items, productsMap, t, lang, true)}
   ${buildPanelHTML(quote, quotePanelItems, defaultPanelItems, productsMap, items, t, lang)}
   ${buildWarrantyHTML(quote, items, productsMap, t, lang)}
 
@@ -896,16 +938,9 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     <div class="sig-line">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
   </div>
 
-  <div class="footer">
-    <span class="company-legal">${co.razao_social || companyName}</span>
-    ${co.cnpj ? ` · CNPJ: ${co.cnpj}` : ""}
-    ${co.address ? `<br>${co.address}` : ""}
-    <br>${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
+  <div style="margin-top: 24px; font-size: 9px; color: #555; text-align: center;">
+    ${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
     ${isInternationalUsd ? `<br><em style="color: #7d6608;">${t.usd_disclaimer}</em>` : ""}
-    <div class="footer-logos">
-      <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
-      <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
-    </div>
   </div>
 
   </div><!-- end content-page -->
@@ -925,7 +960,7 @@ function formatKg(val: number | null | undefined): string {
 }
 
 // ── ESCOPO DO FORNECIMENTO ──
-function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
+function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string, forcePageBreak: boolean = false): string {
   const gruaItem = items.find((i: any) => i.product_category === "grua");
   if (!gruaItem) return "";
   const product = productsMap[gruaItem.product_id] || {};
@@ -949,9 +984,9 @@ function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, an
   const filledRows = rows.filter(([_, v]) => v != null && v !== "");
   if (filledRows.length === 0) return "";
   const rowsHTML = filledRows.map(([label, value]) => `<tr><td class="label-cell">${label}</td><td>${value}</td></tr>`).join("");
+  const breakStyle = forcePageBreak ? 'page-break-before: always; margin-top: 0; padding-top: 0;' : '';
   return `
-  <div class="section" style="page-break-inside: avoid;">
-    <div class="section-title">${t.scope_title}: ${modelName}</div>
+  <div class="section" style="page-break-inside: avoid; ${breakStyle}">
     <table class="scope-table">
       <thead><tr><th colspan="2">${lang === "en" ? "DESCRIPTION" : "DESCRIÇÃO"}</th></tr></thead>
       <tbody>${rowsHTML}</tbody>
