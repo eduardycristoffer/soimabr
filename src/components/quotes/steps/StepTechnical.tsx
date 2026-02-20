@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QuoteWizardData, PanelItemDraft } from "@/hooks/useQuoteWizard";
@@ -122,6 +122,30 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
     return isNaN(n) ? 0 : Math.max(0, Math.min(10, n));
   };
 
+  // Auto-populate defaults when entering this step
+  const hasAutoLoaded = useRef(false);
+  useEffect(() => {
+    if (hasAutoLoaded.current || !selectedGruaId) return;
+    if (!productDefaults || !defaultPanelItems) return;
+
+    hasAutoLoaded.current = true;
+
+    // Specs
+    if (!data.spec_tipo) {
+      loadSpecDefaults();
+    }
+
+    // Panel items
+    if (data.panel_items.length === 0 && defaultPanelItems.length > 0) {
+      loadPanelDefaults();
+    }
+
+    // Warranty (if still at initial values)
+    if (data.warranty_struct_years === 3 && data.warranty_paint_years === 2 && data.warranty_components_years === 1) {
+      loadWarrantyDefaults();
+    }
+  }, [productDefaults, defaultPanelItems, selectedGruaId]);
+
   return (
     <div className="space-y-6">
       {!selectedGruaId && (
@@ -170,7 +194,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
               />
             </div>
             <div className="space-y-2">
-              <Label>Velocidade de elevação</Label>
+              <Label>Velocidade de distribuição</Label>
               <Input
                 placeholder="Ex: MULT SPEED 2.5/58 m/min"
                 value={data.spec_vel_elevacao}
@@ -284,7 +308,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
               
               {/* Elevação */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Motorredutor de Elevação</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Motorredutor de Distribuição</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Potência (kW)</Label>
