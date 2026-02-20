@@ -689,6 +689,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     padding: 20mm 15mm 45mm 15mm;
     width: 100%;
     box-sizing: border-box;
+    page-break-after: always;
   }
 
   /* Fixed footer on all content pages */
@@ -867,30 +868,9 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     </div>
   </div>
 
-  <!-- CONTEÚDO INTERNO -->
+  <!-- CONTEÚDO - PÁGINA 1: Cliente / Projeto / Itens / Totais -->
   <div class="content-page">
-  <div class="header">
-    <div class="header-left">
-      <img src="${SOIMA_LOGO_URL}" alt="SOIMA" class="header-logo" />
-      <div>
-        <div class="company">${companyName.toUpperCase()}<small>${companySubtitle}</small></div>
-        <div class="company-contact">
-          ${companyPhone ? `Tel: ${companyPhone}<br>` : ""}
-          ${companyEmail ? `${companyEmail}<br>` : ""}
-          ${companyWebsite ? `${companyWebsite}<br>` : ""}
-          ${companyCrea ? `${companyCrea}` : ""}
-        </div>
-      </div>
-    </div>
-    <div class="quote-info">
-      <div class="quote-number">${quote.quote_number}</div>
-      <div class="quote-meta">
-        ${t.date}: ${formatDate(quote.created_at)}<br>
-        ${t.validity}: ${formatDate(validityDate.toISOString())}<br>
-        Status: ${statusLabel}
-      </div>
-    </div>
-  </div>
+  ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
 
   <div class="section">
     <div class="section-title">${t.client}</div>
@@ -934,30 +914,11 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     ${disclaimerHTML}
   </div>
 
-  <div class="section conditions">
-    <div class="section-title">${t.conditions}</div>
-    <div class="conditions-grid">
-      <div><span class="label">${t.currency_label}:</span> <span class="value">${quote.currency}</span></div>
-      <div><span class="label">${t.validity_label}:</span> <span class="value">${quote.validity_days} ${t.days}</span></div>
-      ${quote.delivery_time ? `<div><span class="label">${t.delivery}:</span> <span class="value">${quote.delivery_time}</span></div>` : ""}
-      ${quote.payment_terms ? `<div><span class="label">${t.payment}:</span> <span class="value">${quote.payment_terms}</span></div>` : ""}
-      ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
-    </div>
-    ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${quote.notes}</span></div>` : ""}
-  </div>
+  </div><!-- end content-page 1 -->
 
-  ${buildScopeHTML(quote, items, productsMap, t, lang, true)}
-  ${buildPanelHTML(quote, quotePanelItems, defaultPanelItems, productsMap, items, t, lang)}
-  ${buildWarrantyHTML(quote, items, productsMap, t, lang)}
+  ${buildContentPage2HTML(quote, items, productsMap, quotePanelItems, defaultPanelItems, t, lang, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate)}
 
-  <div class="signature">
-    <div class="sig-line">${companyName}</div>
-    <div class="sig-line">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
-  </div>
-
-  ${isInternationalUsd ? `<div style="margin-top: 24px; font-size: 9px; color: #7d6608; text-align: center; font-style: italic;">${t.usd_disclaimer}</div>` : ""}
-
-  </div><!-- end content-page -->
+  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd)}
 
   <!-- CONTRACAPA -->
   <div class="backcover-page" style="page-break-before: always;">
@@ -967,14 +928,122 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 </html>`;
 }
 
-// ── Helper: format kg with thousand separator ──
+// ── Page Header (repeated on every content page) ──
+function buildPageHeader(quote: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations): string {
+  const formatDateSimple = (d: string) => {
+    const date = new Date(d);
+    return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+  };
+  return `
+  <div class="header">
+    <div class="header-left">
+      <img src="${SOIMA_LOGO_URL}" alt="SOIMA" class="header-logo" />
+      <div>
+        <div class="company">${companyName.toUpperCase()}<small>${companySubtitle}</small></div>
+        <div class="company-contact">
+          ${companyPhone ? `Tel: ${companyPhone}<br>` : ""}
+          ${companyEmail ? `${companyEmail}<br>` : ""}
+          ${companyWebsite ? `${companyWebsite}<br>` : ""}
+          ${companyCrea ? `${companyCrea}` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="quote-info">
+      <div class="quote-number">${quote.quote_number}</div>
+      <div class="quote-meta">
+        ${t.date}: ${formatDateSimple(quote.created_at)}<br>
+        ${t.validity}: ${formatDateSimple(validityDate.toISOString())}<br>
+        Status: ${statusLabel}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Content Page 2 (optional: Scope + Panel) ──
+function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<string, any>, quotePanelItems: any[], defaultPanelItems: any[], t: Translations, lang: string, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date): string {
+  const scopeHTML = buildScopeHTML(quote, items, productsMap, t, lang);
+  const panelHTML = buildPanelHTML(quote, quotePanelItems, defaultPanelItems, productsMap, items, t, lang);
+  if (!scopeHTML && !panelHTML) return "";
+  return `
+  <div class="content-page">
+    ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
+    ${scopeHTML}
+    ${panelHTML}
+  </div>`;
+}
+
+// ── Final Page (always: Conditions + Warranty + Validity + Signatures) ──
+function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean): string {
+  // Truncate notes if too long
+  let notesText = quote.notes || "";
+  if (notesText.length > 1500) {
+    notesText = notesText.substring(0, 1500) + " (...)";
+  }
+
+  const formatDateSimple = (d: string) => {
+    const date = new Date(d);
+    return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+  };
+
+  const warrantyHTML = buildWarrantyHTML(quote, items, productsMap, t, lang);
+
+  return `
+  <div class="content-page">
+    ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
+
+    <div class="section conditions">
+      <div class="section-title">${t.conditions}</div>
+      <div class="conditions-grid">
+        <div><span class="label">${t.currency_label}:</span> <span class="value">${quote.currency}</span></div>
+        <div><span class="label">${t.validity_label}:</span> <span class="value">${quote.validity_days} ${t.days}</span></div>
+        ${quote.delivery_time ? `<div><span class="label">${t.delivery}:</span> <span class="value">${quote.delivery_time}</span></div>` : ""}
+        ${quote.payment_terms ? `<div><span class="label">${t.payment}:</span> <span class="value">${quote.payment_terms}</span></div>` : ""}
+        ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
+      </div>
+      ${notesText ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${notesText}</span></div>` : ""}
+    </div>
+
+    ${warrantyHTML}
+
+    <div class="section">
+      <div class="section-title">${lang === "en" ? "PROPOSAL VALIDITY" : "VALIDADE DA PROPOSTA"}</div>
+      <p style="font-size: 10px; line-height: 1.6;">
+        ${lang === "en"
+          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from the date of issue (${formatDateSimple(quote.created_at)}), expiring on <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
+          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar da data de emissão (${formatDateSimple(quote.created_at)}), expirando em <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
+        }
+      </p>
+    </div>
+
+    <div class="signature" style="margin-top: 30px;">
+      <div style="text-align: center; width: 220px;">
+        <div style="border-top: 1px solid #333; padding-top: 6px; font-size: 10px; font-weight: 600;">${companyName}</div>
+        <div style="font-size: 9px; color: #666; margin-top: 2px;">${lang === "en" ? "Supplier" : "Fornecedor"}</div>
+      </div>
+      <div style="text-align: center; width: 220px;">
+        <div style="border-top: 1px solid #333; padding-top: 6px; font-size: 10px; font-weight: 600;">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
+        <div style="font-size: 9px; color: #666; margin-top: 2px;">${lang === "en" ? "Client" : "Cliente"}</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #555; font-style: italic;">
+      ${lang === "en"
+        ? "In agreement with the proposal presented above, we give our acceptance on the date ___/___/______."
+        : "Em acordo com a proposta acima apresentada, damos nosso aceite na data ___/___/______."}
+    </div>
+
+    ${isInternationalUsd ? `<div style="margin-top: 16px; font-size: 9px; color: #7d6608; text-align: center; font-style: italic;">${t.usd_disclaimer}</div>` : ""}
+  </div>`;
+}
+
+
 function formatKg(val: number | null | undefined): string {
   if (val == null) return "";
   return `${Number(val).toLocaleString("pt-BR")} kg`;
 }
 
 // ── ESCOPO DO FORNECIMENTO ──
-function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string, forcePageBreak: boolean = false): string {
+function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
   const gruaItem = items.find((i: any) => i.product_category === "grua");
   if (!gruaItem) return "";
   const product = productsMap[gruaItem.product_id] || {};
@@ -998,9 +1067,8 @@ function buildScopeHTML(quote: any, items: any[], productsMap: Record<string, an
   const filledRows = rows.filter(([_, v]) => v != null && v !== "");
   if (filledRows.length === 0) return "";
   const rowsHTML = filledRows.map(([label, value]) => `<tr><td class="label-cell">${label}</td><td>${value}</td></tr>`).join("");
-   const breakStyle = forcePageBreak ? 'page-break-before: always; margin-top: 0; padding-top: 0;' : '';
   return `
-  <div class="section" style="page-break-inside: avoid; ${breakStyle}">
+  <div class="section" style="page-break-inside: avoid;">
     <div class="section-title">${t.scope_title}: ${modelName}</div>
     <table class="scope-table">
       <thead><tr><th colspan="2">${lang === "en" ? "DESCRIPTION" : "DESCRIÇÃO"}</th></tr></thead>
