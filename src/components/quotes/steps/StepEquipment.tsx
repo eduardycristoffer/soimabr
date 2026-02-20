@@ -59,6 +59,12 @@ export default function StepEquipment({ data, updateData, onNext, onPrev, isInte
       unit_price: basePrice,
       quantity: 1,
       total_price: basePrice,
+      // Auto-fill crane specs from product defaults
+      grua_lanca_m: product.default_lanca_m ?? null,
+      grua_altura_torre_m: product.default_altura_torre_m ?? null,
+      grua_carga_maxima_kg: product.default_carga_maxima_kg ?? null,
+      grua_carga_ponta_kg: product.default_carga_ponta_kg ?? null,
+      grua_altura_trabalho_m: product.default_altura_trabalho_m ?? null,
     };
 
     updateData({ equipment: [newItem] });

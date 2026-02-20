@@ -169,7 +169,7 @@ const translations: Record<string, Translations> = {
     scope_vel_elevation: "Velocidade de elevação",
     scope_vel_rotation: "Velocidade de rotação",
     scope_vel_translation: "Velocidade de translação",
-    panel_title: "ITENS INTEGRANTES DO PAINEL",
+    panel_title: "ITENS INTEGRANTES DA GRUA",
     panel_voltage_label: "Tensão de alimentação",
     panel_motor_item: "Item",
     panel_motor_spec: "Especificação",
@@ -259,7 +259,7 @@ const translations: Record<string, Translations> = {
     scope_vel_elevation: "Hoisting speed",
     scope_vel_rotation: "Slewing speed",
     scope_vel_translation: "Trolley speed",
-    panel_title: "PANEL COMPONENTS",
+    panel_title: "CRANE COMPONENTS",
     panel_voltage_label: "Supply voltage",
     panel_motor_item: "Item",
     panel_motor_spec: "Specification",
@@ -485,6 +485,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       for (const item of grouped[cat]) {
         const product = productsMap[item.product_id];
         const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const displayName = (lang === "en" && product?.nome_en) ? product.nome_en : item.product_name;
         const intlBrl = item.international_unit_price_brl || item.unit_price;
         const totalBrl = intlBrl * item.quantity;
         const totalUsd = totalBrl / usdRate;
@@ -492,7 +493,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
           <tr>
             <td class="center">${idx++}</td>
             <td>${item.product_code}</td>
-            <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
             <td class="center">${item.quantity}</td>
             <td class="right">${formatBrl(intlBrl)}</td>
             <td class="right">${formatBrl(totalBrl)}</td>
@@ -506,11 +507,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       for (const item of grouped[cat]) {
         const product = productsMap[item.product_id];
         const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const displayName = (lang === "en" && product?.nome_en) ? product.nome_en : item.product_name;
         itemsHTML += `
           <tr>
             <td class="center">${idx++}</td>
             <td>${item.product_code}</td>
-            <td>${item.product_name}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
             <td class="center">${item.quantity}</td>
             <td class="right">${formatCurrency(item.total_price)}</td>
           </tr>`;

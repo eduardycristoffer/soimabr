@@ -210,8 +210,8 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
             <div>
-              <CardTitle className="text-base">Itens Integrantes do Painel</CardTitle>
-              <CardDescription>Lista de itens inclusos no painel elétrico</CardDescription>
+              <CardTitle className="text-base">Itens Integrantes da Grua</CardTitle>
+              <CardDescription>Lista de itens inclusos na grua</CardDescription>
             </div>
           </div>
         </CardHeader>
