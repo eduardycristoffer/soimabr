@@ -132,7 +132,11 @@ const INITIAL_DATA: QuoteWizardData = {
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",
-  payment_terms_items: [],
+  payment_terms_items: [
+    { text: "40% ENTRADA E RESTANTE A COMBINAR" },
+    { text: "FINANCIAMENTO BANCÁRIO" },
+    { text: "FINAME CÓDIGO 04103186" },
+  ],
   freight_terms: "",
   validity_days: 30,
   notes: "",
