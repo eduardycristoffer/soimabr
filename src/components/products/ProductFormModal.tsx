@@ -28,6 +28,7 @@ const productSchema = z.object({
   nome: z.string().trim().min(2, "Nome é obrigatório").max(200),
   descricao: z.string().trim().max(1000).optional().or(z.literal("")),
   descricao_tecnica: z.string().trim().max(5000).optional().or(z.literal("")),
+  descricao_tecnica_en: z.string().trim().max(5000).optional().or(z.literal("")),
   show_tech_desc_pdf: z.boolean(),
   categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"]),
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
@@ -93,6 +94,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         nome: p.nome,
         descricao: p.descricao || "",
         descricao_tecnica: pa?.descricao_tecnica || "",
+        descricao_tecnica_en: pa?.descricao_tecnica_en || "",
         show_tech_desc_pdf: pa?.show_tech_desc_pdf ?? false,
         categoria: p.categoria,
         unidade: p.unidade,
@@ -117,6 +119,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       nome: "",
       descricao: "",
       descricao_tecnica: "",
+      descricao_tecnica_en: "",
       show_tech_desc_pdf: false,
       categoria: "acessorio",
       unidade: "UN",
@@ -144,6 +147,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         nome: data.nome,
         descricao: data.descricao || null,
         descricao_tecnica: data.descricao_tecnica || null,
+        descricao_tecnica_en: data.descricao_tecnica_en || null,
         show_tech_desc_pdf: data.show_tech_desc_pdf,
         categoria: data.categoria,
         unidade: data.unidade,
@@ -296,6 +300,14 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                 <FormLabel className="text-sm font-normal cursor-pointer">
                   Exibir descrição técnica no PDF da proposta
                 </FormLabel>
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="descricao_tecnica_en" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descrição Técnica (English)</FormLabel>
+                <FormControl><Textarea placeholder="Technical product description in English..." className="resize-none" rows={4} {...field} /></FormControl>
+                <FormMessage />
               </FormItem>
             )} />
 

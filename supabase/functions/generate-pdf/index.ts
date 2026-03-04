@@ -481,7 +481,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       itemsHTML += `<tr class="cat-header"><td colspan="7">${categoryLabels[cat] || cat}</td></tr>`;
       for (const item of grouped[cat]) {
         const product = productsMap[item.product_id];
-        const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const techDesc = (lang === "en" && product?.descricao_tecnica_en) ? product.descricao_tecnica_en : product?.descricao_tecnica;
+        const showTechDesc = product?.show_tech_desc_pdf && techDesc;
         const displayName = (lang === "en" && product?.nome_en) ? product.nome_en : item.product_name;
         const intlBrl = item.international_unit_price_brl || item.unit_price;
         const totalBrl = intlBrl * item.quantity;
@@ -490,7 +491,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
           <tr>
             <td class="center">${idx++}</td>
             <td>${item.product_code}</td>
-            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${techDesc}</small>` : ""}</td>
             <td class="center">${item.quantity}</td>
             <td class="right">${formatBrl(intlBrl)}</td>
             <td class="right">${formatBrl(totalBrl)}</td>
@@ -503,13 +504,14 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       itemsHTML += `<tr class="cat-header"><td colspan="5">${categoryLabels[cat] || cat}</td></tr>`;
       for (const item of grouped[cat]) {
         const product = productsMap[item.product_id];
-        const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const techDesc = (lang === "en" && product?.descricao_tecnica_en) ? product.descricao_tecnica_en : product?.descricao_tecnica;
+        const showTechDesc = product?.show_tech_desc_pdf && techDesc;
         const displayName = (lang === "en" && product?.nome_en) ? product.nome_en : item.product_name;
         itemsHTML += `
           <tr>
             <td class="center">${idx++}</td>
             <td>${item.product_code}</td>
-            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${techDesc}</small>` : ""}</td>
             <td class="center">${item.quantity}</td>
             <td class="right">${formatCurrency(item.total_price)}</td>
           </tr>`;

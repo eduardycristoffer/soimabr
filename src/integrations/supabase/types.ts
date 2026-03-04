@@ -782,6 +782,7 @@ export type Database = {
           descricao: string | null
           descricao_en: string | null
           descricao_tecnica: string | null
+          descricao_tecnica_en: string | null
           id: string
           international_price_brl: number | null
           is_active: boolean
@@ -823,6 +824,7 @@ export type Database = {
           descricao?: string | null
           descricao_en?: string | null
           descricao_tecnica?: string | null
+          descricao_tecnica_en?: string | null
           id?: string
           international_price_brl?: number | null
           is_active?: boolean
@@ -864,6 +866,7 @@ export type Database = {
           descricao?: string | null
           descricao_en?: string | null
           descricao_tecnica?: string | null
+          descricao_tecnica_en?: string | null
           id?: string
           international_price_brl?: number | null
           is_active?: boolean
