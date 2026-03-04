@@ -303,6 +303,14 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
               </FormItem>
             )} />
 
+            <FormField control={form.control} name="descricao_tecnica_en" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descrição Técnica (English)</FormLabel>
+                <FormControl><Textarea placeholder="Technical product description in English..." className="resize-none" rows={4} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="unidade" render={({ field }) => (
                 <FormItem>
