@@ -491,7 +491,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
           <tr>
             <td class="center">${idx++}</td>
             <td>${item.product_code}</td>
-            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${product.descricao_tecnica}</small>` : ""}</td>
+            <td>${displayName}${item.notes ? `<br><small>${item.notes}</small>` : ""}${showTechDesc ? `<br><small class="tech-desc">${techDesc}</small>` : ""}</td>
             <td class="center">${item.quantity}</td>
             <td class="right">${formatBrl(intlBrl)}</td>
             <td class="right">${formatBrl(totalBrl)}</td>
