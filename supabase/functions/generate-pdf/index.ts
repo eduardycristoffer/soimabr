@@ -504,7 +504,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       itemsHTML += `<tr class="cat-header"><td colspan="5">${categoryLabels[cat] || cat}</td></tr>`;
       for (const item of grouped[cat]) {
         const product = productsMap[item.product_id];
-        const showTechDesc = product?.show_tech_desc_pdf && product?.descricao_tecnica;
+        const techDesc = (lang === "en" && product?.descricao_tecnica_en) ? product.descricao_tecnica_en : product?.descricao_tecnica;
+        const showTechDesc = product?.show_tech_desc_pdf && techDesc;
         const displayName = (lang === "en" && product?.nome_en) ? product.nome_en : item.product_name;
         itemsHTML += `
           <tr>
