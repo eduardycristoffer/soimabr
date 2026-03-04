@@ -94,6 +94,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         nome: p.nome,
         descricao: p.descricao || "",
         descricao_tecnica: pa?.descricao_tecnica || "",
+        descricao_tecnica_en: pa?.descricao_tecnica_en || "",
         show_tech_desc_pdf: pa?.show_tech_desc_pdf ?? false,
         categoria: p.categoria,
         unidade: p.unidade,
