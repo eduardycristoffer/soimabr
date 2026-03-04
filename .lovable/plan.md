@@ -1,70 +1,36 @@
 
-## Remover Pintura da Garantia, Atualizar Normas e Adicionar Topicos de Pagamento
+
+## Adicionar Descrição Técnica em Inglês nos Produtos
 
 ### Resumo
 
-3 alteracoes:
+Adicionar campo `descricao_tecnica_en` no cadastro de produtos para que propostas em inglês usem a versão traduzida da descrição técnica no PDF.
 
-1. **Remover "Pintura" da garantia** -- tirar o campo do wizard, do review, e do PDF
-2. **Atualizar normas aplicadas** -- substituir a norma atual ("ABNT NBR 8400") pela lista completa: F.E.M. 1.001-A3, NR 12, NR 18, NBR 8400-1:2019, NBR 8800:2008, NBR 16147:2021, NBR 10084:2020, NBR 8681, NBE ISO 13.849-2 - 02/2019
-3. **Condicoes de pagamento com topicos** -- permitir adicionar multiplos topicos (lista) alem do texto simples que ja existe
+### Detalhes técnicos
 
----
-
-### Detalhes tecnicos
-
-| Arquivo | Alteracao |
+| Arquivo | Alteração |
 |---------|-----------|
-| Migracao SQL | Adicionar coluna `payment_terms_items` (jsonb, nullable) na tabela `quotes` |
-| `src/hooks/useQuoteWizard.ts` | Remover `warranty_paint_years`, adicionar `payment_terms_items: PaymentTermItem[]` |
-| `src/components/quotes/steps/StepTechnical.tsx` | Remover campo "Pintura (anos)" da secao Garantia, mudar grid de 3 para 2 colunas |
-| `src/components/quotes/steps/StepCommercial.tsx` | Adicionar secao de topicos de pagamento (lista dinamica com botao adicionar/remover), mantendo o campo texto existente |
-| `src/components/quotes/steps/StepReview.tsx` | Remover pintura do resumo de garantia, exibir topicos de pagamento |
-| `src/components/quotes/QuoteWizard.tsx` | Salvar `payment_terms_items` no banco |
-| `src/components/quotes/QuoteDetailModal.tsx` | Exibir topicos de pagamento |
-| `supabase/functions/generate-pdf/index.ts` | Remover pintura da garantia, atualizar normas, renderizar topicos de pagamento |
+| Migração SQL | `ALTER TABLE products ADD COLUMN descricao_tecnica_en text;` |
+| `ProductFormModal.tsx` | Adicionar campo "Technical Description (English)" abaixo da descrição técnica PT-BR. Visível para todas as categorias (assim como a descrição técnica PT-BR). Salvar no payload. |
+| `generate-pdf/index.ts` | Quando `lang === "en"` e `descricao_tecnica_en` existir, usar no lugar de `descricao_tecnica` |
 
-#### 1. Migracao SQL
+#### Formulário
 
-Adicionar coluna na tabela `quotes`:
+Abaixo do campo "Descrição Técnica" e do checkbox "Exibir no PDF", adicionar:
+
 ```
-payment_terms_items jsonb default '[]'
+Descrição Técnica (English)
+[textarea] Technical product description...
 ```
 
-Formato: `[{ "text": "50% na aprovação" }, { "text": "50% na entrega" }]`
+O campo aparece para todos os produtos (não só gruas), igual ao campo PT-BR.
 
-#### 2. Remover Pintura da Garantia
+#### PDF
 
-- **StepTechnical.tsx**: Remover o campo "Pintura (anos)" e mudar o grid de `md:grid-cols-3` para `md:grid-cols-2`
-- **useQuoteWizard.ts**: Remover `warranty_paint_years` do tipo e do INITIAL_DATA
-- **StepReview.tsx**: Remover "{X}a pintura" do resumo
-- **generate-pdf/index.ts**: Remover a linha `warranty_paint` das traducoes e do calculo de garantia. Remover `py` do buildWarrantyHTML
+Na linha que renderiza `descricao_tecnica`, trocar:
+```
+const techDesc = (lang === "en" && product?.descricao_tecnica_en) 
+  ? product.descricao_tecnica_en 
+  : product?.descricao_tecnica;
+```
 
-#### 3. Atualizar Normas
-
-- **generate-pdf/index.ts**: Substituir o texto de `warranty_norms` em ambos idiomas:
-  - PT-BR: "Normas aplicadas: F.E.M. 1.001-A3 - NR 12 - NR 18 - NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 - NBE ISO 13.849-2 - 02/2019"
-  - EN: "Applied standards: F.E.M. 1.001-A3 - NR 12 - NR 18 - NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 - NBE ISO 13.849-2 - 02/2019"
-
-#### 4. Condicoes de Pagamento com Topicos
-
-**StepCommercial.tsx**: Abaixo do campo texto existente "Condicoes de Pagamento", adicionar secao "Topicos de Pagamento" com:
-- Lista dinamica de itens (input + botao remover)
-- Botao "Adicionar topico"
-- Exemplo: "50% na aprovacao do pedido", "30% na entrega", "20% no comissionamento"
-
-**PDF**: Quando `payment_terms_items` tiver itens, renderizar como lista `<ul>` abaixo do campo texto de pagamento nas condicoes comerciais.
-
-**QuoteWizard.tsx**: Incluir `payment_terms_items` no payload de salvamento.
-
-#### 5. Campos no banco que nao mudam
-
-A coluna `warranty_paint_years` permanece no banco (nullable) mas nao sera mais usada pelo wizard. Propostas antigas que ja tem valor preenchido continuam funcionando no PDF (fallback para 0 se null).
-
----
-
-### Resultado esperado
-
-- Garantia exibe apenas "Estrutural" e "Componentes"
-- Normas atualizadas com a lista completa no PDF
-- Condicoes de pagamento suportam tanto texto livre quanto lista de topicos
