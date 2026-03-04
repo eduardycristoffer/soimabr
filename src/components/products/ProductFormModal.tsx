@@ -119,6 +119,7 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       nome: "",
       descricao: "",
       descricao_tecnica: "",
+      descricao_tecnica_en: "",
       show_tech_desc_pdf: false,
       categoria: "acessorio",
       unidade: "UN",
