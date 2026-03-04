@@ -28,6 +28,7 @@ const productSchema = z.object({
   nome: z.string().trim().min(2, "Nome é obrigatório").max(200),
   descricao: z.string().trim().max(1000).optional().or(z.literal("")),
   descricao_tecnica: z.string().trim().max(5000).optional().or(z.literal("")),
+  descricao_tecnica_en: z.string().trim().max(5000).optional().or(z.literal("")),
   show_tech_desc_pdf: z.boolean(),
   categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"]),
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
