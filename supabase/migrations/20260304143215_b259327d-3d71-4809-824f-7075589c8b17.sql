@@ -1,0 +1,1 @@
+ALTER TABLE products ADD COLUMN descricao_tecnica_en text;
