@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN hide_discount_value boolean DEFAULT false;

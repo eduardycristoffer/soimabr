@@ -1085,6 +1085,7 @@ export type Database = {
           grua_carga_maxima_kg: number | null
           grua_carga_ponta_kg: number | null
           grua_lanca_m: number | null
+          hide_discount_value: boolean | null
           id: string
           language: string
           lead_id: string | null
@@ -1142,6 +1143,7 @@ export type Database = {
           grua_carga_maxima_kg?: number | null
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
+          hide_discount_value?: boolean | null
           id?: string
           language?: string
           lead_id?: string | null
@@ -1199,6 +1201,7 @@ export type Database = {
           grua_carga_maxima_kg?: number | null
           grua_carga_ponta_kg?: number | null
           grua_lanca_m?: number | null
+          hide_discount_value?: boolean | null
           id?: string
           language?: string
           lead_id?: string | null
