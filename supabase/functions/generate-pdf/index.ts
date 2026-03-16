@@ -587,12 +587,15 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
           <span>${t.subtotal}</span>
           <span>${formatCurrency(quote.subtotal)}</span>
         </div>
-        ${quote.discount_percent > 0 ? `
+        ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+        <div class="totals-row discount">
+          <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
+          <span></span>
+        </div>` : `
         <div class="totals-row discount">
           <span>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</span>
           <span>-${formatCurrency(quote.discount_value)}</span>
-        </div>
-        ` : ""}
+        </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total}</span>
           <span>${formatCurrency(quote.total)}</span>
