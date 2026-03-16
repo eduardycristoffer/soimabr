@@ -100,6 +100,24 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
               </AlertDescription>
             </Alert>
           )}
+
+          {data.discount_percent > 0 && (
+            <div className="flex items-start space-x-3 pt-2">
+              <Checkbox
+                id="hide_discount_value"
+                checked={data.hide_discount_value}
+                onCheckedChange={(checked) => updateData({ hide_discount_value: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label htmlFor="hide_discount_value" className="text-sm font-medium leading-none cursor-pointer">
+                  Esconder valor do desconto no PDF
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  O PDF mostrará apenas "Desconto aplicado" sem exibir o percentual ou valor
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 p-4 rounded-lg bg-muted/50">

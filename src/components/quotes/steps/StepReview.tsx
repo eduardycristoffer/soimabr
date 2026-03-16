@@ -219,7 +219,11 @@ export default function StepReview({
                 </div>
                 {data.discount_percent > 0 && (
                   <div className="flex justify-between text-destructive">
-                    <span>Desconto ({data.discount_percent}%)</span>
+                    <span>
+                      {data.hide_discount_value
+                        ? "Desconto aplicado (oculto no PDF)"
+                        : `Desconto (${data.discount_percent}%)`}
+                    </span>
                     <span className="font-medium">-{isInternationalUsd ? formatBrl(discountValue) : formatCurrency(discountValue)}</span>
                   </div>
                 )}
