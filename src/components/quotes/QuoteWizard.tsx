@@ -214,6 +214,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         warranty_components_years: wizard.data.warranty_components_years,
         payment_terms_items: wizard.data.payment_terms_items,
         hide_discount_value: wizard.data.hide_discount_value,
+      };
 
       // Save USD rate for international quotes
       if (isInternationalUsd && usdBrlRate) {
