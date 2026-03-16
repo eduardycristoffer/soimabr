@@ -90,6 +90,7 @@ export interface QuoteWizardData {
   // Step 8 - Discount
   discount_percent: number;
   discount_justification: string;
+  hide_discount_value: boolean;
 
   // International pricing
   usd_brl_rate_used: number | null;
