@@ -1152,9 +1152,19 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
   const panelItems = quotePanelItems.length > 0 ? quotePanelItems : defaultPanelItems;
   const hasVoltage = quote.panel_voltage && quote.panel_voltage !== "";
   const hasMotors = quote.panel_include_motors;
-  if (panelItems.length === 0 && !hasVoltage && !hasMotors) return "";
+  const hasPotenciaTotal = quote.panel_potencia_total != null;
+  if (panelItems.length === 0 && !hasVoltage && !hasMotors && !hasPotenciaTotal) return "";
   let listHTML = panelItems.map((pi: any) => `<li>${pi.item_text}</li>`).join("");
-  if (hasVoltage) listHTML += `<li>${t.panel_voltage_label}: ${quote.panel_voltage}V</li>`;
+  
+  // Voltage + Potência total on same line
+  if (hasVoltage || hasPotenciaTotal) {
+    let voltPotLine = "";
+    if (hasVoltage) voltPotLine += `${t.panel_voltage_label}: ${quote.panel_voltage}V`;
+    if (hasVoltage && hasPotenciaTotal) voltPotLine += " — ";
+    if (hasPotenciaTotal) voltPotLine += `${lang === "en" ? "Total power" : "Potência total"}: ${quote.panel_potencia_total} kW`;
+    listHTML += `<li>${voltPotLine}</li>`;
+  }
+
   let motorHTML = "";
   if (hasMotors) {
     const gruaItem = items.find((i: any) => i.product_category === "grua");
@@ -1165,7 +1175,7 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
       const vel = quote[qVel] || product[pVel] || "";
       if (!kw && !hp && !vel) return null;
       const parts: string[] = [];
-      if (kw) parts.push(`${kw} kW`);
+      if (kw) parts.push(`${kw} daN.m`);
       if (hp) parts.push(`${hp} HP`);
       const spec = parts.join(" / ");
       return vel ? `${spec} - ${vel}` : spec;
