@@ -121,6 +121,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         panel_motor_rot_vel: q.panel_motor_rot_vel || "",
         warranty_struct_years: q.warranty_struct_years ?? 3,
         warranty_components_years: q.warranty_components_years ?? 1,
+        panel_potencia_total: q.panel_potencia_total ?? null,
         // Commercial
         currency: quote.currency,
         delivery_time: quote.delivery_time || "",
