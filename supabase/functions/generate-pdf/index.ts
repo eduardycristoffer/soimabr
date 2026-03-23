@@ -911,7 +911,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         ${tableHeaderHTML}
       </thead>
       <tbody>
-        ${itemsHTML || `<tr><td colspan="${isInternationalUsd ? 7 : 5}" class="center">${t.no_items}</td></tr>`}
+        ${itemsHTML || `<tr><td colspan="${hideUnitPrices ? 4 : (isInternationalUsd ? 7 : 5)}" class="center">${t.no_items}</td></tr>`}
       </tbody>
     </table>
 

@@ -182,6 +182,9 @@ export default function StepReview({
                 <span className="text-muted-foreground">Garantia:</span>{" "}
                 {data.warranty_struct_years}a estrutural, {data.warranty_components_years}a componentes
               </p>
+              {data.hide_unit_prices && (
+                <p className="text-amber-700">⚠ Valores unitários ocultos no PDF</p>
+              )}
             </CardContent>
           </Card>
         </div>
