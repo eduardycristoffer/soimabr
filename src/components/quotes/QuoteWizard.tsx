@@ -214,6 +214,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         panel_motor_rot_vel: wizard.data.panel_motor_rot_vel || null,
         warranty_struct_years: wizard.data.warranty_struct_years,
         warranty_components_years: wizard.data.warranty_components_years,
+        panel_potencia_total: wizard.data.panel_potencia_total ?? null,
         payment_terms_items: wizard.data.payment_terms_items,
         hide_discount_value: wizard.data.hide_discount_value,
         hide_unit_prices: wizard.data.hide_unit_prices,
