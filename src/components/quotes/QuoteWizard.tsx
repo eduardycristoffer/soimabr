@@ -133,6 +133,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         discount_percent: quote.discount_percent,
         discount_justification: "",
         hide_discount_value: (quote as any).hide_discount_value ?? false,
+        hide_unit_prices: (quote as any).hide_unit_prices ?? false,
         usd_brl_rate_used: q.usd_brl_rate_used ?? null,
         usd_brl_rate_updated_at: q.usd_brl_rate_updated_at ?? null,
       });
@@ -215,6 +216,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         warranty_components_years: wizard.data.warranty_components_years,
         payment_terms_items: wizard.data.payment_terms_items,
         hide_discount_value: wizard.data.hide_discount_value,
+        hide_unit_prices: wizard.data.hide_unit_prices,
       };
 
       // Save USD rate for international quotes

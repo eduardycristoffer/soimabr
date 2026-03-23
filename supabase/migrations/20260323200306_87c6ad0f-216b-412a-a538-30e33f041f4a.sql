@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN hide_unit_prices boolean DEFAULT false;
