@@ -1,30 +1,57 @@
 
 
-## Opção para esconder valores unitários no PDF
+## Renomear termos e ajustar unidades dos Motores/Potências
 
-Adicionar um checkbox no step de Descontos (junto com a opção de esconder desconto) para ocultar os valores por item na tabela do PDF, exibindo apenas o total geral da proposta.
+### Resumo
 
-### Comportamento
+Renomear labels de motores, trocar unidade kW por daN.m, adicionar campo "Potência total" ao lado da tensão, e ajustar o PDF.
 
-- **Desativado (padrão):** PDF mostra a coluna "Total" por item normalmente
-- **Ativado:** Remove a coluna de valores da tabela de itens (e "Unit. Intl. BRL" no caso internacional), mantendo apenas #, Código, Descrição e Qtd. O total geral continua aparecendo na seção de resumo
+### Mudanças de terminologia
 
-### Alterações
+| Atual | Novo |
+|-------|------|
+| Motorredutores (título seção) | Potências |
+| Motorredutor de Distribuição (elev) | Elevação |
+| Motorredutor de Translação (trans) | Distribuição |
+| Motorredutor de Rotação (rot) | Rotação |
+| Potência (kW) | Potência (daN.m) |
+| Incluir mini-tabela de motorredutor | Incluir tabela de potências no PDF |
 
-| Arquivo | O que muda |
+### Novo campo: Potência Total
+
+- Adicionar campo `panel_potencia_total` (number | null) no wizard e na tabela `quotes`
+- Exibido ao lado da "Tensão de alimentação" no formulário
+- No PDF, aparece junto com a tensão na lista de itens integrantes
+
+### Detalhes técnicos
+
+| Arquivo | Alteração |
 |---------|-----------|
-| Migração SQL | `ALTER TABLE quotes ADD COLUMN hide_unit_prices boolean DEFAULT false;` |
-| `useQuoteWizard.ts` | Adicionar `hide_unit_prices: boolean` ao tipo e `false` ao INITIAL_DATA |
-| `StepDiscount.tsx` | Novo checkbox: "Esconder valores unitários no PDF — Mostra apenas o total geral" |
-| `StepReview.tsx` | Indicar no resumo quando valores unitários serão ocultados |
-| `QuoteWizard.tsx` | Incluir `hide_unit_prices` no payload de salvamento e carregamento |
-| `generate-pdf/index.ts` | Quando `hide_unit_prices === true`: remover colunas de valor da tabela de itens (tanto nacional quanto internacional), manter apenas a seção de totais no final |
+| Migração SQL | `ALTER TABLE quotes ADD COLUMN panel_potencia_total numeric;` + `ALTER TABLE products ADD COLUMN default_potencia_total numeric;` |
+| `useQuoteWizard.ts` | Adicionar `panel_potencia_total: number \| null` ao tipo e `null` ao INITIAL_DATA |
+| `StepTechnical.tsx` | Renomear labels; trocar "kW" por "daN.m"; adicionar input "Potência total" ao lado de "Tensão de alimentação"; mover tensão para dentro da seção de potências |
+| `QuoteWizard.tsx` | Incluir `panel_potencia_total` no payload de save/load |
+| `generate-pdf/index.ts` | Renomear translations (PT e EN); trocar "kW" por "daN.m" na renderização; adicionar "Potência total" e tensão na tabela de motores ou na lista de itens |
 
-### No wizard (StepDiscount)
+### No wizard (StepTechnical)
 
-Abaixo do checkbox de esconder desconto:
+Grid de Tensão + Potência Total (lado a lado):
 ```
-☐ Esconder valores unitários no PDF
-   (A tabela de itens não exibirá valores — apenas o total geral da proposta será mostrado)
+Tensão de alimentação    |  Potência total
+[380V ▼]                 |  [___] kW
 ```
+
+Seção "Potências" (era "Motorredutores"):
+```
+Elevação          → Potência (daN.m) | Potência (HP) | Velocidade
+Distribuição      → Potência (daN.m) | Potência (HP) | Velocidade  
+Rotação           → Potência (daN.m) | Potência (HP) | Velocidade
+```
+
+### No PDF
+
+- Linha na lista: "Tensão de alimentação: 380V — Potência total: 45 kW"
+- Tabela de motores: colunas Item + Especificação, com valores em daN.m / HP
+- Labels PT: "Elevação", "Distribuição", "Rotação"
+- Labels EN: "Hoisting", "Trolley travel", "Slewing"
 
