@@ -91,6 +91,7 @@ export interface QuoteWizardData {
   discount_percent: number;
   discount_justification: string;
   hide_discount_value: boolean;
+  hide_unit_prices: boolean;
 
   // International pricing
   usd_brl_rate_used: number | null;
