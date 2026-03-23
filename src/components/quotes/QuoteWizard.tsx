@@ -133,6 +133,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         discount_percent: quote.discount_percent,
         discount_justification: "",
         hide_discount_value: (quote as any).hide_discount_value ?? false,
+        hide_unit_prices: (quote as any).hide_unit_prices ?? false,
         usd_brl_rate_used: q.usd_brl_rate_used ?? null,
         usd_brl_rate_updated_at: q.usd_brl_rate_updated_at ?? null,
       });

@@ -118,6 +118,22 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
               </div>
             </div>
           )}
+
+          <div className="flex items-start space-x-3 pt-2">
+            <Checkbox
+              id="hide_unit_prices"
+              checked={data.hide_unit_prices}
+              onCheckedChange={(checked) => updateData({ hide_unit_prices: !!checked })}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <label htmlFor="hide_unit_prices" className="text-sm font-medium leading-none cursor-pointer">
+                Esconder valores unitários no PDF
+              </label>
+              <p className="text-xs text-muted-foreground">
+                A tabela de itens não exibirá valores — apenas o total geral da proposta será mostrado
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3 p-4 rounded-lg bg-muted/50">
