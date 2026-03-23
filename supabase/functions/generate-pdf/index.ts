@@ -606,7 +606,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   }
 
   // Items table header
-  const tableHeaderHTML = isInternationalUsd && usdRate ? `
+  const tableHeaderHTML = isInternationalUsd && usdRate ? (hideUnitPrices ? `
+    <tr>
+      <th class="center" style="width:35px">#</th>
+      <th style="width:90px">${t.code}</th>
+      <th>${t.description}</th>
+      <th class="center" style="width:40px">${t.qty}</th>
+    </tr>` : `
     <tr>
       <th class="center" style="width:35px">#</th>
       <th style="width:90px">${t.code}</th>
@@ -615,6 +621,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <th class="right" style="width:100px">${t.unit_intl_brl}</th>
       <th class="right" style="width:100px">${t.total_brl}</th>
       <th class="right" style="width:100px">${t.est_usd}</th>
+    </tr>`) : (hideUnitPrices ? `
+    <tr>
+      <th class="center" style="width:40px">#</th>
+      <th style="width:100px">${t.code}</th>
+      <th>${t.description}</th>
+      <th class="center" style="width:50px">${t.qty}</th>
     </tr>` : `
     <tr>
       <th class="center" style="width:40px">#</th>
@@ -622,7 +634,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <th>${t.description}</th>
       <th class="center" style="width:50px">${t.qty}</th>
       <th class="right" style="width:110px">${t.total}</th>
-    </tr>`;
+    </tr>`);
 
   // Company header info
   const companyName = co.company_name || "SOIMA Brasil";
