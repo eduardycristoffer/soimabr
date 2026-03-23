@@ -87,6 +87,9 @@ export interface QuoteWizardData {
   notes: string;
   language: "pt-BR" | "en";
 
+  // Potência total
+  panel_potencia_total: number | null;
+
   // Step 8 - Discount
   discount_percent: number;
   discount_justification: string;
