@@ -272,7 +272,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
 
           <Separator />
 
-          {/* Voltage */}
+          {/* Voltage + Potência total */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tensão de alimentação</Label>
@@ -288,6 +288,16 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Potência total (kW)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="Ex: 45"
+                value={numInput(data.panel_potencia_total)}
+                onChange={(e) => updateData({ panel_potencia_total: parseNum(e.target.value) })}
+              />
+            </div>
           </div>
 
           <Separator />
@@ -298,19 +308,19 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
               checked={data.panel_include_motors}
               onCheckedChange={(v) => updateData({ panel_include_motors: v })}
             />
-            <Label className="text-sm">Incluir mini-tabela de motorredutor no PDF</Label>
+            <Label className="text-sm">Incluir tabela de potências no PDF</Label>
           </div>
 
           {data.panel_include_motors && (
             <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-              <h5 className="text-sm font-semibold">Motorredutores</h5>
+              <h5 className="text-sm font-semibold">Potências</h5>
               
               {/* Elevação */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Motorredutor de Distribuição</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Elevação</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (kW)</Label>
+                    <Label className="text-xs">Potência (daN.m)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_elev_kw)} onChange={(e) => updateData({ panel_motor_elev_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
@@ -324,12 +334,12 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
                 </div>
               </div>
 
-              {/* Translação */}
+              {/* Distribuição */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Motorredutor de Translação</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Distribuição</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (kW)</Label>
+                    <Label className="text-xs">Potência (daN.m)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_trans_kw)} onChange={(e) => updateData({ panel_motor_trans_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
@@ -345,10 +355,10 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
 
               {/* Rotação */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Motorredutor de Rotação</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Rotação</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (kW)</Label>
+                    <Label className="text-xs">Potência (daN.m)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_rot_kw)} onChange={(e) => updateData({ panel_motor_rot_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">

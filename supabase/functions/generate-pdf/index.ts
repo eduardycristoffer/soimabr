@@ -172,9 +172,9 @@ const translations: Record<string, Translations> = {
     panel_voltage_label: "Tensão de alimentação",
     panel_motor_item: "Item",
     panel_motor_spec: "Especificação",
-    panel_motor_elevation: "Motorredutor de distribuição",
-    panel_motor_translation: "Motorredutor de translação",
-    panel_motor_rotation: "Motorredutor de rotação",
+    panel_motor_elevation: "Elevação",
+    panel_motor_translation: "Distribuição",
+    panel_motor_rotation: "Rotação",
     warranty_title: "GARANTIA",
     warranty_intro: "A SOIMA Brasil Equipamentos garante os equipamentos fornecidos conforme as condições abaixo, a partir da data de entrega técnica:",
     warranty_certificate: "Certificado de garantia com os seguintes prazos:",
@@ -261,9 +261,9 @@ const translations: Record<string, Translations> = {
     panel_voltage_label: "Supply voltage",
     panel_motor_item: "Item",
     panel_motor_spec: "Specification",
-    panel_motor_elevation: "Distribution gearmotor",
-    panel_motor_translation: "Trolley gearmotor",
-    panel_motor_rotation: "Slewing gearmotor",
+    panel_motor_elevation: "Hoisting",
+    panel_motor_translation: "Trolley travel",
+    panel_motor_rotation: "Slewing",
     warranty_title: "WARRANTY",
     warranty_intro: "SOIMA Brasil Equipamentos warrants the supplied equipment under the conditions below, from the date of technical delivery:",
     warranty_certificate: "Warranty certificate with the following terms:",
@@ -1152,9 +1152,19 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
   const panelItems = quotePanelItems.length > 0 ? quotePanelItems : defaultPanelItems;
   const hasVoltage = quote.panel_voltage && quote.panel_voltage !== "";
   const hasMotors = quote.panel_include_motors;
-  if (panelItems.length === 0 && !hasVoltage && !hasMotors) return "";
+  const hasPotenciaTotal = quote.panel_potencia_total != null;
+  if (panelItems.length === 0 && !hasVoltage && !hasMotors && !hasPotenciaTotal) return "";
   let listHTML = panelItems.map((pi: any) => `<li>${pi.item_text}</li>`).join("");
-  if (hasVoltage) listHTML += `<li>${t.panel_voltage_label}: ${quote.panel_voltage}V</li>`;
+  
+  // Voltage + Potência total on same line
+  if (hasVoltage || hasPotenciaTotal) {
+    let voltPotLine = "";
+    if (hasVoltage) voltPotLine += `${t.panel_voltage_label}: ${quote.panel_voltage}V`;
+    if (hasVoltage && hasPotenciaTotal) voltPotLine += " — ";
+    if (hasPotenciaTotal) voltPotLine += `${lang === "en" ? "Total power" : "Potência total"}: ${quote.panel_potencia_total} kW`;
+    listHTML += `<li>${voltPotLine}</li>`;
+  }
+
   let motorHTML = "";
   if (hasMotors) {
     const gruaItem = items.find((i: any) => i.product_category === "grua");
@@ -1165,7 +1175,7 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
       const vel = quote[qVel] || product[pVel] || "";
       if (!kw && !hp && !vel) return null;
       const parts: string[] = [];
-      if (kw) parts.push(`${kw} kW`);
+      if (kw) parts.push(`${kw} daN.m`);
       if (hp) parts.push(`${hp} HP`);
       const spec = parts.join(" / ");
       return vel ? `${spec} - ${vel}` : spec;

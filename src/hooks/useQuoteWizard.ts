@@ -87,6 +87,9 @@ export interface QuoteWizardData {
   notes: string;
   language: "pt-BR" | "en";
 
+  // Potência total
+  panel_potencia_total: number | null;
+
   // Step 8 - Discount
   discount_percent: number;
   discount_justification: string;
@@ -131,6 +134,7 @@ const INITIAL_DATA: QuoteWizardData = {
   panel_motor_rot_vel: "",
   warranty_struct_years: 3,
   warranty_components_years: 1,
+  panel_potencia_total: null,
   currency: "BRL",
   delivery_time: "",
   payment_terms: "",
