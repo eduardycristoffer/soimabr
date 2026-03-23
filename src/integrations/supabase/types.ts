@@ -776,6 +776,7 @@ export type Database = {
           default_motor_trans_vel: string | null
           default_panel_include_motors: boolean | null
           default_panel_voltage: string | null
+          default_potencia_total: number | null
           default_warranty_components_years: number | null
           default_warranty_paint_years: number | null
           default_warranty_struct_years: number | null
@@ -818,6 +819,7 @@ export type Database = {
           default_motor_trans_vel?: string | null
           default_panel_include_motors?: boolean | null
           default_panel_voltage?: string | null
+          default_potencia_total?: number | null
           default_warranty_components_years?: number | null
           default_warranty_paint_years?: number | null
           default_warranty_struct_years?: number | null
@@ -860,6 +862,7 @@ export type Database = {
           default_motor_trans_vel?: string | null
           default_panel_include_motors?: boolean | null
           default_panel_voltage?: string | null
+          default_potencia_total?: number | null
           default_warranty_components_years?: number | null
           default_warranty_paint_years?: number | null
           default_warranty_struct_years?: number | null
@@ -1101,6 +1104,7 @@ export type Database = {
           panel_motor_trans_hp: number | null
           panel_motor_trans_kw: number | null
           panel_motor_trans_vel: string | null
+          panel_potencia_total: number | null
           panel_voltage: string | null
           payment_terms: string | null
           payment_terms_items: Json | null
@@ -1160,6 +1164,7 @@ export type Database = {
           panel_motor_trans_hp?: number | null
           panel_motor_trans_kw?: number | null
           panel_motor_trans_vel?: string | null
+          panel_potencia_total?: number | null
           panel_voltage?: string | null
           payment_terms?: string | null
           payment_terms_items?: Json | null
@@ -1219,6 +1224,7 @@ export type Database = {
           panel_motor_trans_hp?: number | null
           panel_motor_trans_kw?: number | null
           panel_motor_trans_vel?: string | null
+          panel_potencia_total?: number | null
           panel_voltage?: string | null
           payment_terms?: string | null
           payment_terms_items?: Json | null
