@@ -174,6 +174,25 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                 </CardContent>
               </Card>
 
+              {/* Rental: Work Site Data */}
+              {isRental && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Dados da Obra</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    {(quote as any).rental_work_type && <p><span className="text-muted-foreground">Tipo:</span> {(quote as any).rental_work_type}</p>}
+                    {(quote as any).rental_height_needed && <p><span className="text-muted-foreground">Altura necessária:</span> {(quote as any).rental_height_needed} m</p>}
+                    {(quote as any).rental_jib_needed && <p><span className="text-muted-foreground">Lança necessária:</span> {(quote as any).rental_jib_needed} m</p>}
+                    {(quote as any).rental_max_weight && <p><span className="text-muted-foreground">Peso máximo:</span> {Number((quote as any).rental_max_weight).toLocaleString("pt-BR")} kg</p>}
+                    {(quote as any).rental_duration_months && <p><span className="text-muted-foreground">Duração:</span> {(quote as any).rental_duration_months} meses</p>}
+                    {(quote as any).rental_start_date && <p><span className="text-muted-foreground">Início previsto:</span> {formatDate((quote as any).rental_start_date)}</p>}
+                    {(quote as any).rental_terrain_condition && <p><span className="text-muted-foreground">Terreno:</span> {(quote as any).rental_terrain_condition}</p>}
+                    <p><span className="text-muted-foreground">Fundação especial:</span> {(quote as any).rental_special_foundation ? "Sim" : "Não"}</p>
+                  </CardContent>
+                </Card>
+              )}
+
               {equipmentItems.filter(item => item.grua_lanca_m || item.grua_altura_torre_m || item.grua_carga_maxima_kg || item.grua_carga_ponta_kg || item.grua_altura_trabalho_m).map((item) => (
                 <Card key={item.id}>
                   <CardHeader className="pb-3">
@@ -224,6 +243,20 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                 </CardContent>
               </Card>
 
+              {/* Rental: Included Services */}
+              {isRental && rentalServices.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Serviços Inclusos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    {rentalServices.map((s, i) => (
+                      <p key={i} className="flex items-center gap-1">✓ {s}</p>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Datas</CardTitle>
@@ -238,18 +271,32 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
 
             {/* Right column */}
             <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Itens ({items?.length || 0})</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {renderItemGroup(equipmentItems, "Equipamento")}
-                  {renderItemGroup(componentItems, "Componentes")}
-                  {renderItemGroup(accessoryItems, "Acessórios")}
-
-                  <Separator />
-
-                  <div className="space-y-2 text-sm">
+              {isRental ? (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Detalhamento de Custos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor mensal × {(quote as any).rental_duration_months || 0} meses</span>
+                      <span className="font-medium">{formatCurrency(((quote as any).rental_monthly_value || 0) * ((quote as any).rental_duration_months || 0), quote.currency)}</span>
+                    </div>
+                    {(quote as any).rental_mobilization > 0 && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Mobilização</span><span>{formatCurrency((quote as any).rental_mobilization, quote.currency)}</span></div>
+                    )}
+                    {(quote as any).rental_demobilization > 0 && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Desmobilização</span><span>{formatCurrency((quote as any).rental_demobilization, quote.currency)}</span></div>
+                    )}
+                    {(quote as any).rental_freight > 0 && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Frete</span><span>{formatCurrency((quote as any).rental_freight, quote.currency)}</span></div>
+                    )}
+                    {(quote as any).rental_assembly > 0 && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Montagem</span><span>{formatCurrency((quote as any).rental_assembly, quote.currency)}</span></div>
+                    )}
+                    {(quote as any).rental_disassembly > 0 && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Desmontagem</span><span>{formatCurrency((quote as any).rental_disassembly, quote.currency)}</span></div>
+                    )}
+                    <Separator />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
                       <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
@@ -257,16 +304,52 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     {quote.discount_percent > 0 && (
                       <div className="flex justify-between text-destructive">
                         <span>Desconto ({quote.discount_percent}%)</span>
-                        <span className="font-medium">-{formatCurrency(quote.discount_value, quote.currency)}</span>
+                        <span>-{formatCurrency(quote.discount_value, quote.currency)}</span>
+                      </div>
+                    )}
+                    {(quote as any).rental_tax_percent > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Impostos ({(quote as any).rental_tax_percent}%)</span>
+                        <span>{formatCurrency(quote.total - (quote.subtotal - quote.discount_value), quote.currency)}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t pt-2 text-lg">
                       <span className="font-bold">Total</span>
                       <span className="font-bold">{formatCurrency(quote.total, quote.currency)}</span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Itens ({items?.length || 0})</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {renderItemGroup(equipmentItems, "Equipamento")}
+                    {renderItemGroup(componentItems, "Componentes")}
+                    {renderItemGroup(accessoryItems, "Acessórios")}
+
+                    <Separator />
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
+                      </div>
+                      {quote.discount_percent > 0 && (
+                        <div className="flex justify-between text-destructive">
+                          <span>Desconto ({quote.discount_percent}%)</span>
+                          <span className="font-medium">-{formatCurrency(quote.discount_value, quote.currency)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t pt-2 text-lg">
+                        <span className="font-bold">Total</span>
+                        <span className="font-bold">{formatCurrency(quote.total, quote.currency)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         ) : null}
