@@ -261,6 +261,7 @@ const translations: Record<string, Translations> = {
     rental_terrain_flat: "Plano",
     rental_terrain_sloped: "Inclinado",
     rental_terrain_difficult: "Difícil acesso",
+  },
   en: {
     title: "Commercial Proposal",
     date: "Date",
