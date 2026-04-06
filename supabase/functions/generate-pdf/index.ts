@@ -66,7 +66,6 @@ interface Translations {
   cat_tramo: string;
   cat_chassis: string;
   cat_acessorio: string;
-  // New technical sections
   scope_title: string;
   scope_type: string;
   scope_jib_length: string;
@@ -96,6 +95,44 @@ interface Translations {
   warranty_year_plural: string;
   warranty_structural: string;
   warranty_components: string;
+  // Rental-specific
+  rental_title: string;
+  rental_work_site: string;
+  rental_work_type_label: string;
+  rental_height_needed: string;
+  rental_jib_needed: string;
+  rental_max_weight_label: string;
+  rental_duration: string;
+  rental_start_date: string;
+  rental_terrain: string;
+  rental_foundation: string;
+  rental_yes: string;
+  rental_no: string;
+  rental_selected_crane: string;
+  rental_cost_breakdown: string;
+  rental_monthly_value: string;
+  rental_months: string;
+  rental_monthly_subtotal: string;
+  rental_mobilization: string;
+  rental_demobilization: string;
+  rental_freight_cost: string;
+  rental_assembly: string;
+  rental_disassembly: string;
+  rental_additional_costs: string;
+  rental_subtotal_general: string;
+  rental_tax: string;
+  rental_total: string;
+  rental_included_services: string;
+  rental_operator: string;
+  rental_maintenance: string;
+  rental_insurance: string;
+  rental_tech_assistance: string;
+  rental_work_residential: string;
+  rental_work_commercial: string;
+  rental_work_industrial: string;
+  rental_terrain_flat: string;
+  rental_terrain_sloped: string;
+  rental_terrain_difficult: string;
 }
 
 const translations: Record<string, Translations> = {
@@ -187,6 +224,43 @@ const translations: Record<string, Translations> = {
     warranty_year_plural: "anos",
     warranty_structural: "no estrutural",
     warranty_components: "nos componentes elétricos, motores e mecânicos",
+    rental_title: "Proposta de Locação",
+    rental_work_site: "DADOS DA OBRA",
+    rental_work_type_label: "Tipo de obra",
+    rental_height_needed: "Altura necessária",
+    rental_jib_needed: "Lança necessária",
+    rental_max_weight_label: "Peso máximo a içar",
+    rental_duration: "Duração da locação",
+    rental_start_date: "Início previsto",
+    rental_terrain: "Condição do terreno",
+    rental_foundation: "Fundação especial",
+    rental_yes: "Sim",
+    rental_no: "Não",
+    rental_selected_crane: "EQUIPAMENTO SELECIONADO",
+    rental_cost_breakdown: "DETALHAMENTO DE CUSTOS",
+    rental_monthly_value: "Valor mensal",
+    rental_months: "meses",
+    rental_monthly_subtotal: "Subtotal locação",
+    rental_mobilization: "Mobilização",
+    rental_demobilization: "Desmobilização",
+    rental_freight_cost: "Frete",
+    rental_assembly: "Montagem",
+    rental_disassembly: "Desmontagem",
+    rental_additional_costs: "Custos adicionais",
+    rental_subtotal_general: "Subtotal geral",
+    rental_tax: "Impostos",
+    rental_total: "TOTAL",
+    rental_included_services: "SERVIÇOS INCLUSOS",
+    rental_operator: "Operador incluso",
+    rental_maintenance: "Manutenção inclusa",
+    rental_insurance: "Seguro incluso",
+    rental_tech_assistance: "Assistência técnica",
+    rental_work_residential: "Residencial",
+    rental_work_commercial: "Comercial",
+    rental_work_industrial: "Industrial",
+    rental_terrain_flat: "Plano",
+    rental_terrain_sloped: "Inclinado",
+    rental_terrain_difficult: "Difícil acesso",
   },
   en: {
     title: "Commercial Proposal",
@@ -276,6 +350,43 @@ const translations: Record<string, Translations> = {
     warranty_year_plural: "years",
     warranty_structural: "on structural",
     warranty_components: "on electrical components, motors and mechanical parts",
+    rental_title: "Rental Proposal",
+    rental_work_site: "WORK SITE DATA",
+    rental_work_type_label: "Work type",
+    rental_height_needed: "Required height",
+    rental_jib_needed: "Required jib",
+    rental_max_weight_label: "Max weight to lift",
+    rental_duration: "Rental duration",
+    rental_start_date: "Expected start",
+    rental_terrain: "Terrain condition",
+    rental_foundation: "Special foundation",
+    rental_yes: "Yes",
+    rental_no: "No",
+    rental_selected_crane: "SELECTED EQUIPMENT",
+    rental_cost_breakdown: "COST BREAKDOWN",
+    rental_monthly_value: "Monthly value",
+    rental_months: "months",
+    rental_monthly_subtotal: "Rental subtotal",
+    rental_mobilization: "Mobilization",
+    rental_demobilization: "Demobilization",
+    rental_freight_cost: "Freight",
+    rental_assembly: "Assembly",
+    rental_disassembly: "Disassembly",
+    rental_additional_costs: "Additional costs",
+    rental_subtotal_general: "General subtotal",
+    rental_tax: "Taxes",
+    rental_total: "TOTAL",
+    rental_included_services: "INCLUDED SERVICES",
+    rental_operator: "Operator included",
+    rental_maintenance: "Maintenance included",
+    rental_insurance: "Insurance included",
+    rental_tech_assistance: "Technical assistance",
+    rental_work_residential: "Residential",
+    rental_work_commercial: "Commercial",
+    rental_work_industrial: "Industrial",
+    rental_terrain_flat: "Flat",
+    rental_terrain_sloped: "Sloped",
+    rental_terrain_difficult: "Difficult access",
   },
 };
 
@@ -393,8 +504,11 @@ Deno.serve(async (req) => {
     const lang = quote.language || "pt-BR";
     const t = translations[lang] || translations["pt-BR"];
 
-    // Generate HTML for the PDF
-    const html = generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
+    // Generate HTML for the PDF — branch by quote type
+    const isRental = quote.quote_type === "locacao";
+    const html = isRental
+      ? generateRentalHTML(quote, items || [], creator, company, productsMap, t, lang)
+      : generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
 
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
@@ -1227,4 +1341,382 @@ function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string,
     </ul>
     ${!allZero ? `<div class="warranty-terms">${termsPhrase}.</div>` : ""}
   </div>`;
+}
+
+// ── RENTAL PDF ──────────────────────────────────────────────────────────
+function generateRentalHTML(quote: any, items: any[], creator: any, company: any, productsMap: Record<string, any>, t: Translations, lang: string): string {
+  const formatCurrency = (value: number) => {
+    const symbols: Record<string, string> = { BRL: "R$", USD: "US$", EUR: "€" };
+    const sym = symbols[quote.currency] || quote.currency;
+    return `${sym} ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const formatDate = (d: string) => {
+    const date = new Date(d);
+    if (lang === "en") {
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+    return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`;
+  };
+
+  const client = quote.clients;
+  const co = company || {};
+  const companyName = co.company_name || "SOIMA Brasil";
+  const companySubtitle = co.razao_social || "Equipamentos para Construção Civil";
+  const companyPhone = co.phone || "";
+  const companyEmail = co.email || "";
+  const companyWebsite = co.website || "";
+  const companyCrea = co.crea_registration || "";
+  const clientName = client?.nome_fantasia || client?.razao_social || "-";
+  const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} • ${client.estado}` : (client?.cidade || client?.estado || "");
+  const coverDate = formatDate(quote.created_at);
+  const htmlLang = lang === "en" ? "en" : "pt-BR";
+  const statusLabel = quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled;
+
+  const validityDate = new Date(quote.created_at);
+  validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
+
+  // Work type label
+  const workTypeLabels: Record<string, string> = {
+    residencial: t.rental_work_residential,
+    comercial: t.rental_work_commercial,
+    industrial: t.rental_work_industrial,
+  };
+  const terrainLabels: Record<string, string> = {
+    plano: t.rental_terrain_flat,
+    inclinado: t.rental_terrain_sloped,
+    dificil: t.rental_terrain_difficult,
+  };
+
+  // Crane item
+  const gruaItem = items.find((i: any) => i.product_category === "grua");
+  const craneProduct = gruaItem?.product_id ? productsMap[gruaItem.product_id] : null;
+  const craneName = gruaItem?.product_name || quote.selected_crane_name || "-";
+
+  // Financial calculations
+  const months = quote.rental_duration_months || 0;
+  const monthlyValue = quote.rental_monthly_value || 0;
+  const rentalSubtotal = monthlyValue * months;
+  const mobilization = quote.rental_mobilization || 0;
+  const demobilization = quote.rental_demobilization || 0;
+  const freight = quote.rental_freight || 0;
+  const assembly = quote.rental_assembly || 0;
+  const disassembly = quote.rental_disassembly || 0;
+  const additionalCosts = mobilization + demobilization + freight + assembly + disassembly;
+  const subtotalGeneral = rentalSubtotal + additionalCosts;
+  const discountValue = quote.discount_value || 0;
+  const afterDiscount = subtotalGeneral - discountValue;
+  const taxPercent = quote.rental_tax_percent || 0;
+  const taxValue = afterDiscount * (taxPercent / 100);
+  const total = afterDiscount + taxValue;
+
+  // Included services
+  const services: string[] = [];
+  if (quote.rental_operator_included) services.push(t.rental_operator);
+  if (quote.rental_maintenance_included) services.push(t.rental_maintenance);
+  if (quote.rental_insurance_included) services.push(t.rental_insurance);
+  if (quote.rental_technical_assistance) services.push(t.rental_tech_assistance);
+
+  // Crane specs
+  const lanca = gruaItem?.grua_lanca_m || quote.grua_lanca_m;
+  const alturaTorre = gruaItem?.grua_altura_torre_m || quote.grua_altura_torre_m;
+  const cargaMax = gruaItem?.grua_carga_maxima_kg || quote.grua_carga_maxima_kg;
+  const cargaPonta = gruaItem?.grua_carga_ponta_kg || quote.grua_carga_ponta_kg;
+  const alturaTrabalho = gruaItem?.grua_altura_trabalho_m || quote.grua_altura_trabalho_m;
+
+  return `<!DOCTYPE html>
+<html lang="${htmlLang}">
+<head>
+<meta charset="UTF-8">
+<title>${t.rental_title} ${quote.quote_number}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+  .print-toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: #0047AB; color: white; padding: 12px 24px;
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .print-toolbar button {
+    background: white; color: #0047AB; border: none; padding: 8px 24px;
+    border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .print-toolbar button:hover { background: #e8eef7; }
+  .print-toolbar p { margin: 0; opacity: 0.85; font-size: 12px; }
+
+  @media print {
+    .print-toolbar { display: none !important; }
+    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  }
+
+  .page-header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 6px 15mm; font-size: 7px; color: #999; text-align: right; z-index: 10; background: white;
+  }
+
+  .content-page {
+    padding: 20mm 15mm 20mm 15mm; width: 100%; box-sizing: border-box; page-break-after: always;
+  }
+
+  .cover-page, .backcover-page {
+    width: 210mm; height: 297mm; margin: 0; padding: 0; position: relative;
+    page-break-after: always; overflow: hidden;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important;
+  }
+  .cover-bg-img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block; z-index: 20;
+  }
+  .cover-overlay {
+    position: absolute; top: 40px; right: 40px; text-align: right;
+    color: #1a365d; font-size: 11px; opacity: 1; line-height: 1.8;
+    font-family: 'Segoe UI', Arial, sans-serif; letter-spacing: 0.3px; z-index: 21;
+  }
+  .cover-overlay .cover-label { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0047AB; padding-bottom: 12px; margin-bottom: 16px; }
+  .header-left { display: flex; align-items: flex-start; gap: 12px; }
+  .header-logo { height: 50px; width: auto; }
+  .company { font-size: 20px; font-weight: 700; color: #0047AB; letter-spacing: 1px; }
+  .company small { display: block; font-size: 10px; color: #666; font-weight: 400; letter-spacing: 0; }
+  .company-contact { font-size: 9px; color: #666; margin-top: 4px; line-height: 1.6; }
+  .quote-info { text-align: right; }
+  .quote-number { font-size: 16px; font-weight: 700; color: #0047AB; }
+  .quote-meta { font-size: 10px; color: #666; margin-top: 4px; }
+
+  .section { margin-bottom: 14px; }
+  .section-title { font-size: 11px; font-weight: 700; color: #0047AB; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 6px; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 10px; }
+  .info-grid .label { color: #666; }
+  .info-grid .value { font-weight: 500; }
+
+  .specs-box { background: #f0f4fa; border: 1px solid #c8d6e8; border-radius: 4px; padding: 10px 14px; }
+  .specs-product { font-weight: 700; font-size: 12px; color: #0047AB; margin-bottom: 6px; }
+  .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 11px; }
+  .specs-grid .label { color: #555; }
+  .specs-grid .value { font-weight: 600; }
+
+  .cost-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .cost-table th { background: #0047AB; color: white; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }
+  .cost-table td { padding: 6px 12px; border-bottom: 1px solid #e0e0e0; font-size: 10px; }
+  .cost-table tr:nth-child(even) { background: #f0f4fa; }
+  .cost-table .right { text-align: right; }
+  .cost-table .subtotal-row td { background: #e8eef7; font-weight: 600; }
+  .cost-table .discount-row td { color: #c0392b; }
+  .cost-table .total-row td { background: #0047AB; color: white; font-size: 13px; font-weight: 700; }
+
+  .services-list { list-style: none; padding: 0; margin: 8px 0; }
+  .services-list li { padding: 4px 0 4px 20px; position: relative; font-size: 10px; line-height: 1.5; }
+  .services-list li::before { content: "\\2713"; position: absolute; left: 0; color: #0047AB; font-weight: bold; }
+
+  .conditions { font-size: 10px; }
+  .conditions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+
+  .footer { margin-top: 24px; border-top: 2px solid #0047AB; padding-top: 8px; font-size: 9px; color: #555; text-align: center; line-height: 1.6; }
+  .footer-logos { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 10px; }
+  .footer-logos img { height: 40px; width: auto; }
+  .footer .company-legal { font-weight: 600; color: #333; }
+
+  .signature { margin-top: 40px; display: flex; justify-content: space-around; }
+
+  .final-page { display: flex; flex-direction: column; min-height: calc(297mm - 40mm); }
+
+  .rental-badge {
+    display: inline-block; background: #e8eef7; color: #0047AB; font-size: 9px; font-weight: 700;
+    padding: 2px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+  <div class="print-toolbar">
+    <button onclick="window.print()">📄 ${lang === "en" ? "Save as PDF" : "Salvar como PDF"}</button>
+    <p>${lang === "en" ? "Click the button above and select 'Save as PDF' as the printer destination" : "Clique no botão acima e selecione 'Salvar como PDF' no destino da impressora"}</p>
+  </div>
+
+  <!-- CAPA -->
+  <div class="cover-page">
+    <img src="${PDF_COVER_URL}" class="cover-bg-img" alt="Capa" />
+    <div class="cover-overlay">
+      ${lang === "en" ? "Rental Proposal" : "Proposta de Locação"} nº ${quote.quote_number}<br>
+      ${clientName}<br>
+      ${clientCityUf ? `${clientCityUf}<br>` : ""}
+      ${lang === "en" ? "Issued on" : "Emitida em"}: ${coverDate}
+    </div>
+  </div>
+
+  <div class="page-header">
+    ${t.generated_on} ${formatDate(new Date().toISOString())} ${t.by} ${creator?.name || "Sistema"} (${creator?.email || ""})
+  </div>
+
+  <!-- PAGE 1: Client + Work Site + Crane Specs -->
+  <div class="content-page">
+    ${buildPageHeader(quote, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t)}
+
+    <div class="section">
+      <div class="section-title">${t.client} <span class="rental-badge">${lang === "en" ? "RENTAL" : "LOCAÇÃO"}</span></div>
+      <div class="info-grid">
+        <div><span class="label">${t.razao_social}:</span> <span class="value">${client?.razao_social || "-"}</span></div>
+        <div><span class="label">${t.tipo}:</span> <span class="value">${client?.client_type === "nacional" ? t.nacional : t.internacional}</span></div>
+        ${client?.cnpj ? `<div><span class="label">CNPJ:</span> <span class="value">${client.cnpj}</span></div>` : ""}
+        ${client?.cpf ? `<div><span class="label">CPF:</span> <span class="value">${client.cpf}</span></div>` : ""}
+        ${client?.email ? `<div><span class="label">${t.email}:</span> <span class="value">${client.email}</span></div>` : ""}
+        ${client?.telefone ? `<div><span class="label">${t.telefone}:</span> <span class="value">${client.telefone}</span></div>` : ""}
+        ${client?.cidade && client?.estado ? `<div><span class="label">${t.cidade_uf}:</span> <span class="value">${client.cidade}/${client.estado}</span></div>` : ""}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">${t.rental_work_site}</div>
+      <div class="info-grid">
+        ${quote.project_name ? `<div><span class="label">${t.name}:</span> <span class="value">${quote.project_name}</span></div>` : ""}
+        ${quote.project_location ? `<div><span class="label">${t.location}:</span> <span class="value">${quote.project_location}</span></div>` : ""}
+        ${quote.rental_work_type ? `<div><span class="label">${t.rental_work_type_label}:</span> <span class="value">${workTypeLabels[quote.rental_work_type] || quote.rental_work_type}</span></div>` : ""}
+        ${quote.rental_height_needed ? `<div><span class="label">${t.rental_height_needed}:</span> <span class="value">${quote.rental_height_needed} m</span></div>` : ""}
+        ${quote.rental_jib_needed ? `<div><span class="label">${t.rental_jib_needed}:</span> <span class="value">${quote.rental_jib_needed} m</span></div>` : ""}
+        ${quote.rental_max_weight ? `<div><span class="label">${t.rental_max_weight_label}:</span> <span class="value">${Number(quote.rental_max_weight).toLocaleString("pt-BR")} kg</span></div>` : ""}
+        ${months ? `<div><span class="label">${t.rental_duration}:</span> <span class="value">${months} ${t.rental_months}</span></div>` : ""}
+        ${quote.rental_start_date ? `<div><span class="label">${t.rental_start_date}:</span> <span class="value">${formatDate(quote.rental_start_date)}</span></div>` : ""}
+        ${quote.rental_terrain_condition ? `<div><span class="label">${t.rental_terrain}:</span> <span class="value">${terrainLabels[quote.rental_terrain_condition] || quote.rental_terrain_condition}</span></div>` : ""}
+        <div><span class="label">${t.rental_foundation}:</span> <span class="value">${quote.rental_special_foundation ? t.rental_yes : t.rental_no}</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">${t.rental_selected_crane}: ${craneName}</div>
+      <div class="specs-box">
+        <div class="specs-product">${craneName}</div>
+        <div class="specs-grid">
+          ${lanca ? `<div><span class="label">${t.jib}:</span> <span class="value">${lanca} m</span></div>` : ""}
+          ${alturaTorre ? `<div><span class="label">${t.tower_height}:</span> <span class="value">${alturaTorre} m</span></div>` : ""}
+          ${cargaMax ? `<div><span class="label">${t.max_load}:</span> <span class="value">${Number(cargaMax).toLocaleString("pt-BR")} kg</span></div>` : ""}
+          ${cargaPonta ? `<div><span class="label">${t.tip_load}:</span> <span class="value">${Number(cargaPonta).toLocaleString("pt-BR")} kg</span></div>` : ""}
+          ${alturaTrabalho ? `<div><span class="label">${t.working_height}:</span> <span class="value">${alturaTrabalho} m</span></div>` : ""}
+        </div>
+      </div>
+    </div>
+
+    ${services.length > 0 ? `
+    <div class="section">
+      <div class="section-title">${t.rental_included_services}</div>
+      <ul class="services-list">
+        ${services.map(s => `<li>${s}</li>`).join("")}
+      </ul>
+    </div>` : ""}
+  </div>
+
+  <!-- PAGE 2: Cost Breakdown + Conditions + Signatures -->
+  <div class="content-page final-page">
+    <div>
+    <div class="section">
+      <div class="section-title">${t.rental_cost_breakdown}</div>
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>${t.description}</th>
+            <th class="right">${t.total}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${t.rental_monthly_value} (${formatCurrency(monthlyValue)} × ${months} ${t.rental_months})</td>
+            <td class="right">${formatCurrency(rentalSubtotal)}</td>
+          </tr>
+          <tr class="subtotal-row">
+            <td>${t.rental_monthly_subtotal}</td>
+            <td class="right">${formatCurrency(rentalSubtotal)}</td>
+          </tr>
+          ${mobilization > 0 ? `<tr><td>${t.rental_mobilization}</td><td class="right">${formatCurrency(mobilization)}</td></tr>` : ""}
+          ${demobilization > 0 ? `<tr><td>${t.rental_demobilization}</td><td class="right">${formatCurrency(demobilization)}</td></tr>` : ""}
+          ${freight > 0 ? `<tr><td>${t.rental_freight_cost}</td><td class="right">${formatCurrency(freight)}</td></tr>` : ""}
+          ${assembly > 0 ? `<tr><td>${t.rental_assembly}</td><td class="right">${formatCurrency(assembly)}</td></tr>` : ""}
+          ${disassembly > 0 ? `<tr><td>${t.rental_disassembly}</td><td class="right">${formatCurrency(disassembly)}</td></tr>` : ""}
+          ${additionalCosts > 0 ? `<tr class="subtotal-row"><td>${t.rental_additional_costs}</td><td class="right">${formatCurrency(additionalCosts)}</td></tr>` : ""}
+          <tr class="subtotal-row">
+            <td>${t.rental_subtotal_general}</td>
+            <td class="right">${formatCurrency(subtotalGeneral)}</td>
+          </tr>
+          ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+          <tr class="discount-row">
+            <td>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</td>
+            <td class="right"></td>
+          </tr>` : `
+          <tr class="discount-row">
+            <td>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</td>
+            <td class="right">-${formatCurrency(discountValue)}</td>
+          </tr>`) : ""}
+          ${taxPercent > 0 ? `
+          <tr>
+            <td>${t.rental_tax} (${Number(taxPercent).toFixed(1)}%)</td>
+            <td class="right">${formatCurrency(taxValue)}</td>
+          </tr>` : ""}
+          <tr class="total-row">
+            <td>${t.rental_total}</td>
+            <td class="right">${formatCurrency(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section conditions">
+      <div class="section-title">${t.conditions}</div>
+      <div class="conditions-grid">
+        <div><span class="label">${t.currency_label}:</span> <span class="value">${quote.currency}</span></div>
+        <div><span class="label">${t.validity_label}:</span> <span class="value">${quote.validity_days} ${t.days}</span></div>
+        ${quote.payment_terms ? `<div><span class="label">${t.payment}:</span> <span class="value">${quote.payment_terms}</span></div>` : ""}
+        ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
+      </div>
+      ${buildPaymentTopicsHTML(quote, lang)}
+      ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${quote.notes}</span></div>` : ""}
+    </div>
+
+    <div class="section">
+      <div class="section-title">${lang === "en" ? "PROPOSAL VALIDITY" : "VALIDADE DA PROPOSTA"}</div>
+      <p style="font-size: 10px; line-height: 1.6;">
+        ${lang === "en"
+          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from the date of issue (${formatDate(quote.created_at)}), expiring on <strong>${formatDate(validityDate.toISOString())}</strong>.`
+          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar da data de emissão (${formatDate(quote.created_at)}), expirando em <strong>${formatDate(validityDate.toISOString())}</strong>.`
+        }
+      </p>
+    </div>
+
+    <div class="signature" style="margin-top: 30px;">
+      <div style="text-align: center; width: 220px;">
+        <div style="border-top: 1px solid #333; padding-top: 6px; font-size: 10px; font-weight: 600;">${companyName}</div>
+        <div style="font-size: 9px; color: #666; margin-top: 2px;">${lang === "en" ? "Supplier" : "Fornecedor"}</div>
+      </div>
+      <div style="text-align: center; width: 220px;">
+        <div style="border-top: 1px solid #333; padding-top: 6px; font-size: 10px; font-weight: 600;">${client?.razao_social || (lang === "en" ? "Client" : "Cliente")}</div>
+        <div style="font-size: 9px; color: #666; margin-top: 2px;">${lang === "en" ? "Client" : "Cliente"}</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #555; font-style: italic;">
+      ${lang === "en"
+        ? "In agreement with the proposal presented above, we give our acceptance on the date ___/___/______."
+        : "Em acordo com a proposta acima apresentada, damos nosso aceite na data ___/___/______."}
+    </div>
+    </div>
+
+    <div class="footer" style="margin-top: auto;">
+      <div class="company-legal">${co.razao_social || companyName}</div>
+      ${co.cnpj ? `CNPJ: ${co.cnpj}` : ""}${co.address ? ` · ${co.address}` : ""}
+      <div class="footer-logos">
+        <img src="${YELUM_LOGO_URL}" alt="Yelum Seguradora" />
+        <img src="${CREA_LOGO_URL}" alt="CREA-GO" />
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTRACAPA -->
+  <div class="backcover-page" style="page-break-before: always;">
+    <img src="${PDF_BACKCOVER_URL}" class="cover-bg-img" alt="Contracapa" />
+  </div>
+</body>
+</html>`;
 }
