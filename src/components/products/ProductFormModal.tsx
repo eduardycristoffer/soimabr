@@ -180,6 +180,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         payload.spec_vel_rotacao = data.spec_vel_rotacao || null;
         payload.spec_vel_translacao = data.spec_vel_translacao || null;
         payload.default_panel_voltage = data.default_panel_voltage || "380";
+        payload.rental_monthly_price = data.rental_monthly_price ?? null;
+        payload.rental_mobilization_default = data.rental_mobilization_default ?? null;
+        payload.rental_assembly_default = data.rental_assembly_default ?? null;
       }
 
       if (isEditing) {
