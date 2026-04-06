@@ -179,6 +179,9 @@ export default function Orcamentos() {
   };
 
   if (wizardOpen) {
+    if (wizardType === "locacao") {
+      return <RentalWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
+    }
     return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
   }
 
