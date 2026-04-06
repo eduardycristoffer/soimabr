@@ -116,6 +116,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         spec_vel_rotacao: pa?.spec_vel_rotacao || "",
         spec_vel_translacao: pa?.spec_vel_translacao || "",
         default_panel_voltage: pa?.default_panel_voltage || "380",
+        rental_monthly_price: pa?.rental_monthly_price ?? null,
+        rental_mobilization_default: pa?.rental_mobilization_default ?? null,
+        rental_assembly_default: pa?.rental_assembly_default ?? null,
       };
     }
     return {
