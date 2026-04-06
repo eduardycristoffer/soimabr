@@ -20,8 +20,9 @@ import {
 import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy, Trash2 } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
+import RentalWizard from "@/components/quotes/RentalWizard";
+import QuoteTypeSelector from "@/components/quotes/QuoteTypeSelector";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
-
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizado", variant: "default" },
