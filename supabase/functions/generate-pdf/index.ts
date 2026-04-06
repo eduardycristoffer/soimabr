@@ -66,7 +66,6 @@ interface Translations {
   cat_tramo: string;
   cat_chassis: string;
   cat_acessorio: string;
-  // New technical sections
   scope_title: string;
   scope_type: string;
   scope_jib_length: string;
@@ -96,6 +95,44 @@ interface Translations {
   warranty_year_plural: string;
   warranty_structural: string;
   warranty_components: string;
+  // Rental-specific
+  rental_title: string;
+  rental_work_site: string;
+  rental_work_type_label: string;
+  rental_height_needed: string;
+  rental_jib_needed: string;
+  rental_max_weight_label: string;
+  rental_duration: string;
+  rental_start_date: string;
+  rental_terrain: string;
+  rental_foundation: string;
+  rental_yes: string;
+  rental_no: string;
+  rental_selected_crane: string;
+  rental_cost_breakdown: string;
+  rental_monthly_value: string;
+  rental_months: string;
+  rental_monthly_subtotal: string;
+  rental_mobilization: string;
+  rental_demobilization: string;
+  rental_freight_cost: string;
+  rental_assembly: string;
+  rental_disassembly: string;
+  rental_additional_costs: string;
+  rental_subtotal_general: string;
+  rental_tax: string;
+  rental_total: string;
+  rental_included_services: string;
+  rental_operator: string;
+  rental_maintenance: string;
+  rental_insurance: string;
+  rental_tech_assistance: string;
+  rental_work_residential: string;
+  rental_work_commercial: string;
+  rental_work_industrial: string;
+  rental_terrain_flat: string;
+  rental_terrain_sloped: string;
+  rental_terrain_difficult: string;
 }
 
 const translations: Record<string, Translations> = {
