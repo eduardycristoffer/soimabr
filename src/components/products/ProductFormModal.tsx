@@ -49,6 +49,10 @@ const productSchema = z.object({
   spec_vel_rotacao: z.string().trim().max(200).optional().or(z.literal("")),
   spec_vel_translacao: z.string().trim().max(200).optional().or(z.literal("")),
   default_panel_voltage: z.string().trim().max(10).optional().or(z.literal("")),
+  // Rental defaults
+  rental_monthly_price: z.coerce.number().min(0).nullable().optional(),
+  rental_mobilization_default: z.coerce.number().min(0).nullable().optional(),
+  rental_assembly_default: z.coerce.number().min(0).nullable().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
