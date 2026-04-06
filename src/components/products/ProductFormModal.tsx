@@ -49,6 +49,10 @@ const productSchema = z.object({
   spec_vel_rotacao: z.string().trim().max(200).optional().or(z.literal("")),
   spec_vel_translacao: z.string().trim().max(200).optional().or(z.literal("")),
   default_panel_voltage: z.string().trim().max(10).optional().or(z.literal("")),
+  // Rental defaults
+  rental_monthly_price: z.coerce.number().min(0).nullable().optional(),
+  rental_mobilization_default: z.coerce.number().min(0).nullable().optional(),
+  rental_assembly_default: z.coerce.number().min(0).nullable().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -112,6 +116,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         spec_vel_rotacao: pa?.spec_vel_rotacao || "",
         spec_vel_translacao: pa?.spec_vel_translacao || "",
         default_panel_voltage: pa?.default_panel_voltage || "380",
+        rental_monthly_price: pa?.rental_monthly_price ?? null,
+        rental_mobilization_default: pa?.rental_mobilization_default ?? null,
+        rental_assembly_default: pa?.rental_assembly_default ?? null,
       };
     }
     return {
@@ -137,6 +144,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       spec_vel_rotacao: "",
       spec_vel_translacao: "",
       default_panel_voltage: "380",
+      rental_monthly_price: null,
+      rental_mobilization_default: null,
+      rental_assembly_default: null,
     };
   }
 
@@ -170,6 +180,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         payload.spec_vel_rotacao = data.spec_vel_rotacao || null;
         payload.spec_vel_translacao = data.spec_vel_translacao || null;
         payload.default_panel_voltage = data.default_panel_voltage || "380";
+        payload.rental_monthly_price = data.rental_monthly_price ?? null;
+        payload.rental_mobilization_default = data.rental_mobilization_default ?? null;
+        payload.rental_assembly_default = data.rental_assembly_default ?? null;
       }
 
       if (isEditing) {
@@ -467,6 +480,43 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                     </Select>
                   </FormItem>
                 )} />
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">💰 Valores Padrão de Locação</h5>
+                <p className="text-xs text-muted-foreground">Pré-preenchidos automaticamente ao selecionar esta grua em propostas de locação</p>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField control={form.control} name="rental_monthly_price" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aluguel Mensal (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 25000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="rental_mobilization_default" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mobilização (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 15000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="rental_assembly_default" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Montagem (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 20000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
               </>
             )}
 
