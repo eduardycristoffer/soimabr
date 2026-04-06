@@ -502,8 +502,11 @@ Deno.serve(async (req) => {
     const lang = quote.language || "pt-BR";
     const t = translations[lang] || translations["pt-BR"];
 
-    // Generate HTML for the PDF
-    const html = generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
+    // Generate HTML for the PDF — branch by quote type
+    const isRental = quote.quote_type === "locacao";
+    const html = isRental
+      ? generateRentalHTML(quote, items || [], creator, company, productsMap, t, lang)
+      : generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
 
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
