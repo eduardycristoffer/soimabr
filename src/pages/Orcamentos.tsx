@@ -350,6 +350,8 @@ export default function Orcamentos() {
         onClose={() => setViewingQuoteId(null)}
       />
 
+      <QuoteTypeSelector open={typeSelectorOpen} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
+
       <AlertDialog open={!!deletingQuoteId} onOpenChange={(open) => !open && setDeletingQuoteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
