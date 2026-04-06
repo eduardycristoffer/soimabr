@@ -97,6 +97,15 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const componentItems = items?.filter((i) => ["configuracao", "torre", "tramo", "chassis"].includes(i.product_category)) || [];
   const accessoryItems = items?.filter((i) => i.product_category === "acessorio") || [];
 
+  const isRental = (quote as any)?.quote_type === "locacao";
+  const rentalServices: string[] = [];
+  if (isRental && quote) {
+    if ((quote as any).rental_operator_included) rentalServices.push("Operador incluso");
+    if ((quote as any).rental_maintenance_included) rentalServices.push("Manutenção inclusa");
+    if ((quote as any).rental_insurance_included) rentalServices.push("Seguro incluso");
+    if ((quote as any).rental_technical_assistance) rentalServices.push("Assistência técnica");
+  }
+
   const renderItemGroup = (groupItems: typeof items, title: string) => {
     if (!groupItems || groupItems.length === 0) return null;
     return (
