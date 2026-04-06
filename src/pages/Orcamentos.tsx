@@ -281,6 +281,9 @@ export default function Orcamentos() {
                         <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
+                        {(quote as any).quote_type === "locacao" && (
+                          <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
+                        )}
                         {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
                         {quote.approver_name && (
                           <span className="text-[10px] text-muted-foreground ml-1">
