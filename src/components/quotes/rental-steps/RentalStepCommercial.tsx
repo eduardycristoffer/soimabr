@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -38,15 +38,7 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label>Desconto (%)</Label>
-          <Input
-            type="number" min="0" max="100" step="0.1"
-            value={data.discount_percent || ""}
-            onChange={(e) => updateData({ discount_percent: parseFloat(e.target.value) || 0 })}
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Impostos (%)</Label>
           <Input
@@ -68,9 +60,6 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
       {/* Preview totals */}
       <div className="bg-accent/30 rounded-lg p-4 space-y-1 text-sm">
         <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
-        {data.discount_percent > 0 && (
-          <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-R$ {discountValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
-        )}
         {data.rental_tax_percent > 0 && (
           <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+R$ {taxValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         )}
@@ -123,16 +112,6 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <Checkbox checked={data.hide_discount_value} onCheckedChange={(v) => updateData({ hide_discount_value: !!v })} />
-          <Label className="cursor-pointer text-sm">Esconder valor do desconto no PDF</Label>
-        </div>
-        <div className="flex items-center gap-3">
-          <Checkbox checked={data.hide_unit_prices} onCheckedChange={(v) => updateData({ hide_unit_prices: !!v })} />
-          <Label className="cursor-pointer text-sm">Esconder valores unitários no PDF</Label>
-        </div>
-      </div>
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>

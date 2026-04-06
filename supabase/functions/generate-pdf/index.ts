@@ -1641,15 +1641,6 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
             <td>${t.rental_subtotal_general}</td>
             <td class="right">${formatCurrency(subtotalGeneral)}</td>
           </tr>
-          ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
-          <tr class="discount-row">
-            <td>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</td>
-            <td class="right"></td>
-          </tr>` : `
-          <tr class="discount-row">
-            <td>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</td>
-            <td class="right">-${formatCurrency(discountValue)}</td>
-          </tr>`) : ""}
           ${taxPercent > 0 ? `
           <tr>
             <td>${t.rental_tax} (${Number(taxPercent).toFixed(1)}%)</td>
