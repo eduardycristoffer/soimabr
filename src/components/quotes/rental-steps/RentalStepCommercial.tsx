@@ -38,15 +38,7 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label>Desconto (%)</Label>
-          <Input
-            type="number" min="0" max="100" step="0.1"
-            value={data.discount_percent || ""}
-            onChange={(e) => updateData({ discount_percent: parseFloat(e.target.value) || 0 })}
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Impostos (%)</Label>
           <Input
@@ -68,9 +60,6 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
       {/* Preview totals */}
       <div className="bg-accent/30 rounded-lg p-4 space-y-1 text-sm">
         <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
-        {data.discount_percent > 0 && (
-          <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-R$ {discountValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
-        )}
         {data.rental_tax_percent > 0 && (
           <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+R$ {taxValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         )}
