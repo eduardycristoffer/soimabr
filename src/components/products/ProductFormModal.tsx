@@ -480,6 +480,43 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                     </Select>
                   </FormItem>
                 )} />
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">💰 Valores Padrão de Locação</h5>
+                <p className="text-xs text-muted-foreground">Pré-preenchidos automaticamente ao selecionar esta grua em propostas de locação</p>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField control={form.control} name="rental_monthly_price" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aluguel Mensal (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 25000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="rental_mobilization_default" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mobilização (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 15000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="rental_assembly_default" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Montagem (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" placeholder="Ex: 20000"
+                          value={numFieldValue(field.value)}
+                          onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
               </>
             )}
 
