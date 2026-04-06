@@ -130,20 +130,28 @@ export default function Orcamentos() {
     }
   };
 
-  const handleEdit = (quoteId: string) => {
+  const handleEdit = (quoteId: string, quoteType?: string) => {
     setEditingQuoteId(quoteId);
+    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
     setWizardOpen(true);
   };
 
   const handleNew = () => {
     setEditingQuoteId(null);
     setDuplicatingQuoteId(null);
+    setTypeSelectorOpen(true);
+  };
+
+  const handleTypeSelect = (type: "venda" | "locacao") => {
+    setWizardType(type);
+    setTypeSelectorOpen(false);
     setWizardOpen(true);
   };
 
-  const handleDuplicate = (quoteId: string) => {
+  const handleDuplicate = (quoteId: string, quoteType?: string) => {
     setDuplicatingQuoteId(quoteId);
     setEditingQuoteId(null);
+    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
     setWizardOpen(true);
   };
 
