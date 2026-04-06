@@ -20,8 +20,9 @@ import {
 import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy, Trash2 } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
+import RentalWizard from "@/components/quotes/RentalWizard";
+import QuoteTypeSelector from "@/components/quotes/QuoteTypeSelector";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
-
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizado", variant: "default" },
@@ -34,6 +35,8 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardType, setWizardType] = useState<"venda" | "locacao">("venda");
+  const [typeSelectorOpen, setTypeSelectorOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [viewingQuoteId, setViewingQuoteId] = useState<string | null>(null);
@@ -127,20 +130,28 @@ export default function Orcamentos() {
     }
   };
 
-  const handleEdit = (quoteId: string) => {
+  const handleEdit = (quoteId: string, quoteType?: string) => {
     setEditingQuoteId(quoteId);
+    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
     setWizardOpen(true);
   };
 
   const handleNew = () => {
     setEditingQuoteId(null);
     setDuplicatingQuoteId(null);
+    setTypeSelectorOpen(true);
+  };
+
+  const handleTypeSelect = (type: "venda" | "locacao") => {
+    setWizardType(type);
+    setTypeSelectorOpen(false);
     setWizardOpen(true);
   };
 
-  const handleDuplicate = (quoteId: string) => {
+  const handleDuplicate = (quoteId: string, quoteType?: string) => {
     setDuplicatingQuoteId(quoteId);
     setEditingQuoteId(null);
+    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
     setWizardOpen(true);
   };
 
@@ -168,6 +179,9 @@ export default function Orcamentos() {
   };
 
   if (wizardOpen) {
+    if (wizardType === "locacao") {
+      return <RentalWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
+    }
     return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
   }
 
@@ -267,6 +281,9 @@ export default function Orcamentos() {
                         <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
+                        {(quote as any).quote_type === "locacao" && (
+                          <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
+                        )}
                         {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
                         {quote.approver_name && (
                           <span className="text-[10px] text-muted-foreground ml-1">
@@ -286,12 +303,12 @@ export default function Orcamentos() {
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
                           {quote.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
+                            <DropdownMenuItem onClick={() => handleEdit(quote.id, (quote as any).quote_type)}>
                               <Pencil className="mr-2 h-4 w-4" /> Editar
                             </DropdownMenuItem>
                           )}
                           {quote.status === "finalized" && (
-                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id)}>
+                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
                               <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
                             </DropdownMenuItem>
                           )}
@@ -332,6 +349,8 @@ export default function Orcamentos() {
         open={!!viewingQuoteId}
         onClose={() => setViewingQuoteId(null)}
       />
+
+      <QuoteTypeSelector open={typeSelectorOpen} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
 
       <AlertDialog open={!!deletingQuoteId} onOpenChange={(open) => !open && setDeletingQuoteId(null)}>
         <AlertDialogContent>
