@@ -144,6 +144,9 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       spec_vel_rotacao: "",
       spec_vel_translacao: "",
       default_panel_voltage: "380",
+      rental_monthly_price: null,
+      rental_mobilization_default: null,
+      rental_assembly_default: null,
     };
   }
 
