@@ -112,16 +112,6 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <Checkbox checked={data.hide_discount_value} onCheckedChange={(v) => updateData({ hide_discount_value: !!v })} />
-          <Label className="cursor-pointer text-sm">Esconder valor do desconto no PDF</Label>
-        </div>
-        <div className="flex items-center gap-3">
-          <Checkbox checked={data.hide_unit_prices} onCheckedChange={(v) => updateData({ hide_unit_prices: !!v })} />
-          <Label className="cursor-pointer text-sm">Esconder valores unitários no PDF</Label>
-        </div>
-      </div>
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>

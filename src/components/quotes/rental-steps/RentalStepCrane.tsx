@@ -103,11 +103,6 @@ export default function RentalStepCrane({ data, updateData, onNext, onPrev }: Pr
                 {crane.default_carga_maxima_kg && <span>Carga Máx: {Number(crane.default_carga_maxima_kg).toLocaleString("pt-BR")}kg</span>}
                 {crane.default_carga_ponta_kg && <span>Ponta: {Number(crane.default_carga_ponta_kg).toLocaleString("pt-BR")}kg</span>}
               </div>
-              {(crane as any).rental_monthly_price && (
-                <p className="text-xs mt-1 text-primary font-medium">
-                  Valor mensal: R$ {Number((crane as any).rental_monthly_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </p>
-              )}
               {issues.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {issues.map((issue, i) => (

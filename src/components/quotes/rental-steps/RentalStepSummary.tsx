@@ -114,9 +114,6 @@ export default function RentalStepSummary({ data, rentalSubtotal, additionalCost
               <div className="flex justify-between font-medium"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
             </>
           )}
-          {data.discount_percent > 0 && (
-            <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-{fmt(discountValue)}</span></div>
-          )}
           {data.rental_tax_percent > 0 && (
             <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+{fmt(taxValue)}</span></div>
           )}
