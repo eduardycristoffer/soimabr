@@ -791,6 +791,9 @@ export type Database = {
           nome: string
           nome_en: string | null
           preco: number
+          rental_assembly_default: number | null
+          rental_mobilization_default: number | null
+          rental_monthly_price: number | null
           show_tech_desc_pdf: boolean
           spec_tipo: string | null
           spec_vel_elevacao: string | null
@@ -834,6 +837,9 @@ export type Database = {
           nome: string
           nome_en?: string | null
           preco?: number
+          rental_assembly_default?: number | null
+          rental_mobilization_default?: number | null
+          rental_monthly_price?: number | null
           show_tech_desc_pdf?: boolean
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
@@ -877,6 +883,9 @@ export type Database = {
           nome?: string
           nome_en?: string | null
           preco?: number
+          rental_assembly_default?: number | null
+          rental_mobilization_default?: number | null
+          rental_monthly_price?: number | null
           show_tech_desc_pdf?: boolean
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
@@ -1113,6 +1122,26 @@ export type Database = {
           project_location: string | null
           project_name: string | null
           quote_number: string
+          quote_type: Database["public"]["Enums"]["quote_type"]
+          rental_assembly: number | null
+          rental_demobilization: number | null
+          rental_disassembly: number | null
+          rental_duration_months: number | null
+          rental_freight: number | null
+          rental_height_needed: number | null
+          rental_insurance_included: boolean | null
+          rental_jib_needed: number | null
+          rental_maintenance_included: boolean | null
+          rental_max_weight: number | null
+          rental_mobilization: number | null
+          rental_monthly_value: number | null
+          rental_operator_included: boolean | null
+          rental_special_foundation: boolean | null
+          rental_start_date: string | null
+          rental_tax_percent: number | null
+          rental_technical_assistance: boolean | null
+          rental_terrain_condition: string | null
+          rental_work_type: string | null
           spec_override_enabled: boolean | null
           spec_tipo: string | null
           spec_vel_elevacao: string | null
@@ -1173,6 +1202,26 @@ export type Database = {
           project_location?: string | null
           project_name?: string | null
           quote_number: string
+          quote_type?: Database["public"]["Enums"]["quote_type"]
+          rental_assembly?: number | null
+          rental_demobilization?: number | null
+          rental_disassembly?: number | null
+          rental_duration_months?: number | null
+          rental_freight?: number | null
+          rental_height_needed?: number | null
+          rental_insurance_included?: boolean | null
+          rental_jib_needed?: number | null
+          rental_maintenance_included?: boolean | null
+          rental_max_weight?: number | null
+          rental_mobilization?: number | null
+          rental_monthly_value?: number | null
+          rental_operator_included?: boolean | null
+          rental_special_foundation?: boolean | null
+          rental_start_date?: string | null
+          rental_tax_percent?: number | null
+          rental_technical_assistance?: boolean | null
+          rental_terrain_condition?: string | null
+          rental_work_type?: string | null
           spec_override_enabled?: boolean | null
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
@@ -1233,6 +1282,26 @@ export type Database = {
           project_location?: string | null
           project_name?: string | null
           quote_number?: string
+          quote_type?: Database["public"]["Enums"]["quote_type"]
+          rental_assembly?: number | null
+          rental_demobilization?: number | null
+          rental_disassembly?: number | null
+          rental_duration_months?: number | null
+          rental_freight?: number | null
+          rental_height_needed?: number | null
+          rental_insurance_included?: boolean | null
+          rental_jib_needed?: number | null
+          rental_maintenance_included?: boolean | null
+          rental_max_weight?: number | null
+          rental_mobilization?: number | null
+          rental_monthly_value?: number | null
+          rental_operator_included?: boolean | null
+          rental_special_foundation?: boolean | null
+          rental_start_date?: string | null
+          rental_tax_percent?: number | null
+          rental_technical_assistance?: boolean | null
+          rental_terrain_condition?: string | null
+          rental_work_type?: string | null
           spec_override_enabled?: boolean | null
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
@@ -1418,6 +1487,7 @@ export type Database = {
         | "chassis"
         | "acessorio"
       quote_status: "draft" | "finalized" | "cancelled"
+      quote_type: "venda" | "locacao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1559,6 +1629,7 @@ export const Constants = {
         "acessorio",
       ],
       quote_status: ["draft", "finalized", "cancelled"],
+      quote_type: ["venda", "locacao"],
     },
   },
 } as const
