@@ -303,12 +303,12 @@ export default function Orcamentos() {
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
                           {quote.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleEdit(quote.id)}>
+                            <DropdownMenuItem onClick={() => handleEdit(quote.id, (quote as any).quote_type)}>
                               <Pencil className="mr-2 h-4 w-4" /> Editar
                             </DropdownMenuItem>
                           )}
                           {quote.status === "finalized" && (
-                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id)}>
+                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
                               <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
                             </DropdownMenuItem>
                           )}
