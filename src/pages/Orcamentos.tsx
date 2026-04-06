@@ -35,6 +35,8 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardType, setWizardType] = useState<"venda" | "locacao">("venda");
+  const [typeSelectorOpen, setTypeSelectorOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [viewingQuoteId, setViewingQuoteId] = useState<string | null>(null);
