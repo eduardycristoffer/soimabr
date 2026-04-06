@@ -387,6 +387,7 @@ const translations: Record<string, Translations> = {
     rental_terrain_flat: "Flat",
     rental_terrain_sloped: "Sloped",
     rental_terrain_difficult: "Difficult access",
+  },
 };
 
 Deno.serve(async (req) => {
