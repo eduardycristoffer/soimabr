@@ -1290,7 +1290,7 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
       if (!kw && !hp && !vel) return null;
       const parts: string[] = [];
       if (kw) parts.push(`${kw} daN.m`);
-      if (hp) parts.push(`${hp} HP`);
+      if (hp) parts.push(`${hp} kW`);
       const spec = parts.join(" / ");
       return vel ? `${spec} - ${vel}` : spec;
     };
@@ -1317,7 +1317,7 @@ function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string,
   const gruaItem = items.find((i: any) => i.product_category === "grua");
   const product = productsMap[gruaItem?.product_id] || {};
   const sy = quote.warranty_struct_years ?? product.default_warranty_struct_years ?? 3;
-  const cy = quote.warranty_components_years ?? product.default_warranty_components_years ?? 1;
+  const cy = quote.warranty_components_years ?? product.default_warranty_components_years ?? 2;
   const allZero = sy === 0 && cy === 0;
   const pl = (n: number) => n === 1 ? t.warranty_year_singular : t.warranty_year_plural;
   let termsPhrase = "";
