@@ -140,7 +140,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
     }
 
     // Warranty (if still at initial values)
-    if (data.warranty_struct_years === 3 && data.warranty_components_years === 1) {
+    if (data.warranty_struct_years === 3 && data.warranty_components_years === 2) {
       loadWarrantyDefaults();
     }
   }, [productDefaults, defaultPanelItems, selectedGruaId]);
@@ -324,7 +324,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_elev_kw)} onChange={(e) => updateData({ panel_motor_elev_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (HP)</Label>
+                    <Label className="text-xs">Potência (kW)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_elev_hp)} onChange={(e) => updateData({ panel_motor_elev_hp: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
@@ -343,7 +343,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_trans_kw)} onChange={(e) => updateData({ panel_motor_trans_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (HP)</Label>
+                    <Label className="text-xs">Potência (kW)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_trans_hp)} onChange={(e) => updateData({ panel_motor_trans_hp: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
@@ -362,7 +362,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_rot_kw)} onChange={(e) => updateData({ panel_motor_rot_kw: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Potência (HP)</Label>
+                    <Label className="text-xs">Potência (kW)</Label>
                     <Input type="number" step="0.1" value={numInput(data.panel_motor_rot_hp)} onChange={(e) => updateData({ panel_motor_rot_hp: parseNum(e.target.value) })} />
                   </div>
                   <div className="space-y-1">
