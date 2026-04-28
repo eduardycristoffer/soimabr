@@ -133,7 +133,7 @@ const INITIAL_DATA: QuoteWizardData = {
   panel_motor_rot_hp: null,
   panel_motor_rot_vel: "",
   warranty_struct_years: 3,
-  warranty_components_years: 1,
+  warranty_components_years: 2,
   panel_potencia_total: null,
   currency: "BRL",
   delivery_time: "",
