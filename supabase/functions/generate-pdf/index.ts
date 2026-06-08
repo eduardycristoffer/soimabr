@@ -656,6 +656,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   </div>` : "";
 
   // Totals section
+  const tbd = lang === "en" ? "To be defined" : "A combinar";
   let totalsHTML = "";
   if (isInternationalUsd && usdRate) {
     const subtotalUsd = quote.subtotal / usdRate;
@@ -666,13 +667,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <div class="totals-box" style="width: 350px;">
         <div class="totals-row">
           <span>${t.subtotal_brl}</span>
-          <span>${formatBrl(quote.subtotal)}</span>
+          <span>${hideUnitPrices ? tbd : formatBrl(quote.subtotal)}</span>
         </div>
-        <div class="totals-row">
+        ${hideUnitPrices ? "" : `<div class="totals-row">
           <span>${t.subtotal_est_usd}</span>
           <span>${formatUsd(subtotalUsd)}</span>
-        </div>
-        ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+        </div>`}
+        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
         <div class="totals-row discount">
           <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
           <span></span>
@@ -683,26 +684,26 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total_brl_label}</span>
-          <span>${formatBrl(quote.total)}</span>
+          <span>${hideUnitPrices ? tbd : formatBrl(quote.total)}</span>
         </div>
-        <div class="totals-row total" style="border-top: none; margin-top: 0;">
+        ${hideUnitPrices ? "" : `<div class="totals-row total" style="border-top: none; margin-top: 0;">
           <span>${t.total_est_usd}</span>
           <span>${formatUsd(totalUsd)}</span>
-        </div>
+        </div>`}
       </div>
     </div>
-    <div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
+    ${hideUnitPrices ? "" : `<div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
       ${t.usd_rate_used}: ${usdRate.toFixed(4)}${quote.usd_brl_rate_updated_at ? ` (${t.updated_on} ${formatDateTime(quote.usd_brl_rate_updated_at)})` : ""}
-    </div>`;
+    </div>`}`;
   } else {
     totalsHTML = `
     <div class="totals">
       <div class="totals-box">
         <div class="totals-row">
           <span>${t.subtotal}</span>
-          <span>${formatCurrency(quote.subtotal)}</span>
+          <span>${hideUnitPrices ? tbd : formatCurrency(quote.subtotal)}</span>
         </div>
-        ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
         <div class="totals-row discount">
           <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
           <span></span>
@@ -713,11 +714,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total}</span>
-          <span>${formatCurrency(quote.total)}</span>
+          <span>${hideUnitPrices ? tbd : formatCurrency(quote.total)}</span>
         </div>
       </div>
     </div>`;
   }
+
 
   // Items table header
   const tableHeaderHTML = isInternationalUsd && usdRate ? (hideUnitPrices ? `
@@ -1120,15 +1122,18 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     return `<li>${catLabel} - ${item.product_name} (x${item.quantity})</li>`;
   }).join("");
 
-  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${formatCurrency(quote.subtotal)}</span></div>`;
-  if (quote.discount_percent > 0) {
+  const hideUnitPricesSummary = !!quote.hide_unit_prices;
+  const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
+  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.subtotal)}</span></div>`;
+  if (quote.discount_percent > 0 && !hideUnitPricesSummary) {
     if (quote.hide_discount_value) {
       summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span><span></span></div>`;
     } else {
       summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount" : "Desconto"} (${quote.discount_percent}%):</span><span>-${formatCurrency(quote.discount_value)}</span></div>`;
     }
   }
-  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
+  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
     const usdRate = Number(quote.usd_brl_rate_used);
