@@ -277,6 +277,10 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   {quote.cancelled_at && <p><span className="text-muted-foreground">Cancelado em:</span> {formatDate(quote.cancelled_at)}</p>}
                 </CardContent>
               </Card>
+
+              {quote.created_by && (
+                <QuoteShareCard quoteId={quote.id} ownerId={quote.created_by} />
+              )}
             </div>
 
             {/* Right column */}
