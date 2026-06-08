@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import QuoteShareCard from "./QuoteShareCard";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
