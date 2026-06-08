@@ -1731,6 +1731,10 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
         ? "In agreement with the proposal presented above, we give our acceptance on the date ___/___/______."
         : "Em acordo com a proposta acima apresentada, damos nosso aceite na data ___/___/______."}
     </div>
+
+    ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
+      <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
+    </div>` : ""}
     </div>
 
     <div class="footer" style="margin-top: auto;">
