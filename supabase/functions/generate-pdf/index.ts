@@ -1198,6 +1198,10 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
       </div>
     </div>
 
+    ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
+      <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
+    </div>` : ""}
+
     <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #555; font-style: italic;">
       ${lang === "en"
         ? "In agreement with the proposal presented above, we give our acceptance on the date ___/___/______."
