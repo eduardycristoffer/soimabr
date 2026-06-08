@@ -562,6 +562,82 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                   </FormItem>
                 )} />
 
+                <FormField control={form.control} name="default_panel_potencia_total" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potência Total Padrão (kW)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.1" min="0" placeholder="Ex: 45"
+                        value={numFieldValue(field.value)}
+                        onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                    </FormControl>
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="default_panel_include_motors" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-md border p-3">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal cursor-pointer">
+                      Incluir tabela de potências por padrão nas propostas desta grua
+                    </FormLabel>
+                  </FormItem>
+                )} />
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">⚡ Potências padrão (Velocidade / Potência)</h5>
+                <p className="text-xs text-muted-foreground">Preenchidos automaticamente no Wizard ao selecionar a grua. Tensão (acima) entra junto na coluna "Potência" do PDF.</p>
+
+                {(["elev","trans","rot"] as const).map((k) => {
+                  const labels: Record<string, string> = { elev: "Elevação", trans: "Distribuição", rot: "Rotação" };
+                  const velPh: Record<string, string> = { elev: "m/min", trans: "m/min", rot: "rpm" };
+                  return (
+                    <div key={k} className="rounded-md border p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">{labels[k]}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <FormField control={form.control} name={`default_motor_${k}_kw` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Potência (daN.m)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0"
+                                value={numFieldValue(field.value as any)}
+                                onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                            </FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`default_motor_${k}_hp` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Potência (kW)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0"
+                                value={numFieldValue(field.value as any)}
+                                onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                            </FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`default_motor_${k}_vel` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Velocidade</FormLabel>
+                            <FormControl><Input placeholder={velPh[k]} {...(field as any)} value={(field.value as string) || ""} /></FormControl>
+                          </FormItem>
+                        )} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">📋 Itens Integrantes Padrão</h5>
+                <p className="text-xs text-muted-foreground">Um item por linha. Carregados automaticamente no Wizard ao selecionar esta grua.</p>
+                <FormField control={form.control} name="default_panel_items_text" render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea rows={6} placeholder={"Limitador de carga\nLimitador de momento\n..."} {...field} />
+                    </FormControl>
+                  </FormItem>
+                )} />
+
+
                 <Separator className="my-2" />
                 <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">💰 Valores Padrão de Locação</h5>
                 <p className="text-xs text-muted-foreground">Pré-preenchidos automaticamente ao selecionar esta grua em propostas de locação</p>
