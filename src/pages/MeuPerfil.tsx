@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, Lock } from "lucide-react";
+import GlobalAccessManager from "@/components/users/GlobalAccessManager";
 
 export default function MeuPerfil() {
   const { user } = useAuth();
@@ -166,6 +167,8 @@ export default function MeuPerfil() {
           </CardContent>
         </Card>
       </div>
+
+      <GlobalAccessManager />
     </div>
   );
 }

@@ -49,6 +49,18 @@ const productSchema = z.object({
   spec_vel_rotacao: z.string().trim().max(200).optional().or(z.literal("")),
   spec_vel_translacao: z.string().trim().max(200).optional().or(z.literal("")),
   default_panel_voltage: z.string().trim().max(10).optional().or(z.literal("")),
+  default_panel_include_motors: z.boolean().optional(),
+  default_panel_potencia_total: z.coerce.number().min(0).nullable().optional(),
+  default_motor_elev_kw: z.coerce.number().min(0).nullable().optional(),
+  default_motor_elev_hp: z.coerce.number().min(0).nullable().optional(),
+  default_motor_elev_vel: z.string().trim().max(60).optional().or(z.literal("")),
+  default_motor_trans_kw: z.coerce.number().min(0).nullable().optional(),
+  default_motor_trans_hp: z.coerce.number().min(0).nullable().optional(),
+  default_motor_trans_vel: z.string().trim().max(60).optional().or(z.literal("")),
+  default_motor_rot_kw: z.coerce.number().min(0).nullable().optional(),
+  default_motor_rot_hp: z.coerce.number().min(0).nullable().optional(),
+  default_motor_rot_vel: z.string().trim().max(60).optional().or(z.literal("")),
+  default_panel_items_text: z.string().optional(),
   // Rental defaults
   rental_monthly_price: z.coerce.number().min(0).nullable().optional(),
   rental_mobilization_default: z.coerce.number().min(0).nullable().optional(),
@@ -87,6 +99,19 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
   useEffect(() => {
     if (open) {
       form.reset(getDefaults(product));
+      // Load existing default panel items
+      if (product?.id) {
+        supabase
+          .from("default_panel_items")
+          .select("item_text")
+          .eq("product_id", product.id)
+          .order("order_index")
+          .then(({ data }) => {
+            if (data && data.length > 0) {
+              form.setValue("default_panel_items_text", data.map((d: any) => d.item_text).join("\n"));
+            }
+          });
+      }
     }
   }, [open, product]);
 
@@ -116,6 +141,18 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         spec_vel_rotacao: pa?.spec_vel_rotacao || "",
         spec_vel_translacao: pa?.spec_vel_translacao || "",
         default_panel_voltage: pa?.default_panel_voltage || "380",
+        default_panel_include_motors: pa?.default_panel_include_motors ?? false,
+        default_panel_potencia_total: pa?.default_panel_potencia_total ?? null,
+        default_motor_elev_kw: pa?.default_motor_elev_kw ?? null,
+        default_motor_elev_hp: pa?.default_motor_elev_hp ?? null,
+        default_motor_elev_vel: pa?.default_motor_elev_vel || "",
+        default_motor_trans_kw: pa?.default_motor_trans_kw ?? null,
+        default_motor_trans_hp: pa?.default_motor_trans_hp ?? null,
+        default_motor_trans_vel: pa?.default_motor_trans_vel || "",
+        default_motor_rot_kw: pa?.default_motor_rot_kw ?? null,
+        default_motor_rot_hp: pa?.default_motor_rot_hp ?? null,
+        default_motor_rot_vel: pa?.default_motor_rot_vel || "",
+        default_panel_items_text: "",
         rental_monthly_price: pa?.rental_monthly_price ?? null,
         rental_mobilization_default: pa?.rental_mobilization_default ?? null,
         rental_assembly_default: pa?.rental_assembly_default ?? null,
@@ -144,6 +181,18 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
       spec_vel_rotacao: "",
       spec_vel_translacao: "",
       default_panel_voltage: "380",
+      default_panel_include_motors: false,
+      default_panel_potencia_total: null,
+      default_motor_elev_kw: null,
+      default_motor_elev_hp: null,
+      default_motor_elev_vel: "",
+      default_motor_trans_kw: null,
+      default_motor_trans_hp: null,
+      default_motor_trans_vel: "",
+      default_motor_rot_kw: null,
+      default_motor_rot_hp: null,
+      default_motor_rot_vel: "",
+      default_panel_items_text: "",
       rental_monthly_price: null,
       rental_mobilization_default: null,
       rental_assembly_default: null,
@@ -180,20 +229,52 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         payload.spec_vel_rotacao = data.spec_vel_rotacao || null;
         payload.spec_vel_translacao = data.spec_vel_translacao || null;
         payload.default_panel_voltage = data.default_panel_voltage || "380";
+        payload.default_panel_include_motors = data.default_panel_include_motors ?? false;
+        payload.default_panel_potencia_total = data.default_panel_potencia_total ?? null;
+        payload.default_motor_elev_kw = data.default_motor_elev_kw ?? null;
+        payload.default_motor_elev_hp = data.default_motor_elev_hp ?? null;
+        payload.default_motor_elev_vel = data.default_motor_elev_vel || null;
+        payload.default_motor_trans_kw = data.default_motor_trans_kw ?? null;
+        payload.default_motor_trans_hp = data.default_motor_trans_hp ?? null;
+        payload.default_motor_trans_vel = data.default_motor_trans_vel || null;
+        payload.default_motor_rot_kw = data.default_motor_rot_kw ?? null;
+        payload.default_motor_rot_hp = data.default_motor_rot_hp ?? null;
+        payload.default_motor_rot_vel = data.default_motor_rot_vel || null;
         payload.rental_monthly_price = data.rental_monthly_price ?? null;
         payload.rental_mobilization_default = data.rental_mobilization_default ?? null;
         payload.rental_assembly_default = data.rental_assembly_default ?? null;
       }
 
+      let productId: string;
       if (isEditing) {
         const { error } = await supabase
           .from("products")
           .update(payload as any)
           .eq("id", product!.id);
         if (error) throw error;
+        productId = product!.id;
       } else {
-        const { error } = await supabase.from("products").insert([payload as any]);
+        const { data: inserted, error } = await supabase
+          .from("products")
+          .insert([payload as any])
+          .select("id")
+          .single();
         if (error) throw error;
+        productId = inserted.id;
+      }
+
+      // Sync default panel items for cranes
+      if (data.categoria === "grua") {
+        const lines = (data.default_panel_items_text || "")
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        await supabase.from("default_panel_items").delete().eq("product_id", productId);
+        if (lines.length > 0) {
+          await supabase.from("default_panel_items").insert(
+            lines.map((item_text, idx) => ({ product_id: productId, item_text, order_index: idx })) as any
+          );
+        }
       }
     },
     onSuccess: () => {
@@ -480,6 +561,82 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
                     </Select>
                   </FormItem>
                 )} />
+
+                <FormField control={form.control} name="default_panel_potencia_total" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potência Total Padrão (kW)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.1" min="0" placeholder="Ex: 45"
+                        value={numFieldValue(field.value)}
+                        onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                    </FormControl>
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="default_panel_include_motors" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-3 space-y-0 rounded-md border p-3">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal cursor-pointer">
+                      Incluir tabela de potências por padrão nas propostas desta grua
+                    </FormLabel>
+                  </FormItem>
+                )} />
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">⚡ Potências padrão (Velocidade / Potência)</h5>
+                <p className="text-xs text-muted-foreground">Preenchidos automaticamente no Wizard ao selecionar a grua. Tensão (acima) entra junto na coluna "Potência" do PDF.</p>
+
+                {(["elev","trans","rot"] as const).map((k) => {
+                  const labels: Record<string, string> = { elev: "Elevação", trans: "Distribuição", rot: "Rotação" };
+                  const velPh: Record<string, string> = { elev: "m/min", trans: "m/min", rot: "rpm" };
+                  return (
+                    <div key={k} className="rounded-md border p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">{labels[k]}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <FormField control={form.control} name={`default_motor_${k}_kw` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Potência (daN.m)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0"
+                                value={numFieldValue(field.value as any)}
+                                onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                            </FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`default_motor_${k}_hp` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Potência (kW)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0"
+                                value={numFieldValue(field.value as any)}
+                                onChange={(e) => field.onChange(parseNumField(e.target.value))} />
+                            </FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`default_motor_${k}_vel` as any} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Velocidade</FormLabel>
+                            <FormControl><Input placeholder={velPh[k]} {...(field as any)} value={(field.value as string) || ""} /></FormControl>
+                          </FormItem>
+                        )} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <Separator className="my-2" />
+                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">📋 Itens Integrantes Padrão</h5>
+                <p className="text-xs text-muted-foreground">Um item por linha. Carregados automaticamente no Wizard ao selecionar esta grua.</p>
+                <FormField control={form.control} name="default_panel_items_text" render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea rows={6} placeholder={"Limitador de carga\nLimitador de momento\n..."} {...field} />
+                    </FormControl>
+                  </FormItem>
+                )} />
+
 
                 <Separator className="my-2" />
                 <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">💰 Valores Padrão de Locação</h5>

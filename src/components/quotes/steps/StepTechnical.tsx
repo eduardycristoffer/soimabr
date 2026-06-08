@@ -64,12 +64,22 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
     });
   };
 
+  const FALLBACK_PANEL_ITEMS = [
+    "Limitador de carga máxima",
+    "Limitador de momento",
+    "Limitador de fim de curso de elevação",
+    "Limitador de fim de curso de distribuição",
+    "Limitador de rotação",
+    "Anemômetro",
+    "Sinalização luminosa",
+    "Cabine do operador com controles ergonômicos",
+  ];
+
   const loadPanelDefaults = () => {
-    if (!defaultPanelItems || defaultPanelItems.length === 0) return;
-    const items: PanelItemDraft[] = defaultPanelItems.map((item) => ({
-      text: item.item_text,
-      order: item.order_index,
-    }));
+    const items: PanelItemDraft[] =
+      defaultPanelItems && defaultPanelItems.length > 0
+        ? defaultPanelItems.map((item) => ({ text: item.item_text, order: item.order_index }))
+        : FALLBACK_PANEL_ITEMS.map((text, idx) => ({ text, order: idx }));
     updateData({ panel_items: items });
 
     if (productDefaults) {
@@ -77,6 +87,7 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
       updateData({
         panel_voltage: pd.default_panel_voltage || "380",
         panel_include_motors: pd.default_panel_include_motors || false,
+        panel_potencia_total: pd.default_panel_potencia_total ?? null,
         panel_motor_elev_kw: pd.default_motor_elev_kw ?? null,
         panel_motor_elev_hp: pd.default_motor_elev_hp ?? null,
         panel_motor_elev_vel: pd.default_motor_elev_vel || "",
@@ -134,8 +145,8 @@ export default function StepTechnical({ data, updateData, onNext, onPrev }: Prop
       loadSpecDefaults();
     }
 
-    // Panel items
-    if (data.panel_items.length === 0 && defaultPanelItems.length > 0) {
+    // Panel items: load defaults; if none configured for this product, fall back to global list
+    if (data.panel_items.length === 0) {
       loadPanelDefaults();
     }
 

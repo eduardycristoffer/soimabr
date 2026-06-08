@@ -80,6 +80,9 @@ interface Translations {
   panel_voltage_label: string;
   panel_motor_item: string;
   panel_motor_spec: string;
+  panel_motor_velocity: string;
+  panel_motor_power: string;
+  panel_motor_max_capacity: string;
   panel_motor_elevation: string;
   panel_motor_translation: string;
   panel_motor_rotation: string;
@@ -209,6 +212,9 @@ const translations: Record<string, Translations> = {
     panel_voltage_label: "Tensão de alimentação",
     panel_motor_item: "Item",
     panel_motor_spec: "Especificação",
+    panel_motor_velocity: "Velocidade",
+    panel_motor_power: "Potência",
+    panel_motor_max_capacity: "Capacidade máxima",
     panel_motor_elevation: "Elevação",
     panel_motor_translation: "Distribuição",
     panel_motor_rotation: "Rotação",
@@ -217,7 +223,7 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Certificado de garantia com os seguintes prazos:",
     warranty_delivery: "Entrega técnica com testes e laudo técnico de conformidade",
     warranty_maintenance: "Plano de manutenção preventiva recomendado",
-    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 - NR 12 – NR 18 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019",
+    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
     warranty_years_text: "anos",
     warranty_not_included: "Garantia não inclusa nesta proposta",
     warranty_year_singular: "ano",
@@ -335,6 +341,9 @@ const translations: Record<string, Translations> = {
     panel_voltage_label: "Supply voltage",
     panel_motor_item: "Item",
     panel_motor_spec: "Specification",
+    panel_motor_velocity: "Speed",
+    panel_motor_power: "Power",
+    panel_motor_max_capacity: "Max capacity",
     panel_motor_elevation: "Hoisting",
     panel_motor_translation: "Trolley travel",
     panel_motor_rotation: "Slewing",
@@ -343,7 +352,7 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Warranty certificate with the following terms:",
     warranty_delivery: "Technical delivery with tests and compliance report",
     warranty_maintenance: "Recommended preventive maintenance plan",
-    warranty_norms: "Applied standards: F.E.M. 1.001-A3 - NR 12 – NR 18 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019",
+    warranty_norms: "Applied standards: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
     warranty_years_text: "years",
     warranty_not_included: "Warranty not included in this proposal",
     warranty_year_singular: "year",
@@ -656,6 +665,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   </div>` : "";
 
   // Totals section
+  const tbd = lang === "en" ? "To be defined" : "A combinar";
   let totalsHTML = "";
   if (isInternationalUsd && usdRate) {
     const subtotalUsd = quote.subtotal / usdRate;
@@ -666,13 +676,13 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <div class="totals-box" style="width: 350px;">
         <div class="totals-row">
           <span>${t.subtotal_brl}</span>
-          <span>${formatBrl(quote.subtotal)}</span>
+          <span>${hideUnitPrices ? tbd : formatBrl(quote.subtotal)}</span>
         </div>
-        <div class="totals-row">
+        ${hideUnitPrices ? "" : `<div class="totals-row">
           <span>${t.subtotal_est_usd}</span>
           <span>${formatUsd(subtotalUsd)}</span>
-        </div>
-        ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+        </div>`}
+        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
         <div class="totals-row discount">
           <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
           <span></span>
@@ -683,26 +693,26 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total_brl_label}</span>
-          <span>${formatBrl(quote.total)}</span>
+          <span>${hideUnitPrices ? tbd : formatBrl(quote.total)}</span>
         </div>
-        <div class="totals-row total" style="border-top: none; margin-top: 0;">
+        ${hideUnitPrices ? "" : `<div class="totals-row total" style="border-top: none; margin-top: 0;">
           <span>${t.total_est_usd}</span>
           <span>${formatUsd(totalUsd)}</span>
-        </div>
+        </div>`}
       </div>
     </div>
-    <div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
+    ${hideUnitPrices ? "" : `<div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
       ${t.usd_rate_used}: ${usdRate.toFixed(4)}${quote.usd_brl_rate_updated_at ? ` (${t.updated_on} ${formatDateTime(quote.usd_brl_rate_updated_at)})` : ""}
-    </div>`;
+    </div>`}`;
   } else {
     totalsHTML = `
     <div class="totals">
       <div class="totals-box">
         <div class="totals-row">
           <span>${t.subtotal}</span>
-          <span>${formatCurrency(quote.subtotal)}</span>
+          <span>${hideUnitPrices ? tbd : formatCurrency(quote.subtotal)}</span>
         </div>
-        ${quote.discount_percent > 0 ? (quote.hide_discount_value ? `
+        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
         <div class="totals-row discount">
           <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
           <span></span>
@@ -713,11 +723,12 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
         </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total}</span>
-          <span>${formatCurrency(quote.total)}</span>
+          <span>${hideUnitPrices ? tbd : formatCurrency(quote.total)}</span>
         </div>
       </div>
     </div>`;
   }
+
 
   // Items table header
   const tableHeaderHTML = isInternationalUsd && usdRate ? (hideUnitPrices ? `
@@ -1037,7 +1048,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 
   ${buildContentPage2HTML(quote, items, productsMap, quotePanelItems, defaultPanelItems, t, lang, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate)}
 
-  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd, co)}
+  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd, co, creator)}
 
   <!-- CONTRACAPA -->
   <div class="backcover-page" style="page-break-before: always;">
@@ -1091,7 +1102,7 @@ function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<str
 }
 
 // ── Final Page (always: Conditions + Warranty + Validity + Signatures) ──
-function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean, co: any): string {
+function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean, co: any, creator: any): string {
   // Truncate notes if too long
   let notesText = quote.notes || "";
   if (notesText.length > 1500) {
@@ -1120,15 +1131,18 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     return `<li>${catLabel} - ${item.product_name} (x${item.quantity})</li>`;
   }).join("");
 
-  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${formatCurrency(quote.subtotal)}</span></div>`;
-  if (quote.discount_percent > 0) {
+  const hideUnitPricesSummary = !!quote.hide_unit_prices;
+  const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
+  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.subtotal)}</span></div>`;
+  if (quote.discount_percent > 0 && !hideUnitPricesSummary) {
     if (quote.hide_discount_value) {
       summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span><span></span></div>`;
     } else {
       summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount" : "Desconto"} (${quote.discount_percent}%):</span><span>-${formatCurrency(quote.discount_value)}</span></div>`;
     }
   }
-  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
+  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
     const usdRate = Number(quote.usd_brl_rate_used);
@@ -1183,6 +1197,10 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
         <div style="font-size: 9px; color: #666; margin-top: 2px;">${lang === "en" ? "Client" : "Cliente"}</div>
       </div>
     </div>
+
+    ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
+      <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
+    </div>` : ""}
 
     <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #555; font-style: italic;">
       ${lang === "en"
@@ -1283,25 +1301,45 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
   if (hasMotors) {
     const gruaItem = items.find((i: any) => i.product_category === "grua");
     const product = productsMap[gruaItem?.product_id] || {};
+    const voltage = quote.panel_voltage ? `${quote.panel_voltage}V` : "";
+    const maxLoadKg = gruaItem?.grua_carga_maxima_kg ?? quote.grua_carga_maxima_kg ?? null;
+    const totalPower = quote.panel_potencia_total ?? null;
     const resolveMotor = (qKw: string, qHp: string, qVel: string, pKw: string, pHp: string, pVel: string) => {
       const kw = quote[qKw] ?? product[pKw] ?? null;
       const hp = quote[qHp] ?? product[pHp] ?? null;
       const vel = quote[qVel] || product[pVel] || "";
       if (!kw && !hp && !vel) return null;
-      const parts: string[] = [];
-      if (kw) parts.push(`${kw} daN.m`);
-      if (hp) parts.push(`${hp} kW`);
-      const spec = parts.join(" / ");
-      return vel ? `${spec} - ${vel}` : spec;
+      // Velocidade column
+      const velCell = vel || "—";
+      // Potência column (com tensão embutida)
+      const pParts: string[] = [];
+      if (kw) pParts.push(`${kw} daN.m`);
+      if (hp) pParts.push(`${hp} kW`);
+      if (voltage) pParts.push(voltage);
+      const powerCell = pParts.join(" / ") || "—";
+      return { vel: velCell, power: powerCell };
     };
-    const motorRows: [string, string | null][] = [
+    const motorRows: [string, { vel: string; power: string } | null][] = [
       [t.panel_motor_elevation, resolveMotor("panel_motor_elev_kw", "panel_motor_elev_hp", "panel_motor_elev_vel", "default_motor_elev_kw", "default_motor_elev_hp", "default_motor_elev_vel")],
       [t.panel_motor_translation, resolveMotor("panel_motor_trans_kw", "panel_motor_trans_hp", "panel_motor_trans_vel", "default_motor_trans_kw", "default_motor_trans_hp", "default_motor_trans_vel")],
       [t.panel_motor_rotation, resolveMotor("panel_motor_rot_kw", "panel_motor_rot_hp", "panel_motor_rot_vel", "default_motor_rot_kw", "default_motor_rot_hp", "default_motor_rot_vel")],
     ];
-    const filledMotors = motorRows.filter(([_, v]) => v != null);
+    const filledMotors = motorRows.filter(([_, v]) => v != null) as [string, { vel: string; power: string }][];
     if (filledMotors.length > 0) {
-      motorHTML = `<table class="motor-table"><thead><tr><th>${t.panel_motor_item}</th><th>${t.panel_motor_spec}</th></tr></thead><tbody>${filledMotors.map(([l, s]) => `<tr><td>${l}</td><td>${s}</td></tr>`).join("")}</tbody></table>`;
+      // Capacidade máxima (com potência máxima) — uma linha só, no rodapé da tabela
+      const maxCapCell = [
+        maxLoadKg ? `${Number(maxLoadKg).toLocaleString("pt-BR")} kg` : null,
+        totalPower ? `${totalPower} kW` : null,
+      ].filter(Boolean).join(" / ") || "—";
+      const headers = `<tr><th>${t.panel_motor_item}</th><th>${t.panel_motor_velocity}</th><th>${t.panel_motor_power}</th><th>${t.panel_motor_max_capacity}</th></tr>`;
+      const bodyRows = filledMotors.map(([label, spec], idx) => {
+        const isFirst = idx === 0;
+        const maxCell = isFirst
+          ? `<td rowspan="${filledMotors.length}" style="vertical-align: middle; text-align: center;">${maxCapCell}</td>`
+          : "";
+        return `<tr><td>${label}</td><td>${spec.vel}</td><td>${spec.power}</td>${maxCell}</tr>`;
+      }).join("");
+      motorHTML = `<table class="motor-table"><thead>${headers}</thead><tbody>${bodyRows}</tbody></table>`;
     }
   }
   return `
@@ -1311,6 +1349,7 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
     ${motorHTML}
   </div>`;
 }
+
 
 // ── GARANTIA ──
 function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
@@ -1692,6 +1731,10 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
         ? "In agreement with the proposal presented above, we give our acceptance on the date ___/___/______."
         : "Em acordo com a proposta acima apresentada, damos nosso aceite na data ___/___/______."}
     </div>
+
+    ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
+      <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
+    </div>` : ""}
     </div>
 
     <div class="footer" style="margin-top: auto;">

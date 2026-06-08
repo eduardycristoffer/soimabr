@@ -775,6 +775,7 @@ export type Database = {
           default_motor_trans_kw: number | null
           default_motor_trans_vel: string | null
           default_panel_include_motors: boolean | null
+          default_panel_potencia_total: number | null
           default_panel_voltage: string | null
           default_potencia_total: number | null
           default_warranty_components_years: number | null
@@ -821,6 +822,7 @@ export type Database = {
           default_motor_trans_kw?: number | null
           default_motor_trans_vel?: string | null
           default_panel_include_motors?: boolean | null
+          default_panel_potencia_total?: number | null
           default_panel_voltage?: string | null
           default_potencia_total?: number | null
           default_warranty_components_years?: number | null
@@ -867,6 +869,7 @@ export type Database = {
           default_motor_trans_kw?: number | null
           default_motor_trans_vel?: string | null
           default_panel_include_motors?: boolean | null
+          default_panel_potencia_total?: number | null
           default_panel_voltage?: string | null
           default_potencia_total?: number | null
           default_warranty_components_years?: number | null
@@ -1035,6 +1038,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quote_panel_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_shares: {
+        Row: {
+          created_at: string
+          granted_by: string
+          id: string
+          quote_id: string
+          shared_with_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by: string
+          id?: string
+          quote_id: string
+          shared_with_user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string
+          id?: string
+          quote_id?: string
+          shared_with_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_shares_quote_id_fkey"
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
@@ -1365,6 +1400,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_quote_access: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          viewer_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          viewer_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          viewer_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1465,6 +1521,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_view_quote: {
+        Args: { _quote_id: string; _user: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
