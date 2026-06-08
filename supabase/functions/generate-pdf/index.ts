@@ -1297,25 +1297,45 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
   if (hasMotors) {
     const gruaItem = items.find((i: any) => i.product_category === "grua");
     const product = productsMap[gruaItem?.product_id] || {};
+    const voltage = quote.panel_voltage ? `${quote.panel_voltage}V` : "";
+    const maxLoadKg = gruaItem?.grua_carga_maxima_kg ?? quote.grua_carga_maxima_kg ?? null;
+    const totalPower = quote.panel_potencia_total ?? null;
     const resolveMotor = (qKw: string, qHp: string, qVel: string, pKw: string, pHp: string, pVel: string) => {
       const kw = quote[qKw] ?? product[pKw] ?? null;
       const hp = quote[qHp] ?? product[pHp] ?? null;
       const vel = quote[qVel] || product[pVel] || "";
       if (!kw && !hp && !vel) return null;
-      const parts: string[] = [];
-      if (kw) parts.push(`${kw} daN.m`);
-      if (hp) parts.push(`${hp} kW`);
-      const spec = parts.join(" / ");
-      return vel ? `${spec} - ${vel}` : spec;
+      // Velocidade column
+      const velCell = vel || "—";
+      // Potência column (com tensão embutida)
+      const pParts: string[] = [];
+      if (kw) pParts.push(`${kw} daN.m`);
+      if (hp) pParts.push(`${hp} kW`);
+      if (voltage) pParts.push(voltage);
+      const powerCell = pParts.join(" / ") || "—";
+      return { vel: velCell, power: powerCell };
     };
-    const motorRows: [string, string | null][] = [
+    const motorRows: [string, { vel: string; power: string } | null][] = [
       [t.panel_motor_elevation, resolveMotor("panel_motor_elev_kw", "panel_motor_elev_hp", "panel_motor_elev_vel", "default_motor_elev_kw", "default_motor_elev_hp", "default_motor_elev_vel")],
       [t.panel_motor_translation, resolveMotor("panel_motor_trans_kw", "panel_motor_trans_hp", "panel_motor_trans_vel", "default_motor_trans_kw", "default_motor_trans_hp", "default_motor_trans_vel")],
       [t.panel_motor_rotation, resolveMotor("panel_motor_rot_kw", "panel_motor_rot_hp", "panel_motor_rot_vel", "default_motor_rot_kw", "default_motor_rot_hp", "default_motor_rot_vel")],
     ];
-    const filledMotors = motorRows.filter(([_, v]) => v != null);
+    const filledMotors = motorRows.filter(([_, v]) => v != null) as [string, { vel: string; power: string }][];
     if (filledMotors.length > 0) {
-      motorHTML = `<table class="motor-table"><thead><tr><th>${t.panel_motor_item}</th><th>${t.panel_motor_spec}</th></tr></thead><tbody>${filledMotors.map(([l, s]) => `<tr><td>${l}</td><td>${s}</td></tr>`).join("")}</tbody></table>`;
+      // Capacidade máxima (com potência máxima) — uma linha só, no rodapé da tabela
+      const maxCapCell = [
+        maxLoadKg ? `${Number(maxLoadKg).toLocaleString("pt-BR")} kg` : null,
+        totalPower ? `${totalPower} kW` : null,
+      ].filter(Boolean).join(" / ") || "—";
+      const headers = `<tr><th>${t.panel_motor_item}</th><th>${t.panel_motor_velocity}</th><th>${t.panel_motor_power}</th><th>${t.panel_motor_max_capacity}</th></tr>`;
+      const bodyRows = filledMotors.map(([label, spec], idx) => {
+        const isFirst = idx === 0;
+        const maxCell = isFirst
+          ? `<td rowspan="${filledMotors.length}" style="vertical-align: middle; text-align: center;">${maxCapCell}</td>`
+          : "";
+        return `<tr><td>${label}</td><td>${spec.vel}</td><td>${spec.power}</td>${maxCell}</tr>`;
+      }).join("");
+      motorHTML = `<table class="motor-table"><thead>${headers}</thead><tbody>${bodyRows}</tbody></table>`;
     }
   }
   return `
@@ -1325,6 +1345,7 @@ function buildPanelHTML(quote: any, quotePanelItems: any[], defaultPanelItems: a
     ${motorHTML}
   </div>`;
 }
+
 
 // ── GARANTIA ──
 function buildWarrantyHTML(quote: any, items: any[], productsMap: Record<string, any>, t: Translations, lang: string): string {
