@@ -99,6 +99,19 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
   useEffect(() => {
     if (open) {
       form.reset(getDefaults(product));
+      // Load existing default panel items
+      if (product?.id) {
+        supabase
+          .from("default_panel_items")
+          .select("item_text")
+          .eq("product_id", product.id)
+          .order("order_index")
+          .then(({ data }) => {
+            if (data && data.length > 0) {
+              form.setValue("default_panel_items_text", data.map((d: any) => d.item_text).join("\n"));
+            }
+          });
+      }
     }
   }, [open, product]);
 
