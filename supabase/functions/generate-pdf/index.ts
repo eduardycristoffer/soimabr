@@ -80,6 +80,9 @@ interface Translations {
   panel_voltage_label: string;
   panel_motor_item: string;
   panel_motor_spec: string;
+  panel_motor_velocity: string;
+  panel_motor_power: string;
+  panel_motor_max_capacity: string;
   panel_motor_elevation: string;
   panel_motor_translation: string;
   panel_motor_rotation: string;
