@@ -196,60 +196,87 @@ export default function StepReview({
               <CardTitle className="text-sm">Itens ({allItems.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderItems(data.equipment, "Equipamento")}
-              {renderItems(data.components, "Componentes")}
-              {renderItems(data.accessories, "Acessórios")}
+              {data.hide_unit_prices ? (
+                <>
+                  {[...data.equipment, ...data.components, ...data.accessories].map((item) => (
+                    <div key={item.product_id} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          {categoryLabels[item.product_category] || item.product_category}
+                        </Badge>
+                        <span>{item.product_name}</span>
+                        <span className="text-muted-foreground text-xs">x{item.quantity}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <Separator />
+                  <div className="flex justify-between border-t pt-2 text-lg">
+                    <span className="font-bold">Total</span>
+                    <span className="font-bold text-muted-foreground italic">A combinar</span>
+                  </div>
+                  <p className="text-xs text-amber-700">
+                    ⚠ Valores ocultos no PDF — aparecerá "A combinar" no lugar do total.
+                  </p>
+                </>
+              ) : (
+                <>
+                  {renderItems(data.equipment, "Equipamento")}
+                  {renderItems(data.components, "Componentes")}
+                  {renderItems(data.accessories, "Acessórios")}
 
-              <Separator />
+                  <Separator />
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <div className="text-right">
-                    {isInternationalUsd ? (
-                      <>
-                        <span className="font-medium">{formatBrl(subtotal)}</span>
-                        {usdBrlRate && (
-                          <span className="text-xs text-muted-foreground block">
-                            ≈ {formatUsd(subtotal / usdBrlRate)}
-                          </span>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <div className="text-right">
+                        {isInternationalUsd ? (
+                          <>
+                            <span className="font-medium">{formatBrl(subtotal)}</span>
+                            {usdBrlRate && (
+                              <span className="text-xs text-muted-foreground block">
+                                ≈ {formatUsd(subtotal / usdBrlRate)}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="font-medium">{formatCurrency(subtotal)}</span>
                         )}
-                      </>
-                    ) : (
-                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                      </div>
+                    </div>
+                    {data.discount_percent > 0 && (
+                      <div className="flex justify-between text-destructive">
+                        <span>
+                          {data.hide_discount_value
+                            ? "Desconto aplicado (oculto no PDF)"
+                            : `Desconto (${data.discount_percent}%)`}
+                        </span>
+                        <span className="font-medium">-{isInternationalUsd ? formatBrl(discountValue) : formatCurrency(discountValue)}</span>
+                      </div>
                     )}
-                  </div>
-                </div>
-                {data.discount_percent > 0 && (
-                  <div className="flex justify-between text-destructive">
-                    <span>
-                      {data.hide_discount_value
-                        ? "Desconto aplicado (oculto no PDF)"
-                        : `Desconto (${data.discount_percent}%)`}
-                    </span>
-                    <span className="font-medium">-{isInternationalUsd ? formatBrl(discountValue) : formatCurrency(discountValue)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t pt-2 text-lg">
-                  <span className="font-bold">Total</span>
-                  <div className="text-right">
-                    {isInternationalUsd ? (
-                      <>
-                        <span className="font-bold">{formatBrl(total)}</span>
-                        {usdBrlRate && (
-                          <span className="text-sm text-muted-foreground block font-semibold">
-                            ≈ {formatUsd(total / usdBrlRate)}
-                          </span>
+                    <div className="flex justify-between border-t pt-2 text-lg">
+                      <span className="font-bold">Total</span>
+                      <div className="text-right">
+                        {isInternationalUsd ? (
+                          <>
+                            <span className="font-bold">{formatBrl(total)}</span>
+                            {usdBrlRate && (
+                              <span className="text-sm text-muted-foreground block font-semibold">
+                                ≈ {formatUsd(total / usdBrlRate)}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="font-bold">{formatCurrency(total)}</span>
                         )}
-                      </>
-                    ) : (
-                      <span className="font-bold">{formatCurrency(total)}</span>
-                    )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
+
 
           {isInternationalUsd && (
             <div className="p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs">
