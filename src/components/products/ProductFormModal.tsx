@@ -229,20 +229,52 @@ export default function ProductFormModal({ open, onOpenChange, product }: Produc
         payload.spec_vel_rotacao = data.spec_vel_rotacao || null;
         payload.spec_vel_translacao = data.spec_vel_translacao || null;
         payload.default_panel_voltage = data.default_panel_voltage || "380";
+        payload.default_panel_include_motors = data.default_panel_include_motors ?? false;
+        payload.default_panel_potencia_total = data.default_panel_potencia_total ?? null;
+        payload.default_motor_elev_kw = data.default_motor_elev_kw ?? null;
+        payload.default_motor_elev_hp = data.default_motor_elev_hp ?? null;
+        payload.default_motor_elev_vel = data.default_motor_elev_vel || null;
+        payload.default_motor_trans_kw = data.default_motor_trans_kw ?? null;
+        payload.default_motor_trans_hp = data.default_motor_trans_hp ?? null;
+        payload.default_motor_trans_vel = data.default_motor_trans_vel || null;
+        payload.default_motor_rot_kw = data.default_motor_rot_kw ?? null;
+        payload.default_motor_rot_hp = data.default_motor_rot_hp ?? null;
+        payload.default_motor_rot_vel = data.default_motor_rot_vel || null;
         payload.rental_monthly_price = data.rental_monthly_price ?? null;
         payload.rental_mobilization_default = data.rental_mobilization_default ?? null;
         payload.rental_assembly_default = data.rental_assembly_default ?? null;
       }
 
+      let productId: string;
       if (isEditing) {
         const { error } = await supabase
           .from("products")
           .update(payload as any)
           .eq("id", product!.id);
         if (error) throw error;
+        productId = product!.id;
       } else {
-        const { error } = await supabase.from("products").insert([payload as any]);
+        const { data: inserted, error } = await supabase
+          .from("products")
+          .insert([payload as any])
+          .select("id")
+          .single();
         if (error) throw error;
+        productId = inserted.id;
+      }
+
+      // Sync default panel items for cranes
+      if (data.categoria === "grua") {
+        const lines = (data.default_panel_items_text || "")
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        await supabase.from("default_panel_items").delete().eq("product_id", productId);
+        if (lines.length > 0) {
+          await supabase.from("default_panel_items").insert(
+            lines.map((item_text, idx) => ({ product_id: productId, item_text, order_index: idx })) as any
+          );
+        }
       }
     },
     onSuccess: () => {
