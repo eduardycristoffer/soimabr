@@ -1048,7 +1048,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
 
   ${buildContentPage2HTML(quote, items, productsMap, quotePanelItems, defaultPanelItems, t, lang, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate)}
 
-  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd, co)}
+  ${buildFinalPageHTML(quote, items, productsMap, client, companyName, companySubtitle, companyPhone, companyEmail, companyWebsite, companyCrea, statusLabel, validityDate, t, lang, isInternationalUsd, co, creator)}
 
   <!-- CONTRACAPA -->
   <div class="backcover-page" style="page-break-before: always;">
@@ -1102,7 +1102,7 @@ function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<str
 }
 
 // ── Final Page (always: Conditions + Warranty + Validity + Signatures) ──
-function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean, co: any): string {
+function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string, any>, client: any, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date, t: Translations, lang: string, isInternationalUsd: boolean, co: any, creator: any): string {
   // Truncate notes if too long
   let notesText = quote.notes || "";
   if (notesText.length > 1500) {
