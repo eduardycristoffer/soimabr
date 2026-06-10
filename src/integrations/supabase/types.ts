@@ -1532,6 +1532,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_quote_owner: {
+        Args: { _quote_id: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"
