@@ -691,19 +691,6 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     totalsHTML = `
     <div class="totals">
       <div class="totals-box">
-        <div class="totals-row">
-          <span>${t.subtotal}</span>
-          <span>${hideUnitPrices ? tbd : formatCurrency(quote.subtotal)}</span>
-        </div>
-        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
-        <div class="totals-row discount">
-          <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
-          <span></span>
-        </div>` : `
-        <div class="totals-row discount">
-          <span>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</span>
-          <span>-${formatCurrency(quote.discount_value)}</span>
-        </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total}</span>
           <span>${hideUnitPrices ? tbd : formatCurrency(quote.total)}</span>
