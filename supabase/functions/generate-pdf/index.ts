@@ -223,7 +223,7 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Certificado de garantia com os seguintes prazos:",
     warranty_delivery: "Entrega técnica com testes e laudo técnico de conformidade",
     warranty_maintenance: "Plano de manutenção preventiva recomendado",
-    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
+    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBR ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
     warranty_years_text: "anos",
     warranty_not_included: "Garantia não inclusa nesta proposta",
     warranty_year_singular: "ano",
