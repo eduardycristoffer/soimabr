@@ -223,7 +223,7 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Certificado de garantia com os seguintes prazos:",
     warranty_delivery: "Entrega técnica com testes e laudo técnico de conformidade",
     warranty_maintenance: "Plano de manutenção preventiva recomendado",
-    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
+    warranty_norms: "Normas aplicadas: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBR ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
     warranty_years_text: "anos",
     warranty_not_included: "Garantia não inclusa nesta proposta",
     warranty_year_singular: "ano",
@@ -352,7 +352,7 @@ const translations: Record<string, Translations> = {
     warranty_certificate: "Warranty certificate with the following terms:",
     warranty_delivery: "Technical delivery with tests and compliance report",
     warranty_maintenance: "Recommended preventive maintenance plan",
-    warranty_norms: "Applied standards: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBE ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
+    warranty_norms: "Applied standards: F.E.M. 1.001-A3 – NBR 8400-1:2019 - NBR 8800:2008 - NBR 16147:2021 - NBR 10084:2020 - NBR 8681 – NBR ISO 13.849-2 – 02/2019 – NR 12 – NR 18",
     warranty_years_text: "years",
     warranty_not_included: "Warranty not included in this proposal",
     warranty_year_singular: "year",
@@ -674,23 +674,6 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     totalsHTML = `
     <div class="totals">
       <div class="totals-box" style="width: 350px;">
-        <div class="totals-row">
-          <span>${t.subtotal_brl}</span>
-          <span>${hideUnitPrices ? tbd : formatBrl(quote.subtotal)}</span>
-        </div>
-        ${hideUnitPrices ? "" : `<div class="totals-row">
-          <span>${t.subtotal_est_usd}</span>
-          <span>${formatUsd(subtotalUsd)}</span>
-        </div>`}
-        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
-        <div class="totals-row discount">
-          <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
-          <span></span>
-        </div>` : `
-        <div class="totals-row discount">
-          <span>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</span>
-          <span>-${formatBrl(quote.discount_value)} / -${formatUsd(discountUsd)}</span>
-        </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total_brl_label}</span>
           <span>${hideUnitPrices ? tbd : formatBrl(quote.total)}</span>
@@ -708,19 +691,6 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     totalsHTML = `
     <div class="totals">
       <div class="totals-box">
-        <div class="totals-row">
-          <span>${t.subtotal}</span>
-          <span>${hideUnitPrices ? tbd : formatCurrency(quote.subtotal)}</span>
-        </div>
-        ${quote.discount_percent > 0 && !hideUnitPrices ? (quote.hide_discount_value ? `
-        <div class="totals-row discount">
-          <span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span>
-          <span></span>
-        </div>` : `
-        <div class="totals-row discount">
-          <span>${t.discount} (${Number(quote.discount_percent).toFixed(1)}%)</span>
-          <span>-${formatCurrency(quote.discount_value)}</span>
-        </div>`) : ""}
         <div class="totals-row total">
           <span>${t.total}</span>
           <span>${hideUnitPrices ? tbd : formatCurrency(quote.total)}</span>
@@ -1133,15 +1103,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   const hideUnitPricesSummary = !!quote.hide_unit_prices;
   const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
-  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.subtotal)}</span></div>`;
-  if (quote.discount_percent > 0 && !hideUnitPricesSummary) {
-    if (quote.hide_discount_value) {
-      summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span><span></span></div>`;
-    } else {
-      summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount" : "Desconto"} (${quote.discount_percent}%):</span><span>-${formatCurrency(quote.discount_value)}</span></div>`;
-    }
-  }
-  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
 
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
