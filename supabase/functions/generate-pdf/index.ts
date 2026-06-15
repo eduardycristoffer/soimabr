@@ -1103,15 +1103,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   const hideUnitPricesSummary = !!quote.hide_unit_prices;
   const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
-  let summaryTotals = `<div class="summary-total-row"><span>${lang === "en" ? "Subtotal" : "Subtotal"}:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.subtotal)}</span></div>`;
-  if (quote.discount_percent > 0 && !hideUnitPricesSummary) {
-    if (quote.hide_discount_value) {
-      summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount applied" : "Desconto aplicado"}</span><span></span></div>`;
-    } else {
-      summaryTotals += `<div class="summary-total-row discount"><span>${lang === "en" ? "Discount" : "Desconto"} (${quote.discount_percent}%):</span><span>-${formatCurrency(quote.discount_value)}</span></div>`;
-    }
-  }
-  summaryTotals += `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
 
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
