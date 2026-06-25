@@ -127,10 +127,10 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
             />
             <div className="grid gap-1.5 leading-none">
               <label htmlFor="hide_unit_prices" className="text-sm font-medium leading-none cursor-pointer">
-                Esconder valores unitários no PDF
+                Esconder valores unitários dos itens no PDF
               </label>
               <p className="text-xs text-muted-foreground">
-                A tabela de itens não exibirá valores — apenas o total geral da proposta será mostrado
+                A coluna de valor por item será omitida. Apenas o Total final da proposta aparecerá.
               </p>
             </div>
           </div>
