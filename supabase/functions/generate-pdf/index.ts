@@ -676,27 +676,28 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
       <div class="totals-box" style="width: 350px;">
         <div class="totals-row total">
           <span>${t.total_brl_label}</span>
-          <span>${hideUnitPrices ? tbd : formatBrl(quote.total)}</span>
+          <span>${formatBrl(quote.total)}</span>
         </div>
-        ${hideUnitPrices ? "" : `<div class="totals-row total" style="border-top: none; margin-top: 0;">
+        <div class="totals-row total" style="border-top: none; margin-top: 0;">
           <span>${t.total_est_usd}</span>
           <span>${formatUsd(totalUsd)}</span>
-        </div>`}
+        </div>
       </div>
     </div>
-    ${hideUnitPrices ? "" : `<div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
+    <div style="text-align: right; font-size: 9px; color: #666; margin-top: 4px;">
       ${t.usd_rate_used}: ${usdRate.toFixed(4)}${quote.usd_brl_rate_updated_at ? ` (${t.updated_on} ${formatDateTime(quote.usd_brl_rate_updated_at)})` : ""}
-    </div>`}`;
+    </div>`;
   } else {
     totalsHTML = `
     <div class="totals">
       <div class="totals-box">
         <div class="totals-row total">
           <span>${t.total}</span>
-          <span>${hideUnitPrices ? tbd : formatCurrency(quote.total)}</span>
+          <span>${formatCurrency(quote.total)}</span>
         </div>
       </div>
     </div>`;
+
   }
 
 
@@ -1103,7 +1104,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   const hideUnitPricesSummary = !!quote.hide_unit_prices;
   const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
-  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
 
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {

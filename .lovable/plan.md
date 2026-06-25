@@ -1,27 +1,33 @@
-## Ajustes no PDF da Proposta Comercial
+## Sempre exibir o VALOR FINAL na proposta (PDF)
 
-Arquivo único: `supabase/functions/generate-pdf/index.ts`
+### Problema
+Quando "Ocultar valores unitários" está marcado, o PDF mostra **"A combinar"** no lugar do total. Você quer o oposto: esconder unitários e desconto, mas **sempre mostrar o valor final** da proposta.
 
-### 1. Correção "NBE" → "NBR"
-Nas duas linhas (PT linha 226, EN linha 355) de `warranty_norms`, substituir `NBE ISO 13.849-2` por `NBR ISO 13.849-2`.
+### Arquivo
+`supabase/functions/generate-pdf/index.ts`
 
-### 2. NR 12 e NR 18 ao final
-Já estão posicionadas no final da string de normas. Vou confirmar que assim permaneçam após a edição (sem alterar a ordem). Caso o pedido seja movê-las para o final de OUTRO texto/seção, preciso de confirmação.
+### Mudanças
 
-### 3. Remover Subtotal e linha de Desconto — mostrar só o Total final
-Hoje o bloco de totais mostra:
-- Subtotal
-- Desconto (X%) ou "Desconto aplicado" (quando oculto)
-- TOTAL
+1. **Bloco de totais BRL (linhas ~691–699)**
+   - Remover o ternário `hideUnitPrices ? tbd : ...` — passar a renderizar sempre `formatCurrency(quote.total)` na linha do Total.
 
-Ajuste: quando houver desconto, **não exibir** as linhas de Subtotal e Desconto — exibir apenas a linha "TOTAL" com o valor final (já líquido). Quando não houver desconto, também remover a linha de Subtotal (redundante com Total).
+2. **Bloco de totais internacional USD/BRL (linhas ~674–689)**
+   - Linha "Total (BRL)": sempre `formatBrl(quote.total)`.
+   - Linha "Estimado (USD)": exibir sempre (sair do `hideUnitPrices ? "" : ...`).
+   - Manter a nota da cotação USD/BRL.
 
-Aplica-se aos dois blocos de totais:
-- Bloco internacional USD (linhas ~676–700)
-- Bloco padrão BRL/moeda única (linhas ~710–725)
+3. **Resumo lateral `summary-box` (linha ~1106 e ~1112)**
+   - Trocar `hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)` por sempre `formatCurrency(quote.total)`.
+   - USD estimado também aparece sempre em proposta internacional.
 
-E também no `summary-box` (CSS linha ~959) se houver renderização equivalente — vou verificar e ajustar para manter consistência.
+4. **Tabela de itens (mantém comportamento atual)**
+   - Quando `hide_unit_prices` está ligado, a tabela continua **sem** colunas de preço unitário e total por item.
+   - Linhas de **Subtotal** e **Desconto** continuam ocultas (já implementado anteriormente).
 
-### Fora do escopo
-- Sem mudanças em RLS, wizard, banco ou cálculo (os totais já vêm corretos).
-- Sem mudanças no PDF de locação, a menos que você confirme que quer o mesmo ajuste lá também.
+5. **PDF de locação**
+   - Já mostra o total corretamente — sem alteração.
+
+### Resultado
+- Itens listados **sem** valor unitário.
+- **Sem** linha de subtotal nem de desconto.
+- **Sempre** aparece uma única linha final: **TOTAL = valor da proposta**.
