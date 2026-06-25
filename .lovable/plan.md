@@ -1,33 +1,33 @@
-## Sempre exibir o VALOR FINAL na proposta (PDF)
+## Objetivo
+Garantir que o wizard tenha a opção de **mostrar ou ocultar o valor unitário** dos itens no PDF da proposta. Quando ocultado, a tabela "ITENS DA PROPOSTA" mostra apenas #, Código, Descrição e Qtd — sem coluna de valor por item — e somente o **Total** final aparece no rodapé.
 
-### Problema
-Quando "Ocultar valores unitários" está marcado, o PDF mostra **"A combinar"** no lugar do total. Você quer o oposto: esconder unitários e desconto, mas **sempre mostrar o valor final** da proposta.
+## Situação atual
+- **Proposta de Venda (QuoteWizard)**: o toggle já existe no Step "Desconto" (`StepDiscount.tsx`), campo `hide_unit_prices`. Funciona e o PDF respeita.
+- **Proposta de Locação (RentalWizard)**: o campo `hide_unit_prices` existe nos dados e é salvo, mas **não há checkbox na UI** — usuário não consegue marcar.
+- O PDF já trata corretamente os dois casos (oculta coluna de valor por item e mantém Total final).
 
-### Arquivo
-`supabase/functions/generate-pdf/index.ts`
+## Mudanças
 
-### Mudanças
+### 1. RentalStepCommercial.tsx
+Adicionar checkbox **"Esconder valores unitários no PDF"** ligado a `data.hide_unit_prices`, com texto auxiliar:
+> "A tabela de itens não exibirá valores — apenas o total geral da proposta será mostrado."
 
-1. **Bloco de totais BRL (linhas ~691–699)**
-   - Remover o ternário `hideUnitPrices ? tbd : ...` — passar a renderizar sempre `formatCurrency(quote.total)` na linha do Total.
+Posicionar logo após o controle de desconto, no mesmo padrão visual do `StepDiscount.tsx` (Sales).
 
-2. **Bloco de totais internacional USD/BRL (linhas ~674–689)**
-   - Linha "Total (BRL)": sempre `formatBrl(quote.total)`.
-   - Linha "Estimado (USD)": exibir sempre (sair do `hideUnitPrices ? "" : ...`).
-   - Manter a nota da cotação USD/BRL.
+### 2. StepDiscount.tsx (Sales) — ajuste de clareza
+Reforçar o texto do toggle existente para deixar explícito o efeito:
+- Label: "Esconder valores unitários dos itens no PDF"
+- Descrição: "A coluna de valor por item será omitida. Apenas o Total final da proposta aparecerá."
 
-3. **Resumo lateral `summary-box` (linha ~1106 e ~1112)**
-   - Trocar `hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)` por sempre `formatCurrency(quote.total)`.
-   - USD estimado também aparece sempre em proposta internacional.
+### 3. StepReview.tsx (Sales) — preview
+Confirmar que o resumo de revisão indica quando a opção está ativa (já existe bloco em `data.hide_unit_prices`). Sem mudanças funcionais se já estiver correto.
 
-4. **Tabela de itens (mantém comportamento atual)**
-   - Quando `hide_unit_prices` está ligado, a tabela continua **sem** colunas de preço unitário e total por item.
-   - Linhas de **Subtotal** e **Desconto** continuam ocultas (já implementado anteriormente).
+### 4. PDF (`supabase/functions/generate-pdf/index.ts`)
+Sem alterações — o comportamento já está implementado:
+- Com `hide_unit_prices = true`: tabela sem coluna de valor por item; rodapé mostra apenas Total final.
+- Com `hide_unit_prices = false`: comportamento atual (coluna Total por item + Total final).
 
-5. **PDF de locação**
-   - Já mostra o total corretamente — sem alteração.
-
-### Resultado
-- Itens listados **sem** valor unitário.
-- **Sem** linha de subtotal nem de desconto.
-- **Sempre** aparece uma única linha final: **TOTAL = valor da proposta**.
+## Resultado
+- Tanto Venda quanto Locação terão o toggle visível no wizard.
+- Marcado → PDF como solicitado (sem valor por item, só total final).
+- Desmarcado → PDF como hoje (com valor por item).
