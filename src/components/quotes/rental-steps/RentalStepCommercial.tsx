@@ -110,8 +110,24 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
               <SelectItem value="en">English</SelectItem>
             </SelectContent>
           </Select>
+      </div>
+
+      <div className="flex items-start space-x-3 pt-2">
+        <Checkbox
+          id="rental_hide_unit_prices"
+          checked={data.hide_unit_prices}
+          onCheckedChange={(checked) => updateData({ hide_unit_prices: !!checked })}
+        />
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="rental_hide_unit_prices" className="text-sm font-medium leading-none cursor-pointer">
+            Esconder valores unitários dos itens no PDF
+          </label>
+          <p className="text-xs text-muted-foreground">
+            A coluna de valor por item será omitida. Apenas o Total final da proposta aparecerá.
+          </p>
         </div>
       </div>
+
 
 
       <div className="flex justify-between pt-4">
