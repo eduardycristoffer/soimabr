@@ -1104,7 +1104,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
 
   const hideUnitPricesSummary = !!quote.hide_unit_prices;
   const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
-  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${hideUnitPricesSummary ? tbdLabel : formatCurrency(quote.total)}</span></div>`;
+  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
 
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
