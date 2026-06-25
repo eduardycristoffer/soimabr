@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2 } from "lucide-react";
@@ -111,6 +112,23 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
           </Select>
         </div>
       </div>
+
+      <div className="flex items-start space-x-3 pt-2">
+        <Checkbox
+          id="rental_hide_unit_prices"
+          checked={data.hide_unit_prices}
+          onCheckedChange={(checked) => updateData({ hide_unit_prices: !!checked })}
+        />
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="rental_hide_unit_prices" className="text-sm font-medium leading-none cursor-pointer">
+            Esconder valores unitários dos itens no PDF
+          </label>
+          <p className="text-xs text-muted-foreground">
+            A coluna de valor por item será omitida. Apenas o Total final da proposta aparecerá.
+          </p>
+        </div>
+      </div>
+
 
 
       <div className="flex justify-between pt-4">
