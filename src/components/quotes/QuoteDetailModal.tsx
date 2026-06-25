@@ -99,6 +99,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const accessoryItems = items?.filter((i) => i.product_category === "acessorio") || [];
 
   const isRental = (quote as any)?.quote_type === "locacao";
+  const hideUnitPrices = !!(quote as any)?.hide_unit_prices;
   const rentalServices: string[] = [];
   if (isRental && quote) {
     if ((quote as any).rental_operator_included) rentalServices.push("Operador incluso");
@@ -121,7 +122,9 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
               <span>{item.product_name}</span>
               <span className="text-muted-foreground text-xs">x{item.quantity}</span>
             </div>
-            <span className="font-medium">{formatCurrency(item.total_price, quote?.currency || "BRL")}</span>
+            {!hideUnitPrices && (
+              <span className="font-medium">{formatCurrency(item.total_price, quote?.currency || "BRL")}</span>
+            )}
           </div>
         ))}
       </div>
@@ -291,41 +294,45 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     <CardTitle className="text-sm">Detalhamento de Custos</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor mensal × {(quote as any).rental_duration_months || 0} meses</span>
-                      <span className="font-medium">{formatCurrency(((quote as any).rental_monthly_value || 0) * ((quote as any).rental_duration_months || 0), quote.currency)}</span>
-                    </div>
-                    {(quote as any).rental_mobilization > 0 && (
-                      <div className="flex justify-between"><span className="text-muted-foreground">Mobilização</span><span>{formatCurrency((quote as any).rental_mobilization, quote.currency)}</span></div>
-                    )}
-                    {(quote as any).rental_demobilization > 0 && (
-                      <div className="flex justify-between"><span className="text-muted-foreground">Desmobilização</span><span>{formatCurrency((quote as any).rental_demobilization, quote.currency)}</span></div>
-                    )}
-                    {(quote as any).rental_freight > 0 && (
-                      <div className="flex justify-between"><span className="text-muted-foreground">Frete</span><span>{formatCurrency((quote as any).rental_freight, quote.currency)}</span></div>
-                    )}
-                    {(quote as any).rental_assembly > 0 && (
-                      <div className="flex justify-between"><span className="text-muted-foreground">Montagem</span><span>{formatCurrency((quote as any).rental_assembly, quote.currency)}</span></div>
-                    )}
-                    {(quote as any).rental_disassembly > 0 && (
-                      <div className="flex justify-between"><span className="text-muted-foreground">Desmontagem</span><span>{formatCurrency((quote as any).rental_disassembly, quote.currency)}</span></div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
-                    </div>
-                    {quote.discount_percent > 0 && (
-                      <div className="flex justify-between text-destructive">
-                        <span>Desconto ({quote.discount_percent}%)</span>
-                        <span>-{formatCurrency(quote.discount_value, quote.currency)}</span>
-                      </div>
-                    )}
-                    {(quote as any).rental_tax_percent > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Impostos ({(quote as any).rental_tax_percent}%)</span>
-                        <span>{formatCurrency(quote.total - (quote.subtotal - quote.discount_value), quote.currency)}</span>
-                      </div>
+                    {!hideUnitPrices && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Valor mensal × {(quote as any).rental_duration_months || 0} meses</span>
+                          <span className="font-medium">{formatCurrency(((quote as any).rental_monthly_value || 0) * ((quote as any).rental_duration_months || 0), quote.currency)}</span>
+                        </div>
+                        {(quote as any).rental_mobilization > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Mobilização</span><span>{formatCurrency((quote as any).rental_mobilization, quote.currency)}</span></div>
+                        )}
+                        {(quote as any).rental_demobilization > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Desmobilização</span><span>{formatCurrency((quote as any).rental_demobilization, quote.currency)}</span></div>
+                        )}
+                        {(quote as any).rental_freight > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Frete</span><span>{formatCurrency((quote as any).rental_freight, quote.currency)}</span></div>
+                        )}
+                        {(quote as any).rental_assembly > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Montagem</span><span>{formatCurrency((quote as any).rental_assembly, quote.currency)}</span></div>
+                        )}
+                        {(quote as any).rental_disassembly > 0 && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Desmontagem</span><span>{formatCurrency((quote as any).rental_disassembly, quote.currency)}</span></div>
+                        )}
+                        <Separator />
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
+                        </div>
+                        {quote.discount_percent > 0 && (
+                          <div className="flex justify-between text-destructive">
+                            <span>Desconto ({quote.discount_percent}%)</span>
+                            <span>-{formatCurrency(quote.discount_value, quote.currency)}</span>
+                          </div>
+                        )}
+                        {(quote as any).rental_tax_percent > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Impostos ({(quote as any).rental_tax_percent}%)</span>
+                            <span>{formatCurrency(quote.total - (quote.subtotal - quote.discount_value), quote.currency)}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                     <div className="flex justify-between border-t pt-2 text-lg">
                       <span className="font-bold">Total</span>
@@ -346,15 +353,19 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     <Separator />
 
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
-                      </div>
-                      {quote.discount_percent > 0 && (
-                        <div className="flex justify-between text-destructive">
-                          <span>Desconto ({quote.discount_percent}%)</span>
-                          <span className="font-medium">-{formatCurrency(quote.discount_value, quote.currency)}</span>
-                        </div>
+                      {!hideUnitPrices && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
+                          </div>
+                          {quote.discount_percent > 0 && (
+                            <div className="flex justify-between text-destructive">
+                              <span>Desconto ({quote.discount_percent}%)</span>
+                              <span className="font-medium">-{formatCurrency(quote.discount_value, quote.currency)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                       <div className="flex justify-between border-t pt-2 text-lg">
                         <span className="font-bold">Total</span>
