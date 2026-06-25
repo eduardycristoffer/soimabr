@@ -98,26 +98,30 @@ export default function RentalStepSummary({ data, rentalSubtotal, additionalCost
           <CardTitle className="text-sm">💰 Breakdown Financeiro</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Valor Mensal × {data.rental_duration_months || 0} meses</span>
-            <span className="font-medium">{fmt(rentalSubtotal)}</span>
-          </div>
-          <Separator />
-          {data.rental_mobilization > 0 && <div className="flex justify-between text-muted-foreground"><span>Mobilização</span><span>{fmt(data.rental_mobilization)}</span></div>}
-          {data.rental_demobilization > 0 && <div className="flex justify-between text-muted-foreground"><span>Desmobilização</span><span>{fmt(data.rental_demobilization)}</span></div>}
-          {data.rental_freight > 0 && <div className="flex justify-between text-muted-foreground"><span>Frete</span><span>{fmt(data.rental_freight)}</span></div>}
-          {data.rental_assembly > 0 && <div className="flex justify-between text-muted-foreground"><span>Montagem</span><span>{fmt(data.rental_assembly)}</span></div>}
-          {data.rental_disassembly > 0 && <div className="flex justify-between text-muted-foreground"><span>Desmontagem</span><span>{fmt(data.rental_disassembly)}</span></div>}
-          {additionalCosts > 0 && (
+          {!data.hide_unit_prices && (
             <>
+              <div className="flex justify-between">
+                <span>Valor Mensal × {data.rental_duration_months || 0} meses</span>
+                <span className="font-medium">{fmt(rentalSubtotal)}</span>
+              </div>
               <Separator />
-              <div className="flex justify-between font-medium"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+              {data.rental_mobilization > 0 && <div className="flex justify-between text-muted-foreground"><span>Mobilização</span><span>{fmt(data.rental_mobilization)}</span></div>}
+              {data.rental_demobilization > 0 && <div className="flex justify-between text-muted-foreground"><span>Desmobilização</span><span>{fmt(data.rental_demobilization)}</span></div>}
+              {data.rental_freight > 0 && <div className="flex justify-between text-muted-foreground"><span>Frete</span><span>{fmt(data.rental_freight)}</span></div>}
+              {data.rental_assembly > 0 && <div className="flex justify-between text-muted-foreground"><span>Montagem</span><span>{fmt(data.rental_assembly)}</span></div>}
+              {data.rental_disassembly > 0 && <div className="flex justify-between text-muted-foreground"><span>Desmontagem</span><span>{fmt(data.rental_disassembly)}</span></div>}
+              {additionalCosts > 0 && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between font-medium"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+                </>
+              )}
+              {data.rental_tax_percent > 0 && (
+                <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+{fmt(taxValue)}</span></div>
+              )}
             </>
           )}
-          {data.rental_tax_percent > 0 && (
-            <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+{fmt(taxValue)}</span></div>
-          )}
-          <Separator />
+          {!data.hide_unit_prices && <Separator />}
           <div className="flex justify-between text-xl font-bold text-primary">
             <span>TOTAL</span>
             <span>{fmt(total)}</span>

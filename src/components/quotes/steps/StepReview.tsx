@@ -212,11 +212,21 @@ export default function StepReview({
                   <Separator />
                   <div className="flex justify-between border-t pt-2 text-lg">
                     <span className="font-bold">Total</span>
-                    <span className="font-bold text-muted-foreground italic">A combinar</span>
+                    <div className="text-right">
+                      {isInternationalUsd ? (
+                        <>
+                          <span className="font-bold">{formatBrl(total)}</span>
+                          {usdBrlRate && (
+                            <span className="text-sm text-muted-foreground block font-semibold">
+                              ≈ {formatUsd(total / usdBrlRate)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="font-bold">{formatCurrency(total)}</span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-amber-700">
-                    ⚠ Valores ocultos no PDF — aparecerá "A combinar" no lugar do total.
-                  </p>
                 </>
               ) : (
                 <>

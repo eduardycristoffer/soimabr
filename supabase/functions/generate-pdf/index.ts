@@ -665,11 +665,8 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   </div>` : "";
 
   // Totals section
-  const tbd = lang === "en" ? "To be defined" : "A combinar";
   let totalsHTML = "";
   if (isInternationalUsd && usdRate) {
-    const subtotalUsd = quote.subtotal / usdRate;
-    const discountUsd = quote.discount_value / usdRate;
     const totalUsd = quote.total / usdRate;
     totalsHTML = `
     <div class="totals">
@@ -1102,8 +1099,6 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     return `<li>${catLabel} - ${item.product_name} (x${item.quantity})</li>`;
   }).join("");
 
-  const hideUnitPricesSummary = !!quote.hide_unit_prices;
-  const tbdLabel = lang === "en" ? "To be defined" : "A combinar";
   let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
 
 
@@ -1412,6 +1407,7 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   const taxPercent = quote.rental_tax_percent || 0;
   const taxValue = afterDiscount * (taxPercent / 100);
   const total = afterDiscount + taxValue;
+  const hideUnitPrices = !!quote.hide_unit_prices;
 
   // Included services
   const services: string[] = [];
@@ -1625,29 +1621,31 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>${t.rental_monthly_value} (${formatCurrency(monthlyValue)} × ${months} ${t.rental_months})</td>
-            <td class="right">${formatCurrency(rentalSubtotal)}</td>
-          </tr>
-          <tr class="subtotal-row">
-            <td>${t.rental_monthly_subtotal}</td>
-            <td class="right">${formatCurrency(rentalSubtotal)}</td>
-          </tr>
-          ${mobilization > 0 ? `<tr><td>${t.rental_mobilization}</td><td class="right">${formatCurrency(mobilization)}</td></tr>` : ""}
-          ${demobilization > 0 ? `<tr><td>${t.rental_demobilization}</td><td class="right">${formatCurrency(demobilization)}</td></tr>` : ""}
-          ${freight > 0 ? `<tr><td>${t.rental_freight_cost}</td><td class="right">${formatCurrency(freight)}</td></tr>` : ""}
-          ${assembly > 0 ? `<tr><td>${t.rental_assembly}</td><td class="right">${formatCurrency(assembly)}</td></tr>` : ""}
-          ${disassembly > 0 ? `<tr><td>${t.rental_disassembly}</td><td class="right">${formatCurrency(disassembly)}</td></tr>` : ""}
-          ${additionalCosts > 0 ? `<tr class="subtotal-row"><td>${t.rental_additional_costs}</td><td class="right">${formatCurrency(additionalCosts)}</td></tr>` : ""}
-          <tr class="subtotal-row">
-            <td>${t.rental_subtotal_general}</td>
-            <td class="right">${formatCurrency(subtotalGeneral)}</td>
-          </tr>
-          ${taxPercent > 0 ? `
-          <tr>
-            <td>${t.rental_tax} (${Number(taxPercent).toFixed(1)}%)</td>
-            <td class="right">${formatCurrency(taxValue)}</td>
-          </tr>` : ""}
+          ${hideUnitPrices ? "" : `
+            <tr>
+              <td>${t.rental_monthly_value} (${formatCurrency(monthlyValue)} × ${months} ${t.rental_months})</td>
+              <td class="right">${formatCurrency(rentalSubtotal)}</td>
+            </tr>
+            <tr class="subtotal-row">
+              <td>${t.rental_monthly_subtotal}</td>
+              <td class="right">${formatCurrency(rentalSubtotal)}</td>
+            </tr>
+            ${mobilization > 0 ? `<tr><td>${t.rental_mobilization}</td><td class="right">${formatCurrency(mobilization)}</td></tr>` : ""}
+            ${demobilization > 0 ? `<tr><td>${t.rental_demobilization}</td><td class="right">${formatCurrency(demobilization)}</td></tr>` : ""}
+            ${freight > 0 ? `<tr><td>${t.rental_freight_cost}</td><td class="right">${formatCurrency(freight)}</td></tr>` : ""}
+            ${assembly > 0 ? `<tr><td>${t.rental_assembly}</td><td class="right">${formatCurrency(assembly)}</td></tr>` : ""}
+            ${disassembly > 0 ? `<tr><td>${t.rental_disassembly}</td><td class="right">${formatCurrency(disassembly)}</td></tr>` : ""}
+            ${additionalCosts > 0 ? `<tr class="subtotal-row"><td>${t.rental_additional_costs}</td><td class="right">${formatCurrency(additionalCosts)}</td></tr>` : ""}
+            <tr class="subtotal-row">
+              <td>${t.rental_subtotal_general}</td>
+              <td class="right">${formatCurrency(subtotalGeneral)}</td>
+            </tr>
+            ${taxPercent > 0 ? `
+            <tr>
+              <td>${t.rental_tax} (${Number(taxPercent).toFixed(1)}%)</td>
+              <td class="right">${formatCurrency(taxValue)}</td>
+            </tr>` : ""}
+          `}
           <tr class="total-row">
             <td>${t.rental_total}</td>
             <td class="right">${formatCurrency(total)}</td>
