@@ -29,11 +29,11 @@ export default function MeuPerfil() {
     }
     setSavingName(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-users", {
-        body: { action: "update_own_profile", name: name.trim() },
-      });
+      const { error } = await supabase
+        .from("profiles")
+        .update({ name: name.trim() })
+        .eq("user_id", user!.user_id);
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast({ title: "Sucesso", description: "Nome atualizado com sucesso." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Erro", description: err.message });

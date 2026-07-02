@@ -1,33 +1,25 @@
-## Objetivo
-Garantir que o wizard tenha a opção de **mostrar ou ocultar o valor unitário** dos itens no PDF da proposta. Quando ocultado, a tabela "ITENS DA PROPOSTA" mostra apenas #, Código, Descrição e Qtd — sem coluna de valor por item — e somente o **Total** final aparece no rodapé.
+## Corrigir salvamento do nome em Meu Perfil
 
-## Situação atual
-- **Proposta de Venda (QuoteWizard)**: o toggle já existe no Step "Desconto" (`StepDiscount.tsx`), campo `hide_unit_prices`. Funciona e o PDF respeita.
-- **Proposta de Locação (RentalWizard)**: o campo `hide_unit_prices` existe nos dados e é salvo, mas **não há checkbox na UI** — usuário não consegue marcar.
-- O PDF já trata corretamente os dois casos (oculta coluna de valor por item e mantém Total final).
+O botão "Salvar Nome" hoje chama a edge function `manage-users` (action `update_own_profile`). A função não está registrando logs, indicando que a chamada falha antes de executar (provável problema de auth/JWT ao invocar). Como a RLS de `profiles` já permite `Users can update own profile` (`user_id = auth.uid()`), não há motivo para passar por edge function apenas para trocar o nome.
 
-## Mudanças
+### Alteração
 
-### 1. RentalStepCommercial.tsx
-Adicionar checkbox **"Esconder valores unitários no PDF"** ligado a `data.hide_unit_prices`, com texto auxiliar:
-> "A tabela de itens não exibirá valores — apenas o total geral da proposta será mostrado."
+**`src/pages/MeuPerfil.tsx` — handler `handleSaveName`**
 
-Posicionar logo após o controle de desconto, no mesmo padrão visual do `StepDiscount.tsx` (Sales).
+Trocar a chamada `supabase.functions.invoke("manage-users", { action: "update_own_profile", name })` por um `UPDATE` direto:
 
-### 2. StepDiscount.tsx (Sales) — ajuste de clareza
-Reforçar o texto do toggle existente para deixar explícito o efeito:
-- Label: "Esconder valores unitários dos itens no PDF"
-- Descrição: "A coluna de valor por item será omitida. Apenas o Total final da proposta aparecerá."
+```ts
+const { error } = await supabase
+  .from("profiles")
+  .update({ name: name.trim() })
+  .eq("user_id", user!.user_id);
+if (error) throw error;
+```
 
-### 3. StepReview.tsx (Sales) — preview
-Confirmar que o resumo de revisão indica quando a opção está ativa (já existe bloco em `data.hide_unit_prices`). Sem mudanças funcionais se já estiver correto.
+Mantém validação de mínimo 2 caracteres, toast de sucesso/erro e o estado `savingName`. O fluxo de alterar senha continua usando a edge function (precisa de service role para `auth.admin.updateUserById`).
 
-### 4. PDF (`supabase/functions/generate-pdf/index.ts`)
-Sem alterações — o comportamento já está implementado:
-- Com `hide_unit_prices = true`: tabela sem coluna de valor por item; rodapé mostra apenas Total final.
-- Com `hide_unit_prices = false`: comportamento atual (coluna Total por item + Total final).
+### Resultado
 
-## Resultado
-- Tanto Venda quanto Locação terão o toggle visível no wizard.
-- Marcado → PDF como solicitado (sem valor por item, só total final).
-- Desmarcado → PDF como hoje (com valor por item).
+- Admin e operadores conseguem alterar o próprio nome direto pelo cliente
+- Erro silencioso da edge function some do fluxo
+- Continua auditado pelo trigger `audit_profiles` na tabela `profiles`
