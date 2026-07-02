@@ -33,17 +33,35 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Find token
+    // Find token (allow already-used tokens to be re-processed idempotently)
     const { data: tokenRecord, error: tokenError } = await supabase
       .from("email_verification_tokens")
       .select("*")
       .eq("token", token.trim())
-      .is("used_at", null)
-      .single();
+      .maybeSingle();
 
     if (tokenError || !tokenRecord) {
-      return new Response(JSON.stringify({ error: "Token inválido ou já utilizado" }), {
+      return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Idempotent: if already used, return current profile state instead of failing
+    if (tokenRecord.used_at) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("must_complete_profile")
+        .eq("user_id", tokenRecord.user_id)
+        .single();
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: "E-mail já verificado.",
+        must_complete_profile: profileData?.must_complete_profile || false,
+        user_id: tokenRecord.user_id,
+      }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
