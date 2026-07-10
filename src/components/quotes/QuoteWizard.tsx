@@ -165,10 +165,10 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
 
   const saveMutation = useMutation({
     mutationFn: async (mode: "draft" | "finalized" | "request_approval") => {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) throw new Error("Não autenticado");
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
 
-      const userId = session.session.user.id;
+      const userId = userData.user.id;
       const finalStatus = mode === "finalized" ? "finalized" : "draft";
       const discountApproved = mode === "finalized" || (mode === "draft" && !needsApproval);
 
