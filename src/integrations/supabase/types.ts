@@ -1197,7 +1197,7 @@ export type Database = {
           cancelled_at?: string | null
           client_id: string
           created_at?: string
-          created_by: string
+          created_by?: string
           currency?: Database["public"]["Enums"]["currency"]
           delivery_time?: string | null
           discount_approved?: boolean
