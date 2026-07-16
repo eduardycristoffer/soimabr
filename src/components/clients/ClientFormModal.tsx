@@ -348,13 +348,35 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
                           )}
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="00.000.000/0000-00"
-                            value={field.value || ""}
-                            onChange={(e) => field.onChange(formatCNPJ(e.target.value))}
-                            disabled={isEditing}
-                            className={isEditing ? "bg-muted cursor-not-allowed" : ""}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="00.000.000/0000-00"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const formatted = formatCNPJ(e.target.value);
+                                field.onChange(formatted);
+                                const digits = formatted.replace(/\D/g, "");
+                                if (!isEditing && digits.length === 14 && isValidCNPJ(digits) && lastLookedUpRef.current !== digits) {
+                                  lastLookedUpRef.current = digits;
+                                  lookupCnpj(digits);
+                                }
+                              }}
+                              disabled={isEditing}
+                              className={isEditing ? "bg-muted cursor-not-allowed" : ""}
+                            />
+                            {!isEditing && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => lookupCnpj(field.value || "")}
+                                disabled={cnpjLoading}
+                                title="Buscar CNPJ"
+                              >
+                                {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                              </Button>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
