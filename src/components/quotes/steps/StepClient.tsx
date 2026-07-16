@@ -17,6 +17,8 @@ interface Props {
 
 export default function StepClient({ data, updateData, onNext }: Props) {
   const [search, setSearch] = useState("");
+  const [newClientOpen, setNewClientOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients-select", search],
