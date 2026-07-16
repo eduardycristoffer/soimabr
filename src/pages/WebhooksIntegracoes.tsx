@@ -5,6 +5,7 @@ import InboundWebhookConfig from "@/components/webhooks/InboundWebhookConfig";
 import OutboundWebhookList from "@/components/webhooks/OutboundWebhookList";
 import WebhookLogs from "@/components/webhooks/WebhookLogs";
 import GoogleSheetsConfig from "@/components/webhooks/GoogleSheetsConfig";
+import CnpjLookupConfig from "@/components/webhooks/CnpjLookupConfig";
 
 export default function WebhooksIntegracoes() {
   const { isAdmin, isLoading } = useAuth();
