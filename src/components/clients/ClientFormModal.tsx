@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Building2, Globe, Loader2, Lock } from "lucide-react";
+import { Building2, Globe, Loader2, Lock, Search } from "lucide-react";
 
 const baseSchema = z.object({
   razao_social: z.string().trim().min(2, "Razão social é obrigatória").max(200),
@@ -107,6 +107,45 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
   const [clientType, setClientType] = useState<ClientType>(client?.client_type || "nacional");
   const [accessRequestOpen, setAccessRequestOpen] = useState(false);
   const [duplicateCnpjDigits, setDuplicateCnpjDigits] = useState("");
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const lastLookedUpRef = useRef("");
+
+  const lookupCnpj = async (rawCnpj: string) => {
+    const digits = rawCnpj.replace(/\D/g, "");
+    if (digits.length !== 14 || !isValidCNPJ(digits)) {
+      toast({ title: "CNPJ inválido", variant: "destructive" });
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("consultar-cnpj", { body: { cnpj: digits } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      const v = form.getValues();
+      const setIfEmpty = (name: keyof ClientFormData, value: string | null) => {
+        if (!value) return;
+        if (!v[name] || v[name] === "") form.setValue(name as any, value, { shouldValidate: true });
+      };
+      // Overwrite razao_social / nome_fantasia
+      if (d.razao_social) form.setValue("razao_social", d.razao_social, { shouldValidate: true });
+      if (d.nome_fantasia) form.setValue("nome_fantasia", d.nome_fantasia, { shouldValidate: true });
+      setIfEmpty("endereco", d.endereco);
+      setIfEmpty("cidade", d.cidade);
+      setIfEmpty("estado", d.estado);
+      setIfEmpty("cep", d.cep);
+      setIfEmpty("telefone", d.telefone ? formatPhone(d.telefone) : null);
+      setIfEmpty("email", d.email);
+      toast({ title: "Dados preenchidos via CNPJ" });
+      if (d.warning) {
+        toast({ title: "Atenção", description: d.warning });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro na consulta de CNPJ", description: e.message, variant: "destructive" });
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -227,7 +266,7 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       form.reset();
       onOpenChange(false);
-      if (isConvertMode && newClient?.id && onConvertSuccess) {
+      if (newClient?.id && onConvertSuccess) {
         onConvertSuccess(newClient.id);
       }
     },
@@ -309,13 +348,35 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
                           )}
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="00.000.000/0000-00"
-                            value={field.value || ""}
-                            onChange={(e) => field.onChange(formatCNPJ(e.target.value))}
-                            disabled={isEditing}
-                            className={isEditing ? "bg-muted cursor-not-allowed" : ""}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="00.000.000/0000-00"
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const formatted = formatCNPJ(e.target.value);
+                                field.onChange(formatted);
+                                const digits = formatted.replace(/\D/g, "");
+                                if (!isEditing && digits.length === 14 && isValidCNPJ(digits) && lastLookedUpRef.current !== digits) {
+                                  lastLookedUpRef.current = digits;
+                                  lookupCnpj(digits);
+                                }
+                              }}
+                              disabled={isEditing}
+                              className={isEditing ? "bg-muted cursor-not-allowed" : ""}
+                            />
+                            {!isEditing && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => lookupCnpj(field.value || "")}
+                                disabled={cnpjLoading}
+                                title="Buscar CNPJ"
+                              >
+                                {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                              </Button>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
