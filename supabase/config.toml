@@ -3,6 +3,9 @@ project_id = "untvhsyorhojoviyplax"
 [functions.generate-pdf]
 verify_jwt = false
 
+[functions.generate-contract-pdf]
+verify_jwt = false
+
 [functions.manage-users]
 verify_jwt = false
 
