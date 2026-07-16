@@ -382,6 +382,11 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
         ) : null}
 
         <DialogFooter>
+          {quote && quote.status === "finalized" && (
+            <Button variant="default" onClick={() => setContractDialogOpen(true)}>
+              <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
+            </Button>
+          )}
           {quote && (quote.status === "finalized" || quote.status === "draft") && (
             <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
               {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
@@ -391,6 +396,13 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
           <Button onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
+      {quoteId && (
+        <GenerateContractDialog
+          quoteId={quoteId}
+          open={contractDialogOpen}
+          onClose={() => setContractDialogOpen(false)}
+        />
+      )}
     </Dialog>
   );
 }
