@@ -136,6 +136,8 @@ export default function CnpjLookupConfig() {
           )}
         </CardContent>
       </Card>
+
+      <CnpjLookupLogs />
     </div>
   );
 }
