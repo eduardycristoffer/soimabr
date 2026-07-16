@@ -104,6 +104,19 @@ export default function Contratos() {
           )}
         </CardContent>
       </Card>
+
+      <SelectQuoteForContractDialog
+        open={selectOpen}
+        onClose={() => setSelectOpen(false)}
+        onSelect={(qid) => { setSelectOpen(false); setGenerateForQuoteId(qid); }}
+      />
+      {generateForQuoteId && (
+        <GenerateContractDialog
+          quoteId={generateForQuoteId}
+          open={!!generateForQuoteId}
+          onClose={() => setGenerateForQuoteId(null)}
+        />
+      )}
     </div>
   );
 }
