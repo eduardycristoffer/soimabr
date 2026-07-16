@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatCNPJ } from "@/lib/validators";
 import { Loader2 } from "lucide-react";
+import CnpjLookupLogs from "./CnpjLookupLogs";
 
 export default function CnpjLookupConfig() {
   const queryClient = useQueryClient();
