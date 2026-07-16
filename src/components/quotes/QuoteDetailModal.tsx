@@ -36,6 +36,7 @@ interface Props {
 
 export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
   const { data: quote, isLoading } = useQuery({
     queryKey: ["quote-detail", quoteId],
