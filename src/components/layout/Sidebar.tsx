@@ -5,6 +5,8 @@ import {
   Package,
   Kanban,
   FileText,
+  FileSignature,
+  FileCog,
   UserCog,
   ClipboardList,
   Menu,
