@@ -47,6 +47,7 @@ export default function StepClient({ data, updateData, onNext }: Props) {
   };
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex gap-2">
         <div className="relative flex-1">
