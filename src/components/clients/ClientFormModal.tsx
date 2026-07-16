@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Building2, Globe, Loader2, Lock } from "lucide-react";
+import { Building2, Globe, Loader2, Lock, Search } from "lucide-react";
 
 const baseSchema = z.object({
   razao_social: z.string().trim().min(2, "Razão social é obrigatória").max(200),
