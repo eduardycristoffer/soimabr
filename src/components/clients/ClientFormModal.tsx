@@ -266,7 +266,7 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       form.reset();
       onOpenChange(false);
-      if (isConvertMode && newClient?.id && onConvertSuccess) {
+      if (newClient?.id && onConvertSuccess) {
         onConvertSuccess(newClient.id);
       }
     },
