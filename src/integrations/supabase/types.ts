@@ -200,6 +200,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cnpj_lookup_logs: {
+        Row: {
+          cnpj: string
+          created_at: string
+          duration_ms: number | null
+          http_status: number | null
+          id: string
+          message: string | null
+          provider: string
+          situacao_cadastral: string | null
+          status: string
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cnpj: string
+          created_at?: string
+          duration_ms?: number | null
+          http_status?: number | null
+          id?: string
+          message?: string | null
+          provider?: string
+          situacao_cadastral?: string | null
+          status: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cnpj?: string
+          created_at?: string
+          duration_ms?: number | null
+          http_status?: number | null
+          id?: string
+          message?: string | null
+          provider?: string
+          situacao_cadastral?: string | null
+          status?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           address: string | null
