@@ -26,6 +26,7 @@ export default function WebhooksIntegracoes() {
           <TabsTrigger value="outbound">Saída</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="sheets">Google Sheets</TabsTrigger>
+          <TabsTrigger value="cnpj">Consulta CNPJ</TabsTrigger>
         </TabsList>
 
         <TabsContent value="inbound">
