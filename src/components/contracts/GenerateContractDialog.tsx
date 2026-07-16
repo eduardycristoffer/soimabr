@@ -1,0 +1,279 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  buildPlaceholderMap,
+  resolvePlaceholders,
+  type PaymentScheduleItem,
+  type ContractGenerationInputs,
+} from "@/lib/contractPlaceholders";
+
+interface Props {
+  quoteId: string;
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function GenerateContractDialog({ quoteId, open, onClose }: Props) {
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
+
+  // Buyer rep
+  const [buyerRepName, setBuyerRepName] = useState("");
+  const [buyerRepCpf, setBuyerRepCpf] = useState("");
+  const [buyerRepRg, setBuyerRepRg] = useState("");
+  const [buyerRepCargo, setBuyerRepCargo] = useState("");
+
+  // Managers
+  const [sellerMgrName, setSellerMgrName] = useState("");
+  const [sellerMgrCpf, setSellerMgrCpf] = useState("");
+  const [sellerMgrPhone, setSellerMgrPhone] = useState("");
+  const [sellerMgrEmail, setSellerMgrEmail] = useState("");
+  const [buyerMgrName, setBuyerMgrName] = useState("");
+  const [buyerMgrCpf, setBuyerMgrCpf] = useState("");
+  const [buyerMgrPhone, setBuyerMgrPhone] = useState("");
+  const [buyerMgrEmail, setBuyerMgrEmail] = useState("");
+
+  // Payment
+  const [deliveryDays, setDeliveryDays] = useState<string>("");
+  const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([
+    { label: "Entrada", value: 0, due: "na confirmação do contrato" },
+  ]);
+
+  const { data: quote } = useQuery({
+    queryKey: ["quote-for-contract", quoteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*, clients(*)")
+        .eq("id", quoteId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!quoteId,
+  });
+
+  useEffect(() => {
+    if (quote && schedule.length === 1 && schedule[0].value === 0) {
+      const total = Number(quote.total || 0);
+      setSchedule([
+        { label: "Entrada (40%)", value: +(total * 0.4).toFixed(2), due: "na confirmação do contrato" },
+        { label: "Saldo (60%)", value: +(total * 0.6).toFixed(2), due: "à combinar" },
+      ]);
+      setDeliveryDays(String(quote.delivery_time ?? ""));
+    }
+  }, [quote]);
+
+  const totalSchedule = schedule.reduce((s, p) => s + (Number(p.value) || 0), 0);
+  const quoteTotal = Number(quote?.total || 0);
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      if (!quote) throw new Error("Proposta não carregada");
+      if (!buyerRepName || !buyerRepCpf) throw new Error("Informe o representante legal da compradora (nome e CPF)");
+      if (schedule.length === 0) throw new Error("Adicione ao menos uma parcela no cronograma de pagamento");
+
+      // 1) Find active template for quote_type
+      const { data: template, error: tErr } = await supabase
+        .from("contract_templates")
+        .select("*")
+        .eq("contract_type", quote.quote_type || "venda")
+        .eq("is_active", true)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (tErr) throw tErr;
+      if (!template) throw new Error("Nenhum modelo ativo encontrado para este tipo de proposta");
+
+      // 2) Fetch clauses
+      const { data: clauses, error: clErr } = await supabase
+        .from("contract_clauses")
+        .select("*")
+        .eq("template_id", template.id)
+        .order("order_index");
+      if (clErr) throw clErr;
+
+      // 3) Fetch items + company
+      const [{ data: items }, { data: company }] = await Promise.all([
+        supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index"),
+        supabase.from("company_settings").select("*").limit(1).maybeSingle(),
+      ]);
+
+      const inputs: ContractGenerationInputs = {
+        buyer_rep_name: buyerRepName,
+        buyer_rep_cpf: buyerRepCpf,
+        buyer_rep_rg: buyerRepRg,
+        buyer_rep_cargo: buyerRepCargo,
+        seller_manager_name: sellerMgrName,
+        seller_manager_cpf: sellerMgrCpf,
+        seller_manager_phone: sellerMgrPhone,
+        seller_manager_email: sellerMgrEmail,
+        buyer_manager_name: buyerMgrName,
+        buyer_manager_cpf: buyerMgrCpf,
+        buyer_manager_phone: buyerMgrPhone,
+        buyer_manager_email: buyerMgrEmail,
+        payment_schedule: schedule,
+        delivery_days: deliveryDays ? Number(deliveryDays) : undefined,
+      };
+
+      // 4) Create contract (number is generated by trigger)
+      const { data: contract, error: contractErr } = await supabase
+        .from("contracts")
+        .insert({
+          quote_id: quoteId,
+          template_id: template.id,
+          contract_number: "TMP", // will be overwritten by trigger
+          status: "draft",
+          buyer_rep_name: buyerRepName,
+          buyer_rep_cpf: buyerRepCpf,
+          buyer_rep_rg: buyerRepRg || null,
+          buyer_rep_cargo: buyerRepCargo || null,
+          seller_manager_name: sellerMgrName || null,
+          seller_manager_cpf: sellerMgrCpf || null,
+          seller_manager_phone: sellerMgrPhone || null,
+          seller_manager_email: sellerMgrEmail || null,
+          buyer_manager_name: buyerMgrName || null,
+          buyer_manager_cpf: buyerMgrCpf || null,
+          buyer_manager_phone: buyerMgrPhone || null,
+          buyer_manager_email: buyerMgrEmail || null,
+          payment_schedule: schedule as any,
+          delivery_days: deliveryDays ? Number(deliveryDays) : null,
+          generated_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+      if (contractErr) throw contractErr;
+
+      // 5) Build placeholder map & insert snapshots
+      const map = buildPlaceholderMap({
+        quote,
+        client: quote.clients,
+        company,
+        items: items || [],
+        inputs,
+        contract_number: contract.contract_number,
+      });
+
+      const snapshotRows = (clauses || []).map((c: any) => ({
+        contract_id: contract.id,
+        source_clause_id: c.id,
+        order_index: c.order_index,
+        title: c.title,
+        body: resolvePlaceholders(c.body, map),
+        is_core: c.is_core,
+      }));
+
+      const { error: snapErr } = await supabase
+        .from("contract_clause_snapshots")
+        .insert(snapshotRows);
+      if (snapErr) throw snapErr;
+
+      return contract;
+    },
+    onSuccess: (contract) => {
+      toast({ title: "Contrato gerado", description: `Nº ${contract.contract_number}` });
+      onClose();
+      navigate(`/contratos/${contract.id}`);
+    },
+    onError: (e: any) =>
+      toast({ title: "Erro ao gerar contrato", description: e.message, variant: "destructive" }),
+  });
+
+  const updateSchedule = (idx: number, field: keyof PaymentScheduleItem, v: string) => {
+    setSchedule((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, [field]: field === "value" ? Number(v) : v } : p))
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Gerar Contrato a partir da Proposta</DialogTitle>
+          <DialogDescription>
+            Complete os dados necessários. As cláusulas serão pré-preenchidas com os dados da proposta e ficarão editáveis em seguida.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Representante legal da compradora *</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome *</Label><Input value={buyerRepName} onChange={(e) => setBuyerRepName(e.target.value)} /></div>
+              <div><Label>CPF *</Label><Input value={buyerRepCpf} onChange={(e) => setBuyerRepCpf(e.target.value)} /></div>
+              <div><Label>RG</Label><Input value={buyerRepRg} onChange={(e) => setBuyerRepRg(e.target.value)} /></div>
+              <div><Label>Cargo</Label><Input value={buyerRepCargo} onChange={(e) => setBuyerRepCargo(e.target.value)} /></div>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Gestores de contrato</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">Vendedora</div>
+              <div><Label>Nome</Label><Input value={sellerMgrName} onChange={(e) => setSellerMgrName(e.target.value)} /></div>
+              <div><Label>CPF</Label><Input value={sellerMgrCpf} onChange={(e) => setSellerMgrCpf(e.target.value)} /></div>
+              <div><Label>Telefone</Label><Input value={sellerMgrPhone} onChange={(e) => setSellerMgrPhone(e.target.value)} /></div>
+              <div><Label>E-mail</Label><Input value={sellerMgrEmail} onChange={(e) => setSellerMgrEmail(e.target.value)} /></div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground mt-2">Compradora</div>
+              <div><Label>Nome</Label><Input value={buyerMgrName} onChange={(e) => setBuyerMgrName(e.target.value)} /></div>
+              <div><Label>CPF</Label><Input value={buyerMgrCpf} onChange={(e) => setBuyerMgrCpf(e.target.value)} /></div>
+              <div><Label>Telefone</Label><Input value={buyerMgrPhone} onChange={(e) => setBuyerMgrPhone(e.target.value)} /></div>
+              <div><Label>E-mail</Label><Input value={buyerMgrEmail} onChange={(e) => setBuyerMgrEmail(e.target.value)} /></div>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Condições de pagamento</h3>
+              <div className="text-xs text-muted-foreground">
+                Total proposta: <strong>R$ {quoteTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
+                {" · "}
+                Cronograma: <strong>R$ {totalSchedule.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong>
+              </div>
+            </div>
+
+            {schedule.map((p, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_140px_1fr_auto] gap-2 items-end">
+                <div><Label className="text-xs">Descrição</Label><Input value={p.label} onChange={(e) => updateSchedule(idx, "label", e.target.value)} /></div>
+                <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={p.value} onChange={(e) => updateSchedule(idx, "value", e.target.value)} /></div>
+                <div><Label className="text-xs">Vencimento</Label><Input value={p.due} onChange={(e) => updateSchedule(idx, "due", e.target.value)} placeholder="ex: 2026-09-01 ou 'na entrega'" /></div>
+                <Button variant="ghost" size="icon" onClick={() => setSchedule((s) => s.filter((_, i) => i !== idx))}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setSchedule((s) => [...s, { label: "", value: 0, due: "" }])}>
+              <Plus className="h-3 w-3 mr-1" /> Adicionar parcela
+            </Button>
+
+            <div>
+              <Label>Prazo de entrega (dias)</Label>
+              <Input type="number" value={deliveryDays} onChange={(e) => setDeliveryDays(e.target.value)} />
+            </div>
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+            {generateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Gerar Contrato
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
