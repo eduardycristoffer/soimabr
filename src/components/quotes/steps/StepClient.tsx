@@ -109,5 +109,20 @@ export default function StepClient({ data, updateData, onNext }: Props) {
         </Button>
       </div>
     </div>
+
+    <ClientFormModal
+      open={newClientOpen}
+      onOpenChange={setNewClientOpen}
+      onConvertSuccess={async (clientId) => {
+        const { data: c } = await supabase
+          .from("clients")
+          .select("id, razao_social, nome_fantasia, client_type")
+          .eq("id", clientId)
+          .single();
+        if (c) selectClient(c);
+        queryClient.invalidateQueries({ queryKey: ["clients-select"] });
+      }}
+    />
+    </>
   );
 }
