@@ -17,12 +17,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy, Trash2 } from "lucide-react";
+import { Plus, Search, FileText, Eye, MoreHorizontal, Download, Loader2, Clock, CheckCircle2, XCircle, Pencil, Copy, Trash2, FileSignature } from "lucide-react";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 import RentalWizard from "@/components/quotes/RentalWizard";
 import QuoteTypeSelector from "@/components/quotes/QuoteTypeSelector";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
+import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizado", variant: "default" },
@@ -41,6 +42,7 @@ export default function Orcamentos() {
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [viewingQuoteId, setViewingQuoteId] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [contractQuoteId, setContractQuoteId] = useState<string | null>(null);
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["quotes", search],
@@ -308,9 +310,14 @@ export default function Orcamentos() {
                             </DropdownMenuItem>
                           )}
                           {quote.status === "finalized" && (
-                            <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
-                              <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
+                                <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setContractQuoteId(quote.id)}>
+                                <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
+                              </DropdownMenuItem>
+                            </>
                           )}
                           {(quote.status === "finalized" || quote.status === "draft") && (
                             <DropdownMenuItem
@@ -349,6 +356,14 @@ export default function Orcamentos() {
         open={!!viewingQuoteId}
         onClose={() => setViewingQuoteId(null)}
       />
+
+      {contractQuoteId && (
+        <GenerateContractDialog
+          quoteId={contractQuoteId}
+          open={!!contractQuoteId}
+          onClose={() => setContractQuoteId(null)}
+        />
+      )}
 
       <QuoteTypeSelector open={typeSelectorOpen} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
 

@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileSignature, Eye } from "lucide-react";
+import { Search, FileSignature, Eye, Plus } from "lucide-react";
+import SelectQuoteForContractDialog from "@/components/contracts/SelectQuoteForContractDialog";
+import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
@@ -19,6 +21,8 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export default function Contratos() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [selectOpen, setSelectOpen] = useState(false);
+  const [generateForQuoteId, setGenerateForQuoteId] = useState<string | null>(null);
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["contracts", search],
@@ -36,9 +40,14 @@ export default function Contratos() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Contratos</h1>
-        <p className="text-muted-foreground">Contratos gerados a partir de propostas finalizadas</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Contratos</h1>
+          <p className="text-muted-foreground">Contratos gerados a partir de propostas finalizadas</p>
+        </div>
+        <Button onClick={() => setSelectOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Gerar Contrato
+        </Button>
       </div>
 
       <Card>
@@ -95,6 +104,19 @@ export default function Contratos() {
           )}
         </CardContent>
       </Card>
+
+      <SelectQuoteForContractDialog
+        open={selectOpen}
+        onClose={() => setSelectOpen(false)}
+        onSelect={(qid) => { setSelectOpen(false); setGenerateForQuoteId(qid); }}
+      />
+      {generateForQuoteId && (
+        <GenerateContractDialog
+          quoteId={generateForQuoteId}
+          open={!!generateForQuoteId}
+          onClose={() => setGenerateForQuoteId(null)}
+        />
+      )}
     </div>
   );
 }
