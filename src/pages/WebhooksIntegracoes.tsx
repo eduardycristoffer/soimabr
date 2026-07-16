@@ -41,6 +41,9 @@ export default function WebhooksIntegracoes() {
         <TabsContent value="sheets">
           <GoogleSheetsConfig />
         </TabsContent>
+        <TabsContent value="cnpj">
+          <CnpjLookupConfig />
+        </TabsContent>
       </Tabs>
     </div>
   );
