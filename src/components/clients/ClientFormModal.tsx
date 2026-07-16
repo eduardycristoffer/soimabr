@@ -108,7 +108,7 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
   const [accessRequestOpen, setAccessRequestOpen] = useState(false);
   const [duplicateCnpjDigits, setDuplicateCnpjDigits] = useState("");
   const [cnpjLoading, setCnpjLoading] = useState(false);
-  const lastLookedUpRef = { current: "" } as { current: string };
+  const lastLookedUpRef = useRef("");
 
   const lookupCnpj = async (rawCnpj: string) => {
     const digits = rawCnpj.replace(/\D/g, "");
