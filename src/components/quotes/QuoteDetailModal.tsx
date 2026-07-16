@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, FileSignature } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
+import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
