@@ -107,6 +107,45 @@ export default function ClientFormModal({ open, onOpenChange, client, leadData, 
   const [clientType, setClientType] = useState<ClientType>(client?.client_type || "nacional");
   const [accessRequestOpen, setAccessRequestOpen] = useState(false);
   const [duplicateCnpjDigits, setDuplicateCnpjDigits] = useState("");
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const lastLookedUpRef = { current: "" } as { current: string };
+
+  const lookupCnpj = async (rawCnpj: string) => {
+    const digits = rawCnpj.replace(/\D/g, "");
+    if (digits.length !== 14 || !isValidCNPJ(digits)) {
+      toast({ title: "CNPJ inválido", variant: "destructive" });
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("consultar-cnpj", { body: { cnpj: digits } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      const v = form.getValues();
+      const setIfEmpty = (name: keyof ClientFormData, value: string | null) => {
+        if (!value) return;
+        if (!v[name] || v[name] === "") form.setValue(name as any, value, { shouldValidate: true });
+      };
+      // Overwrite razao_social / nome_fantasia
+      if (d.razao_social) form.setValue("razao_social", d.razao_social, { shouldValidate: true });
+      if (d.nome_fantasia) form.setValue("nome_fantasia", d.nome_fantasia, { shouldValidate: true });
+      setIfEmpty("endereco", d.endereco);
+      setIfEmpty("cidade", d.cidade);
+      setIfEmpty("estado", d.estado);
+      setIfEmpty("cep", d.cep);
+      setIfEmpty("telefone", d.telefone ? formatPhone(d.telefone) : null);
+      setIfEmpty("email", d.email);
+      toast({ title: "Dados preenchidos via CNPJ" });
+      if (d.warning) {
+        toast({ title: "Atenção", description: d.warning });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro na consulta de CNPJ", description: e.message, variant: "destructive" });
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
