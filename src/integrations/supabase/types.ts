@@ -185,9 +185,14 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          inscricao_estadual: string | null
           logo_url: string | null
           phone: string | null
           razao_social: string
+          representante_cargo: string | null
+          representante_cpf: string | null
+          representante_nome: string | null
+          representante_rg: string | null
           updated_at: string
           website: string | null
         }
@@ -199,9 +204,14 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          inscricao_estadual?: string | null
           logo_url?: string | null
           phone?: string | null
           razao_social?: string
+          representante_cargo?: string | null
+          representante_cpf?: string | null
+          representante_nome?: string | null
+          representante_rg?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -213,13 +223,266 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          inscricao_estadual?: string | null
           logo_url?: string | null
           phone?: string | null
           razao_social?: string
+          representante_cargo?: string | null
+          representante_cpf?: string | null
+          representante_nome?: string | null
+          representante_rg?: string | null
           updated_at?: string
           website?: string | null
         }
         Relationships: []
+      }
+      contract_clause_snapshots: {
+        Row: {
+          body: string
+          contract_id: string
+          created_at: string
+          edited_at: string | null
+          edited_by: string | null
+          id: string
+          is_core: boolean
+          order_index: number
+          source_clause_id: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          contract_id: string
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          id?: string
+          is_core?: boolean
+          order_index: number
+          source_clause_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          contract_id?: string
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          id?: string
+          is_core?: boolean
+          order_index?: number
+          source_clause_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_clause_snapshots_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_clause_snapshots_source_clause_id_fkey"
+            columns: ["source_clause_id"]
+            isOneToOne: false
+            referencedRelation: "contract_clauses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_clauses: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_core: boolean
+          order_index: number
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_core?: boolean
+          order_index: number
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_core?: boolean
+          order_index?: number
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_clauses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_templates: {
+        Row: {
+          contract_type: Database["public"]["Enums"]["quote_type"]
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          contract_type: Database["public"]["Enums"]["quote_type"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          contract_type?: Database["public"]["Enums"]["quote_type"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          buyer_manager_cpf: string | null
+          buyer_manager_email: string | null
+          buyer_manager_name: string | null
+          buyer_manager_phone: string | null
+          buyer_rep_cargo: string | null
+          buyer_rep_cpf: string | null
+          buyer_rep_name: string | null
+          buyer_rep_rg: string | null
+          cancelled_at: string | null
+          contract_number: string
+          created_at: string
+          created_by: string | null
+          delivery_days: number | null
+          generated_at: string | null
+          id: string
+          payment_schedule: Json
+          pdf_url: string | null
+          quote_id: string
+          seller_manager_cpf: string | null
+          seller_manager_email: string | null
+          seller_manager_name: string | null
+          seller_manager_phone: string | null
+          seller_rep_cargo: string | null
+          seller_rep_cpf: string | null
+          seller_rep_name: string | null
+          seller_rep_rg: string | null
+          sent_at: string | null
+          signed_at: string | null
+          signed_pdf_url: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          buyer_manager_cpf?: string | null
+          buyer_manager_email?: string | null
+          buyer_manager_name?: string | null
+          buyer_manager_phone?: string | null
+          buyer_rep_cargo?: string | null
+          buyer_rep_cpf?: string | null
+          buyer_rep_name?: string | null
+          buyer_rep_rg?: string | null
+          cancelled_at?: string | null
+          contract_number: string
+          created_at?: string
+          created_by?: string | null
+          delivery_days?: number | null
+          generated_at?: string | null
+          id?: string
+          payment_schedule?: Json
+          pdf_url?: string | null
+          quote_id: string
+          seller_manager_cpf?: string | null
+          seller_manager_email?: string | null
+          seller_manager_name?: string | null
+          seller_manager_phone?: string | null
+          seller_rep_cargo?: string | null
+          seller_rep_cpf?: string | null
+          seller_rep_name?: string | null
+          seller_rep_rg?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signed_pdf_url?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          buyer_manager_cpf?: string | null
+          buyer_manager_email?: string | null
+          buyer_manager_name?: string | null
+          buyer_manager_phone?: string | null
+          buyer_rep_cargo?: string | null
+          buyer_rep_cpf?: string | null
+          buyer_rep_name?: string | null
+          buyer_rep_rg?: string | null
+          cancelled_at?: string | null
+          contract_number?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_days?: number | null
+          generated_at?: string | null
+          id?: string
+          payment_schedule?: Json
+          pdf_url?: string | null
+          quote_id?: string
+          seller_manager_cpf?: string | null
+          seller_manager_email?: string | null
+          seller_manager_name?: string | null
+          seller_manager_phone?: string | null
+          seller_rep_cargo?: string | null
+          seller_rep_cpf?: string | null
+          seller_rep_name?: string | null
+          seller_rep_rg?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signed_pdf_url?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       default_panel_items: {
         Row: {
@@ -1542,6 +1805,7 @@ export type Database = {
       app_role: "admin" | "operator"
       approval_status: "pending" | "approved" | "rejected"
       client_type: "nacional" | "internacional"
+      contract_status: "draft" | "sent" | "signed" | "cancelled"
       currency: "BRL" | "USD" | "EUR"
       product_category:
         | "grua"
@@ -1683,6 +1947,7 @@ export const Constants = {
       app_role: ["admin", "operator"],
       approval_status: ["pending", "approved", "rejected"],
       client_type: ["nacional", "internacional"],
+      contract_status: ["draft", "sent", "signed", "cancelled"],
       currency: ["BRL", "USD", "EUR"],
       product_category: [
         "grua",

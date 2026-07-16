@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, FileSignature } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
+import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -35,6 +36,7 @@ interface Props {
 
 export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
 
   const { data: quote, isLoading } = useQuery({
     queryKey: ["quote-detail", quoteId],
@@ -380,6 +382,11 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
         ) : null}
 
         <DialogFooter>
+          {quote && quote.status === "finalized" && (
+            <Button variant="default" onClick={() => setContractDialogOpen(true)}>
+              <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
+            </Button>
+          )}
           {quote && (quote.status === "finalized" || quote.status === "draft") && (
             <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
               {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
@@ -389,6 +396,13 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
           <Button onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
+      {quoteId && (
+        <GenerateContractDialog
+          quoteId={quoteId}
+          open={contractDialogOpen}
+          onClose={() => setContractDialogOpen(false)}
+        />
+      )}
     </Dialog>
   );
 }
