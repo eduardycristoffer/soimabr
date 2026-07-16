@@ -131,7 +131,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         .insert({
           quote_id: quoteId,
           template_id: template.id,
-          contract_number: "TMP", // will be overwritten by trigger
+          contract_number: "",
           status: "draft",
           buyer_rep_name: buyerRepName,
           buyer_rep_cpf: buyerRepCpf,
