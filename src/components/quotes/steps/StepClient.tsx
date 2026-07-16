@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QuoteWizardData } from "@/hooks/useQuoteWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Building2, Globe, Check } from "lucide-react";
+import { Search, Building2, Globe, Check, Plus } from "lucide-react";
+import ClientFormModal from "@/components/clients/ClientFormModal";
 
 interface Props {
   data: QuoteWizardData;
