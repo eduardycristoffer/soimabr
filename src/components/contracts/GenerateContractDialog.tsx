@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,14 @@ interface Props {
 
 export default function GenerateContractDialog({ quoteId, open, onClose }: Props) {
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Seller rep (SOIMA)
+  const [sellerRepName, setSellerRepName] = useState("");
+  const [sellerRepCpf, setSellerRepCpf] = useState("");
+  const [sellerRepRg, setSellerRepRg] = useState("");
+  const [sellerRepCargo, setSellerRepCargo] = useState("");
 
   // Buyer rep
   const [buyerRepName, setBuyerRepName] = useState("");
@@ -44,9 +52,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
 
   // Payment
   const [deliveryDays, setDeliveryDays] = useState<string>("");
-  const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([
-    { label: "Entrada", value: 0, due: "na confirmação do contrato" },
-  ]);
+  const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([]);
 
   const { data: quote } = useQuery({
     queryKey: ["quote-for-contract", quoteId],
@@ -62,16 +68,61 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     enabled: open && !!quoteId,
   });
 
+  const { data: company } = useQuery({
+    queryKey: ["company-settings-for-contract"],
+    queryFn: async () => {
+      const { data } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
+      return data;
+    },
+    enabled: open,
+  });
+
+  const { data: myProfile } = useQuery({
+    queryKey: ["my-profile-for-contract", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase.from("profiles").select("name, email").eq("user_id", user.id).maybeSingle();
+      return data;
+    },
+    enabled: open && !!user?.id,
+  });
+
+  // Prefill once when data loads
   useEffect(() => {
-    if (quote && schedule.length === 1 && schedule[0].value === 0) {
-      const total = Number(quote.total || 0);
-      setSchedule([
-        { label: "Entrada (40%)", value: +(total * 0.4).toFixed(2), due: "na confirmação do contrato" },
-        { label: "Saldo (60%)", value: +(total * 0.6).toFixed(2), due: "à combinar" },
-      ]);
-      setDeliveryDays(String(quote.delivery_time ?? ""));
+    if (!open || prefilled || !quote) return;
+    // Seller from company_settings
+    if (company) {
+      setSellerRepName(company.representante_nome || "");
+      setSellerRepCpf(company.representante_cpf || "");
+      setSellerRepRg(company.representante_rg || "");
+      setSellerRepCargo(company.representante_cargo || "");
     }
-  }, [quote]);
+    // Buyer manager from client contact
+    const client = (quote as any).clients;
+    if (client) {
+      setBuyerMgrName(client.contato_nome || "");
+      setBuyerMgrPhone(client.contato_telefone || client.telefone || "");
+      setBuyerMgrEmail(client.contato_email || client.email || "");
+    }
+    // Seller manager from logged-in user profile
+    if (myProfile) {
+      setSellerMgrName(myProfile.name || "");
+      setSellerMgrEmail(myProfile.email || "");
+    }
+    // Payment schedule 40/60 from quote total
+    const total = Number(quote.total || 0);
+    setSchedule([
+      { label: "Entrada (40%)", value: +(total * 0.4).toFixed(2), due: "na confirmação do contrato" },
+      { label: "Saldo (60%)", value: +(total * 0.6).toFixed(2), due: "à combinar" },
+    ]);
+    setDeliveryDays(String(quote.delivery_time ?? ""));
+    setPrefilled(true);
+  }, [open, quote, company, myProfile, prefilled]);
+
+  // Reset when closing
+  useEffect(() => {
+    if (!open) setPrefilled(false);
+  }, [open]);
 
   const totalSchedule = schedule.reduce((s, p) => s + (Number(p.value) || 0), 0);
   const quoteTotal = Number(quote?.total || 0);
@@ -82,7 +133,6 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
       if (!buyerRepName || !buyerRepCpf) throw new Error("Informe o representante legal da compradora (nome e CPF)");
       if (schedule.length === 0) throw new Error("Adicione ao menos uma parcela no cronograma de pagamento");
 
-      // 1) Find active template for quote_type
       const { data: template, error: tErr } = await supabase
         .from("contract_templates")
         .select("*")
@@ -94,7 +144,6 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
       if (tErr) throw tErr;
       if (!template) throw new Error("Nenhum modelo ativo encontrado para este tipo de proposta");
 
-      // 2) Fetch clauses
       const { data: clauses, error: clErr } = await supabase
         .from("contract_clauses")
         .select("*")
@@ -102,13 +151,13 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         .order("order_index");
       if (clErr) throw clErr;
 
-      // 3) Fetch items + company
-      const [{ data: items }, { data: company }] = await Promise.all([
-        supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index"),
-        supabase.from("company_settings").select("*").limit(1).maybeSingle(),
-      ]);
+      const { data: items } = await supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index");
 
       const inputs: ContractGenerationInputs = {
+        seller_rep_name: sellerRepName,
+        seller_rep_cpf: sellerRepCpf,
+        seller_rep_rg: sellerRepRg,
+        seller_rep_cargo: sellerRepCargo,
         buyer_rep_name: buyerRepName,
         buyer_rep_cpf: buyerRepCpf,
         buyer_rep_rg: buyerRepRg,
@@ -125,7 +174,6 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         delivery_days: deliveryDays ? Number(deliveryDays) : undefined,
       };
 
-      // 4) Create contract (number is generated by trigger)
       const { data: contract, error: contractErr } = await supabase
         .from("contracts")
         .insert({
@@ -133,6 +181,10 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
           template_id: template.id,
           contract_number: "",
           status: "draft",
+          seller_rep_name: sellerRepName || null,
+          seller_rep_cpf: sellerRepCpf || null,
+          seller_rep_rg: sellerRepRg || null,
+          seller_rep_cargo: sellerRepCargo || null,
           buyer_rep_name: buyerRepName,
           buyer_rep_cpf: buyerRepCpf,
           buyer_rep_rg: buyerRepRg || null,
@@ -153,10 +205,9 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         .single();
       if (contractErr) throw contractErr;
 
-      // 5) Build placeholder map & insert snapshots
       const map = buildPlaceholderMap({
         quote,
-        client: quote.clients,
+        client: (quote as any).clients,
         company,
         items: items || [],
         inputs,
@@ -172,9 +223,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         is_core: c.is_core,
       }));
 
-      const { error: snapErr } = await supabase
-        .from("contract_clause_snapshots")
-        .insert(snapshotRows);
+      const { error: snapErr } = await supabase.from("contract_clause_snapshots").insert(snapshotRows);
       if (snapErr) throw snapErr;
 
       return contract;
@@ -200,11 +249,23 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         <DialogHeader>
           <DialogTitle>Gerar Contrato a partir da Proposta</DialogTitle>
           <DialogDescription>
-            Complete os dados necessários. As cláusulas serão pré-preenchidas com os dados da proposta e ficarão editáveis em seguida.
+            Dados da SOIMA, do cliente e da proposta foram pré-preenchidos. Revise e ajuste antes de gerar.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Representante legal da vendedora (SOIMA)</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome</Label><Input value={sellerRepName} onChange={(e) => setSellerRepName(e.target.value)} /></div>
+              <div><Label>CPF</Label><Input value={sellerRepCpf} onChange={(e) => setSellerRepCpf(e.target.value)} /></div>
+              <div><Label>RG</Label><Input value={sellerRepRg} onChange={(e) => setSellerRepRg(e.target.value)} /></div>
+              <div><Label>Cargo</Label><Input value={sellerRepCargo} onChange={(e) => setSellerRepCargo(e.target.value)} /></div>
+            </div>
+          </section>
+
+          <Separator />
+
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Representante legal da compradora *</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -250,7 +311,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
                 <div><Label className="text-xs">Descrição</Label><Input value={p.label} onChange={(e) => updateSchedule(idx, "label", e.target.value)} /></div>
                 <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={p.value} onChange={(e) => updateSchedule(idx, "value", e.target.value)} /></div>
                 <div><Label className="text-xs">Vencimento</Label><Input value={p.due} onChange={(e) => updateSchedule(idx, "due", e.target.value)} placeholder="ex: 2026-09-01 ou 'na entrega'" /></div>
-                <Button variant="ghost" size="icon" onClick={() => setSchedule((s) => s.filter((_, i) => i !== idx))}>
+                <Button variant="ghost" size="icon" aria-label="Remover parcela" onClick={() => setSchedule((s) => s.filter((_, i) => i !== idx))}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
