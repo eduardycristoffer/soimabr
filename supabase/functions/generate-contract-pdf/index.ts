@@ -215,7 +215,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   const prepareClauseBody = (body: string): string => replaceScopeTokens(refreshExistingScopeTable(body));
 
   const sortedSnaps = [...snapshots].sort((a, b) => a.order_index - b.order_index);
-  const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela|ITENS INCLUSOS|ITENS DA PROPOSTA/i.test(c.body || ""));
+  const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela/i.test(c.body || ""));
 
   const clausesHtml = sortedSnaps
     .map((c, idx) => {
