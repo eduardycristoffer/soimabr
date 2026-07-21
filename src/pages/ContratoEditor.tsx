@@ -16,6 +16,8 @@ import {
   Loader2, Lock, History, RotateCcw, Bold, List, CheckCircle2, AlertCircle, GitBranch, Ban,
 } from "lucide-react";
 import { createContractVersion, restoreContractVersion } from "@/lib/contractVersions";
+import { ContractScopePreview } from "@/components/contracts/ContractScopePreview";
+
 
 const statusLabel: Record<string, string> = {
   draft: "Rascunho",
@@ -383,6 +385,11 @@ export default function ContratoEditor() {
 
       <SignatoriesEditor contractId={id!} isLocked={isLocked} />
       <WitnessesEditor contractId={id!} isLocked={isLocked} />
+
+      {(contract as any).quote_id && (
+        <ContractScopePreview quoteId={(contract as any).quote_id} />
+      )}
+
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Cláusulas</h2>
