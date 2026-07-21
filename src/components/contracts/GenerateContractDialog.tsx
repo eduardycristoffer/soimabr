@@ -248,6 +248,13 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
       if (!buyerSigs.length || !buyerSigs[0].name || !buyerSigs[0].cpf)
         throw new Error("Informe ao menos um representante legal da compradora (nome e CPF)");
       if (schedule.length === 0) throw new Error("Adicione ao menos uma parcela no cronograma de pagamento");
+      if (Math.abs(totalSchedule - quoteTotal) > 0.01)
+        throw new Error(`Soma das parcelas (R$ ${totalSchedule.toFixed(2)}) diverge do total da proposta (R$ ${quoteTotal.toFixed(2)}).`);
+      const allSigs = [...sellerSigs, ...buyerSigs, ...witnesses];
+      for (const s of allSigs) {
+        if (s.cpf && !isValidCPF(s.cpf))
+          throw new Error(`CPF inválido: ${s.cpf} (${s.name || "sem nome"}).`);
+      }
       if (alsoGenerateService && !serviceTemplate)
         throw new Error("Nenhum modelo ativo de prestação de serviço encontrado");
 
