@@ -148,6 +148,43 @@ export function stripHtmlSentinels(s: string): string {
   return (s || "").split(HTML_OPEN).join("").split(HTML_CLOSE).join("");
 }
 
+function getItemProduct(item: any): any {
+  return item?.products || item?.product || item?.product_data || {};
+}
+
+function getCommercialDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(product.descricao || item.descricao || item.description || "").trim();
+}
+
+function getTechnicalDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(
+    product.descricao_tecnica ||
+      item.descricao_tecnica ||
+      item.technical_description ||
+      "",
+  ).trim();
+}
+
+function descriptionLinesForItem(item: any): string {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `<div class="item-commercial-desc"><strong>Descrição:</strong> ${escHtml(commercial)}</div>` : "",
+    technical ? `<div class="item-tech-desc"><strong>Descrição técnica:</strong> ${escHtml(technical)}</div>` : "",
+  ].filter(Boolean).join("");
+}
+
+function textDescriptionsForItem(item: any): string[] {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `descrição: ${commercial}` : "",
+    technical ? `descrição técnica: ${technical}` : "",
+  ].filter(Boolean);
+}
+
 export function itensInclusosTabela(items: any[]): string {
 
   if (!items || items.length === 0) return "_(sem itens)_";
@@ -186,7 +223,7 @@ export function itensInclusosTabela(items: any[]): string {
         `<tr>` +
           `<td class="c-idx">${idx}</td>` +
           `<td class="c-cod">${escHtml(it.product_code || "")}</td>` +
-          `<td class="c-desc"><strong>${escHtml(it.product_name || "")}</strong>${specsHtml}${notes}</td>` +
+          `<td class="c-desc"><strong>${escHtml(it.product_name || "")}</strong>${descriptionLinesForItem(it)}${specsHtml}${notes}</td>` +
           `<td class="c-qtd">${it.quantity ?? 1}</td>` +
         `</tr>`,
       );
@@ -214,8 +251,9 @@ export function itensInclusosExtenso(items: any[]): string {
     const qtyExt = inteiroPorExtenso(qty);
     const qtyStr = String(qty).padStart(2, "0");
     const code = i.product_code ? ` (código ${i.product_code})` : "";
-    const notes = i.notes ? `, contendo: ${i.notes}` : "";
-    return `${qtyExt} (${qtyStr}) ${i.product_name}${code}${notes}`;
+    const details = [...textDescriptionsForItem(i), i.notes ? `observações: ${i.notes}` : ""];
+    const detailsText = details.length ? `, com ${details.join(", ")}` : "";
+    return `${qtyExt} (${qtyStr}) ${i.product_name}${code}${detailsText}`;
   });
   return partes.join("; ");
 }
