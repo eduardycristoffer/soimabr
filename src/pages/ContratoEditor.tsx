@@ -213,13 +213,26 @@ export default function ContratoEditor() {
     try {
       const { data, error } = await supabase.functions.invoke("generate-contract-pdf", { body: { contractId: id } });
       if (error) throw error;
-      const w = window.open("", "_blank");
-      if (w) { w.document.write(data.html); w.document.close(); }
+      if (!data?.pdf_base64) throw new Error("Resposta inválida do servidor");
+      const bin = atob(data.pdf_base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.contract_number || "contrato"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast({ title: "PDF gerado" });
     } catch (e: any) {
       toast({ title: "Erro ao gerar PDF", description: e.message, variant: "destructive" });
     } finally { setGeneratingPdf(false); }
   };
+
 
   const handleUploadSigned = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
