@@ -16,9 +16,18 @@ function esc(s: string) {
     .replace(/>/g, "&gt;");
 }
 
-// Minimal markdown → HTML (bold, italics, lists, paragraphs)
+// Minimal markdown → HTML (bold, italics, lists, paragraphs).
+// Preserves raw HTML blocks wrapped in %%HTML%%...%%/HTML%% sentinels
+// (used by contract placeholders like itens_inclusos_tabela).
 function md(input: string): string {
-  const safe = esc(input);
+  const HTML_RX = /%%HTML%%([\s\S]*?)%%\/HTML%%/g;
+  const blocks: string[] = [];
+  const withPlaceholders = (input || "").replace(HTML_RX, (_, html) => {
+    blocks.push(html);
+    return `\u0000HTMLBLOCK${blocks.length - 1}\u0000`;
+  });
+
+  const safe = esc(withPlaceholders);
   const lines = safe.split("\n");
   const out: string[] = [];
   let inList = false;
@@ -27,6 +36,9 @@ function md(input: string): string {
     if (/^\s*-\s+/.test(line)) {
       if (!inList) { out.push("<ul>"); inList = true; }
       out.push("<li>" + line.replace(/^\s*-\s+/, "") + "</li>");
+    } else if (/\u0000HTMLBLOCK\d+\u0000/.test(line)) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(line);
     } else {
       if (inList) { out.push("</ul>"); inList = false; }
       if (!line) out.push("");
@@ -37,6 +49,8 @@ function md(input: string): string {
   let html = out.join("\n");
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/_([^_\n]+)_/g, "<em>$1</em>");
+  // Reinsert raw HTML blocks unescaped
+  html = html.replace(/\u0000HTMLBLOCK(\d+)\u0000/g, (_, i) => blocks[Number(i)] || "");
   return html;
 }
 
@@ -119,6 +133,16 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   .clause-body p { margin: 4px 0; text-align: justify; }
   .clause-body ul { margin: 4px 0 4px 22px; }
   .clause-body li { margin: 2px 0; }
+  table.scope-table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.5pt; }
+  table.scope-table thead th { background: #1e40af; color: #fff; text-align: left; padding: 6px 8px; font-weight: 600; }
+  table.scope-table thead th.c-idx, table.scope-table td.c-idx { width: 28px; text-align: center; }
+  table.scope-table thead th.c-cod, table.scope-table td.c-cod { width: 90px; }
+  table.scope-table thead th.c-qtd, table.scope-table td.c-qtd { width: 44px; text-align: center; }
+  table.scope-table td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; }
+  table.scope-table td.c-desc { text-align: justify; }
+  table.scope-table tr.cat-row td { background: #f1f5f9; font-weight: 700; color: #1e40af; text-transform: uppercase; font-size: 8.5pt; letter-spacing: 0.03em; padding: 4px 8px; }
+  table.scope-table .item-specs { color: #475569; font-size: 8.5pt; margin-top: 2px; }
+  table.scope-table .item-notes { color: #475569; font-size: 8.5pt; margin-top: 3px; font-style: italic; }
   .sig-section { margin-top: 32px; page-break-inside: avoid; }
   .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
