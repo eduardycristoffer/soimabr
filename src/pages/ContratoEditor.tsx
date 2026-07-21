@@ -213,25 +213,31 @@ export default function ContratoEditor() {
     try {
       const { data, error } = await supabase.functions.invoke("generate-contract-pdf", { body: { contractId: id } });
       if (error) throw error;
-      if (!data?.pdf_base64) throw new Error("Resposta inválida do servidor");
+      if (!data?.pdf_base64) throw new Error(data?.error || "Resposta inválida do servidor");
       const bin = atob(data.pdf_base64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const blob = new Blob([bytes], { type: "application/pdf" });
+      const filename = `${data.contract_number || "contrato"}.pdf`;
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${data.contract_number || "contrato"}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      toast({ title: "PDF gerado" });
+      // Open in new tab
+      const win = window.open(url, "_blank");
+      if (!win) {
+        // Popup blocked → force download
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+      toast({ title: "PDF gerado", description: filename });
     } catch (e: any) {
-      toast({ title: "Erro ao gerar PDF", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao gerar PDF", description: e?.message || "Erro desconhecido", variant: "destructive" });
     } finally { setGeneratingPdf(false); }
   };
+
 
 
   const handleUploadSigned = async (e: React.ChangeEvent<HTMLInputElement>) => {
