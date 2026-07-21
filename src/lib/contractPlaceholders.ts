@@ -141,10 +141,15 @@ function escHtml(s: string): string {
 }
 
 // Marcador para o md() da Edge Function preservar HTML sem escapar.
-const HTML_OPEN = "%%HTML%%";
-const HTML_CLOSE = "%%/HTML%%";
+export const HTML_OPEN = "%%HTML%%";
+export const HTML_CLOSE = "%%/HTML%%";
 
-function itensInclusosTabela(items: any[]): string {
+export function stripHtmlSentinels(s: string): string {
+  return (s || "").split(HTML_OPEN).join("").split(HTML_CLOSE).join("");
+}
+
+export function itensInclusosTabela(items: any[]): string {
+
   if (!items || items.length === 0) return "_(sem itens)_";
   // Agrupa por categoria mantendo ordem canônica.
   const groups = new Map<string, any[]>();
