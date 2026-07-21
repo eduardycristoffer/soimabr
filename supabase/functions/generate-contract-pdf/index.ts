@@ -83,18 +83,96 @@ function witnessBlock(w: any, idx: number) {
     </div>`;
 }
 
-function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[]) {
-  const clausesHtml = snapshots
-    .sort((a, b) => a.order_index - b.order_index)
+const CAT_LABEL: Record<string, string> = {
+  grua: "Grua", configuracao: "Configuração", torre: "Torre", tramo: "Tramo",
+  chassis: "Chassis", acessorio: "Acessório", servico: "Serviço",
+  montagem: "Montagem", frete: "Frete", transporte: "Transporte",
+  operador: "Operador", manutencao: "Manutenção",
+};
+const CAT_ORDER = ["grua","configuracao","torre","tramo","chassis","acessorio","servico","montagem","frete","transporte","operador","manutencao"];
+
+function buildScopeTable(items: any[]): string {
+  if (!items || !items.length) return "";
+  const groups = new Map<string, any[]>();
+  for (const it of items) {
+    const cat = String(it.product_category || "outros").toLowerCase();
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat)!.push(it);
+  }
+  const cats = [...CAT_ORDER.filter(c => groups.has(c)), ...Array.from(groups.keys()).filter(c => !CAT_ORDER.includes(c))];
+  let idx = 0;
+  const rows: string[] = [];
+  for (const cat of cats) {
+    rows.push(`<tr class="cat-row"><td colspan="4">${esc(CAT_LABEL[cat] || "Outros")}</td></tr>`);
+    for (const it of groups.get(cat)!) {
+      idx += 1;
+      const specs: string[] = [];
+      if (cat === "grua") {
+        if (it.grua_lanca_m != null) specs.push(`Lança: ${it.grua_lanca_m} m`);
+        if (it.grua_altura_torre_m != null) specs.push(`Altura torre: ${it.grua_altura_torre_m} m`);
+        if (it.grua_carga_maxima_kg != null) specs.push(`Carga máx: ${it.grua_carga_maxima_kg} kg`);
+        if (it.grua_carga_ponta_kg != null) specs.push(`Carga ponta: ${it.grua_carga_ponta_kg} kg`);
+      }
+      const specsHtml = specs.length ? `<div class="item-specs">${esc(specs.join(" · "))}</div>` : "";
+      const notes = it.notes ? `<div class="item-notes">${esc(it.notes)}</div>` : "";
+      rows.push(
+        `<tr><td class="c-idx">${idx}</td><td class="c-cod">${esc(it.product_code || "")}</td>` +
+        `<td class="c-desc"><strong>${esc(it.product_name || "")}</strong>${specsHtml}${notes}</td>` +
+        `<td class="c-qtd">${it.quantity ?? 1}</td></tr>`
+      );
+    }
+  }
+  return `<table class="scope-table"><thead><tr><th class="c-idx">#</th><th class="c-cod">Código</th><th class="c-desc">Descrição</th><th class="c-qtd">Qtd</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+}
+
+function buildScopeExtenso(items: any[]): string {
+  if (!items || !items.length) return "";
+  return items.map((i) => {
+    const qty = Number(i.quantity || 1);
+    const qtyStr = String(qty).padStart(2, "0");
+    const code = i.product_code ? ` (código ${i.product_code})` : "";
+    const notes = i.notes ? `, contendo: ${i.notes}` : "";
+    return `${qtyStr} × ${i.product_name}${code}${notes}`;
+  }).join("; ");
+}
+
+function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[]) {
+  const scopeTableHtml = buildScopeTable(items);
+  const scopeExtenso = buildScopeExtenso(items);
+
+  const replaceScopeTokens = (body: string): string => {
+    if (!body) return body;
+    return body
+      .replace(/\{\{\s*itens_inclusos_tabela\s*\}\}/gi, scopeTableHtml ? `%%HTML%%${scopeTableHtml}%%/HTML%%` : "")
+      .replace(/\{\{\s*itens_inclusos_extenso\s*\}\}/gi, scopeExtenso)
+      .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, "");
+  };
+
+  const sortedSnaps = [...snapshots].sort((a, b) => a.order_index - b.order_index);
+  const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela|ITENS INCLUSOS|ITENS DA PROPOSTA/i.test(c.body || ""));
+
+  const clausesHtml = sortedSnaps
     .map((c, idx) => {
       const num = idx === 0 ? "" : `${idx}. `;
       return `
       <section class="clause">
         <h2>${num}${esc(c.title)}</h2>
-        <div class="clause-body">${md(c.body)}</div>
+        <div class="clause-body">${md(replaceScopeTokens(c.body))}</div>
       </section>`;
     })
     .join("\n");
+
+  // Always inject a fresh "ESCOPO / ITENS INCLUSOS" section from live quote data
+  // so old contracts (with stale snapshots) still show the complete scope.
+  const liveScopeSection = scopeTableHtml
+    ? `<section class="clause">
+        <h2>ESCOPO — ITENS INCLUSOS</h2>
+        <div class="clause-body">
+          ${scopeTableHtml}
+          ${scopeExtenso ? `<p><strong>Descrição:</strong> ${esc(scopeExtenso)}.</p>` : ""}
+        </div>
+      </section>`
+    : "";
 
   const sellers = signatories.filter((s) => s.side === "seller");
   const buyers = signatories.filter((s) => s.side === "buyer");
@@ -167,6 +245,8 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
 <div class="subtitle">Nº ${esc(contract.contract_number)}</div>
 
 ${clausesHtml}
+
+${snapshotHasScope ? "" : liveScopeSection}
 
 <section class="sig-section">
   <h3>Assinaturas</h3>
@@ -253,7 +333,19 @@ Deno.serve(async (req) => {
       company = data;
     }
 
-    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || []);
+    // Load linked quote + items so we can inject a live scope section
+    let quote: any = null;
+    let items: any[] = [];
+    if (contract.quote_id) {
+      const [{ data: q }, { data: qi }] = await Promise.all([
+        admin.from("quotes").select("*").eq("id", contract.quote_id).maybeSingle(),
+        admin.from("quote_items").select("*").eq("quote_id", contract.quote_id).order("order_index"),
+      ]);
+      quote = q;
+      items = qi || [];
+    }
+
+    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items);
 
     const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
     if (!pdfshiftKey) {
