@@ -494,6 +494,56 @@ export type Database = {
           },
         ]
       }
+      contract_versions: {
+        Row: {
+          change_summary: string | null
+          clauses_data: Json
+          contract_data: Json
+          contract_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          rendered_html: string | null
+          signatories_data: Json | null
+          version_number: number
+          witnesses_data: Json | null
+        }
+        Insert: {
+          change_summary?: string | null
+          clauses_data: Json
+          contract_data: Json
+          contract_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          rendered_html?: string | null
+          signatories_data?: Json | null
+          version_number: number
+          witnesses_data?: Json | null
+        }
+        Update: {
+          change_summary?: string | null
+          clauses_data?: Json
+          contract_data?: Json
+          contract_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          rendered_html?: string | null
+          signatories_data?: Json | null
+          version_number?: number
+          witnesses_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_versions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_witnesses: {
         Row: {
           contract_id: string
@@ -534,6 +584,8 @@ export type Database = {
       }
       contracts: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           buyer_manager_cpf: string | null
           buyer_manager_email: string | null
           buyer_manager_name: string | null
@@ -547,7 +599,9 @@ export type Database = {
           contract_number: string
           created_at: string
           created_by: string | null
+          current_version: number
           delivery_days: number | null
+          finalized_at: string | null
           generated_at: string | null
           id: string
           payment_schedule: Json
@@ -569,6 +623,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           buyer_manager_cpf?: string | null
           buyer_manager_email?: string | null
           buyer_manager_name?: string | null
@@ -582,7 +638,9 @@ export type Database = {
           contract_number: string
           created_at?: string
           created_by?: string | null
+          current_version?: number
           delivery_days?: number | null
+          finalized_at?: string | null
           generated_at?: string | null
           id?: string
           payment_schedule?: Json
@@ -604,6 +662,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           buyer_manager_cpf?: string | null
           buyer_manager_email?: string | null
           buyer_manager_name?: string | null
@@ -617,7 +677,9 @@ export type Database = {
           contract_number?: string
           created_at?: string
           created_by?: string | null
+          current_version?: number
           delivery_days?: number | null
+          finalized_at?: string | null
           generated_at?: string | null
           id?: string
           payment_schedule?: Json
@@ -1983,7 +2045,13 @@ export type Database = {
       app_role: "admin" | "operator"
       approval_status: "pending" | "approved" | "rejected"
       client_type: "nacional" | "internacional"
-      contract_status: "draft" | "sent" | "signed" | "cancelled"
+      contract_status:
+        | "draft"
+        | "sent"
+        | "signed"
+        | "cancelled"
+        | "em_revisao"
+        | "aprovado"
       currency: "BRL" | "USD" | "EUR"
       product_category:
         | "grua"
@@ -2125,7 +2193,14 @@ export const Constants = {
       app_role: ["admin", "operator"],
       approval_status: ["pending", "approved", "rejected"],
       client_type: ["nacional", "internacional"],
-      contract_status: ["draft", "sent", "signed", "cancelled"],
+      contract_status: [
+        "draft",
+        "sent",
+        "signed",
+        "cancelled",
+        "em_revisao",
+        "aprovado",
+      ],
       currency: ["BRL", "USD", "EUR"],
       product_category: [
         "grua",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, ArrowUp, ArrowDown, Trash2, Plus, Download, Send, Upload, Loader2, Lock } from "lucide-react";
+import {
+  ArrowLeft, ArrowUp, ArrowDown, Trash2, Plus, Download, Send, Upload,
+  Loader2, Lock, History, RotateCcw, Bold, List, CheckCircle2, AlertCircle, GitBranch, Ban,
+} from "lucide-react";
+import { createContractVersion, restoreContractVersion } from "@/lib/contractVersions";
 
 const statusLabel: Record<string, string> = {
-  draft: "Rascunho", sent: "Enviado", signed: "Assinado", cancelled: "Cancelado",
+  draft: "Rascunho",
+  em_revisao: "Em revisão",
+  aprovado: "Aprovado",
+  sent: "Enviado",
+  signed: "Assinado",
+  cancelled: "Cancelado",
 };
+
+const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  draft: "secondary",
+  em_revisao: "outline",
+  aprovado: "default",
+  sent: "default",
+  signed: "default",
+  cancelled: "destructive",
+};
+
+const LOCKED_STATES = ["aprovado", "sent", "signed", "cancelled"];
 
 export default function ContratoEditor() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +43,8 @@ export default function ContratoEditor() {
   const qc = useQueryClient();
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [viewingVersion, setViewingVersion] = useState<any | null>(null);
 
   const { data: contract, isLoading } = useQuery({
     queryKey: ["contract", id],
@@ -47,18 +70,39 @@ export default function ContratoEditor() {
     enabled: !!id,
   });
 
-  const isLocked = contract?.status === "signed" || contract?.status === "cancelled";
-
-  const updateClause = useMutation({
-    mutationFn: async ({ snapshotId, body, title }: { snapshotId: string; body?: string; title?: string }) => {
-      const patch: any = { edited_at: new Date().toISOString() };
-      if (body !== undefined) patch.body = body;
-      if (title !== undefined) patch.title = title;
-      const { error } = await supabase.from("contract_clause_snapshots").update(patch).eq("id", snapshotId);
+  // Load source clauses to compare (personalization indicator + restore default)
+  const sourceClauseIds = useMemo(
+    () => Array.from(new Set((snapshots || []).map((s) => s.source_clause_id).filter(Boolean))) as string[],
+    [snapshots],
+  );
+  const { data: sourceClauses } = useQuery({
+    queryKey: ["source-clauses", sourceClauseIds],
+    queryFn: async () => {
+      if (sourceClauseIds.length === 0) return [];
+      const { data, error } = await supabase.from("contract_clauses")
+        .select("id, title, body").in("id", sourceClauseIds);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => refetchSnapshots(),
+    enabled: sourceClauseIds.length > 0,
   });
+  const sourceMap = useMemo(() => {
+    const m = new Map<string, { title: string; body: string }>();
+    (sourceClauses || []).forEach((c: any) => m.set(c.id, { title: c.title, body: c.body }));
+    return m;
+  }, [sourceClauses]);
+
+  const status = contract?.status;
+  const isLocked = status ? LOCKED_STATES.includes(status) : false;
+  const isSigned = status === "signed" || status === "cancelled";
+
+  // ── content mutations ──────────────────────────────────────
+  const updateClause = async (snapshotId: string, patch: { body?: string; title?: string }) => {
+    const p: any = { ...patch, edited_at: new Date().toISOString() };
+    const { error } = await supabase.from("contract_clause_snapshots").update(p).eq("id", snapshotId);
+    if (error) throw error;
+    qc.invalidateQueries({ queryKey: ["contract-snapshots", id] });
+  };
 
   const reorderClause = async (idx: number, dir: -1 | 1) => {
     if (!snapshots) return;
@@ -87,8 +131,21 @@ export default function ContratoEditor() {
   const removeClause = async (snapId: string, isCore: boolean) => {
     if (isCore) { toast({ title: "Cláusula núcleo não pode ser removida" }); return; }
     if (!confirm("Remover esta cláusula?")) return;
-    await supabase.from("contract_clause_snapshots").delete().eq("id", snapId);
+    const { error } = await supabase.from("contract_clause_snapshots").delete().eq("id", snapId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     refetchSnapshots();
+  };
+
+  const restoreDefault = async (snap: any) => {
+    const src = snap.source_clause_id ? sourceMap.get(snap.source_clause_id) : null;
+    if (!src) { toast({ title: "Sem texto padrão para restaurar" }); return; }
+    if (!confirm("Restaurar o texto padrão desta cláusula? Suas alterações no snapshot serão perdidas.")) return;
+    try {
+      await updateClause(snap.id, { title: src.title, body: src.body });
+      toast({ title: "Texto padrão restaurado" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
   };
 
   const saveContractFields = useMutation({
@@ -96,7 +153,58 @@ export default function ContratoEditor() {
       const { error } = await supabase.from("contracts").update(patch).eq("id", id!);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["contract", id] }); toast({ title: "Salvo" }); },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contract", id] }),
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ── status transitions ────────────────────────────────────
+  const transition = useMutation({
+    mutationFn: async (to: "em_revisao" | "aprovado" | "sent" | "cancelled") => {
+      const patch: any = { status: to };
+      const now = new Date().toISOString();
+      let summary = `Status alterado para ${statusLabel[to]}`;
+      if (to === "aprovado") {
+        const { data: u } = await supabase.auth.getUser();
+        patch.approved_at = now;
+        patch.approved_by = u?.user?.id || null;
+        summary = "Contrato aprovado";
+      } else if (to === "sent") {
+        patch.sent_at = now;
+        patch.finalized_at = now;
+        summary = "Contrato enviado para assinatura";
+      } else if (to === "cancelled") {
+        patch.cancelled_at = now;
+        summary = "Contrato cancelado";
+      } else if (to === "em_revisao") {
+        summary = "Enviado para revisão";
+      }
+      const { error } = await supabase.from("contracts").update(patch).eq("id", id!);
+      if (error) throw error;
+      await createContractVersion({ contractId: id!, changeSummary: summary });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contract", id] });
+      qc.invalidateQueries({ queryKey: ["contract-versions", id] });
+      toast({ title: "Status atualizado" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao alterar status", description: e.message, variant: "destructive" }),
+  });
+
+  const newVersionForEdit = useMutation({
+    mutationFn: async () => {
+      // Snapshot current state, then unlock by moving to em_revisao
+      await createContractVersion({
+        contractId: id!,
+        changeSummary: `Nova versão para edição a partir de ${statusLabel[status!]}`,
+      });
+      const { error } = await supabase.from("contracts").update({ status: "em_revisao" }).eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contract", id] });
+      qc.invalidateQueries({ queryKey: ["contract-versions", id] });
+      toast({ title: "Nova versão criada — contrato liberado para edição" });
+    },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -113,9 +221,6 @@ export default function ContratoEditor() {
     } finally { setGeneratingPdf(false); }
   };
 
-  const markAsSent = () =>
-    saveContractFields.mutate({ status: "sent", sent_at: new Date().toISOString() });
-
   const handleUploadSigned = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -129,6 +234,7 @@ export default function ContratoEditor() {
         signed_at: new Date().toISOString(),
         status: "signed",
       });
+      await createContractVersion({ contractId: id!, changeSummary: "Contrato assinado (upload)" });
       toast({ title: "PDF assinado anexado" });
     } catch (err: any) {
       toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
@@ -150,22 +256,55 @@ export default function ContratoEditor() {
           </h1>
           <p className="text-sm text-muted-foreground">
             Proposta {(contract as any).quotes?.quote_number} · {(contract as any).quotes?.clients?.nome_fantasia || (contract as any).quotes?.clients?.razao_social}
+            {" · "}v{(contract as any).current_version || 1}
           </p>
         </div>
-        <Badge>{statusLabel[contract.status]}</Badge>
+        <Badge variant={statusVariant[contract.status]}>{statusLabel[contract.status]}</Badge>
       </div>
 
+      {/* Status actions */}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
           {generatingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
           Gerar PDF
         </Button>
-        {contract.status === "draft" && (
-          <Button variant="outline" onClick={markAsSent}>
-            <Send className="h-4 w-4 mr-2" /> Marcar como enviado
+        <Button variant="outline" onClick={() => setShowHistory(true)}>
+          <History className="h-4 w-4 mr-2" /> Histórico de versões
+        </Button>
+
+        {status === "draft" && (
+          <Button variant="secondary" onClick={() => transition.mutate("em_revisao")} disabled={transition.isPending}>
+            <Send className="h-4 w-4 mr-2" /> Enviar para revisão
           </Button>
         )}
-        {contract.status !== "signed" && (
+        {status === "em_revisao" && (
+          <Button onClick={() => transition.mutate("aprovado")} disabled={transition.isPending}>
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
+          </Button>
+        )}
+        {status === "aprovado" && (
+          <Button onClick={() => transition.mutate("sent")} disabled={transition.isPending}>
+            <Send className="h-4 w-4 mr-2" /> Enviar para assinatura
+          </Button>
+        )}
+        {(status === "aprovado" || status === "sent") && (
+          <Button variant="secondary" onClick={() => {
+            if (confirm("Criar uma nova versão para permitir edição? O contrato voltará para 'Em revisão' (versões anteriores continuam preservadas).")) {
+              newVersionForEdit.mutate();
+            }
+          }} disabled={newVersionForEdit.isPending}>
+            <GitBranch className="h-4 w-4 mr-2" /> Criar nova versão para alteração
+          </Button>
+        )}
+        {status !== "signed" && status !== "cancelled" && (
+          <Button variant="destructive" onClick={() => {
+            if (confirm("Cancelar este contrato? Essa ação não pode ser desfeita.")) transition.mutate("cancelled");
+          }} disabled={transition.isPending}>
+            <Ban className="h-4 w-4 mr-2" /> Cancelar contrato
+          </Button>
+        )}
+
+        {status !== "signed" && (
           <label>
             <input type="file" accept="application/pdf" className="hidden" onChange={handleUploadSigned} disabled={uploading} />
             <Button variant="default" asChild disabled={uploading}>
@@ -183,6 +322,16 @@ export default function ContratoEditor() {
           }}>Baixar assinado</Button>
         )}
       </div>
+
+      {isLocked && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
+          <Lock className="h-4 w-4 mt-0.5" />
+          <div>
+            Contrato em estado <strong>{statusLabel[status!]}</strong> — edição direta bloqueada.
+            {!isSigned && " Para alterar, use \"Criar nova versão para alteração\"."}
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Representantes e Gestores</CardTitle></CardHeader>
@@ -216,8 +365,6 @@ export default function ContratoEditor() {
       <SignatoriesEditor contractId={id!} isLocked={isLocked} />
       <WitnessesEditor contractId={id!} isLocked={isLocked} />
 
-
-
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Cláusulas</h2>
         {!isLocked && (
@@ -229,41 +376,287 @@ export default function ContratoEditor() {
 
       <div className="space-y-3">
         {snapshots?.map((s, idx) => (
-          <Card key={s.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-muted-foreground w-8">{idx === 0 ? "—" : idx}</span>
-                <Input
-                  defaultValue={s.title}
-                  disabled={isLocked}
-                  onBlur={(e) => e.target.value !== s.title && updateClause.mutate({ snapshotId: s.id, title: e.target.value })}
-                  className="font-semibold"
-                />
-                {s.is_core && <Badge variant="outline" className="text-[10px]">núcleo</Badge>}
-                {!isLocked && (
-                  <>
-                    <Button variant="ghost" size="icon" onClick={() => reorderClause(idx, -1)} disabled={idx === 0}><ArrowUp className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => reorderClause(idx, 1)} disabled={idx === (snapshots.length - 1)}><ArrowDown className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => removeClause(s.id, s.is_core)} disabled={s.is_core}>
-                      <Trash2 className="h-3 w-3 text-destructive" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                defaultValue={s.body}
-                disabled={isLocked}
-                rows={Math.min(20, Math.max(4, s.body.split("\n").length))}
-                onBlur={(e) => e.target.value !== s.body && updateClause.mutate({ snapshotId: s.id, body: e.target.value })}
-                className="font-mono text-xs"
-              />
-            </CardContent>
-          </Card>
+          <ClauseCard
+            key={s.id}
+            snapshot={s}
+            index={idx}
+            total={snapshots.length}
+            isLocked={isLocked}
+            source={s.source_clause_id ? sourceMap.get(s.source_clause_id) : undefined}
+            onSave={(patch) => updateClause(s.id, patch)}
+            onMove={(dir) => reorderClause(idx, dir)}
+            onRemove={() => removeClause(s.id, s.is_core)}
+            onRestoreDefault={() => restoreDefault(s)}
+          />
         ))}
       </div>
+
+      <VersionHistoryDialog
+        contractId={id!}
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        onView={(v) => setViewingVersion(v)}
+        canRestore={!isSigned}
+        onRestored={() => {
+          refetchSnapshots();
+          qc.invalidateQueries({ queryKey: ["contract", id] });
+        }}
+      />
+      <ViewVersionDialog version={viewingVersion} onClose={() => setViewingVersion(null)} />
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Clause Card with autosave + toolbar + personalized indicator
+// ─────────────────────────────────────────────────────────
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+function ClauseCard({
+  snapshot, index, total, isLocked, source, onSave, onMove, onRemove, onRestoreDefault,
+}: {
+  snapshot: any;
+  index: number;
+  total: number;
+  isLocked: boolean;
+  source?: { title: string; body: string };
+  onSave: (patch: { body?: string; title?: string }) => Promise<void>;
+  onMove: (dir: -1 | 1) => void;
+  onRemove: () => void;
+  onRestoreDefault: () => void;
+}) {
+  const [title, setTitle] = useState(snapshot.title);
+  const [body, setBody] = useState(snapshot.body);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSaved = useRef({ title: snapshot.title, body: snapshot.body });
+
+  // If snapshot changes from outside (e.g. restore), sync
+  useEffect(() => {
+    setTitle(snapshot.title);
+    setBody(snapshot.body);
+    lastSaved.current = { title: snapshot.title, body: snapshot.body };
+    setSaveState("idle");
+  }, [snapshot.id, snapshot.title, snapshot.body]);
+
+  const scheduleSave = (nextTitle: string, nextBody: string) => {
+    if (isLocked) return;
+    if (timer.current) clearTimeout(timer.current);
+    setSaveState("saving");
+    timer.current = setTimeout(async () => {
+      const patch: { body?: string; title?: string } = {};
+      if (nextTitle !== lastSaved.current.title) patch.title = nextTitle;
+      if (nextBody !== lastSaved.current.body) patch.body = nextBody;
+      if (Object.keys(patch).length === 0) { setSaveState("saved"); return; }
+      try {
+        await onSave(patch);
+        lastSaved.current = { title: nextTitle, body: nextBody };
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      }
+    }, 1500);
+  };
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const isPersonalized = !!source && source.body.trim() !== (snapshot.body || "").trim();
+
+  const wrap = (before: string, after = before) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart, end = el.selectionEnd;
+    const sel = body.slice(start, end);
+    const next = body.slice(0, start) + before + sel + after + body.slice(end);
+    setBody(next);
+    scheduleSave(title, next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.selectionStart = start + before.length;
+      el.selectionEnd = end + before.length;
+    });
+  };
+
+  const insertList = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const before = body.slice(0, start);
+    const after = body.slice(start);
+    const needsNl = before && !before.endsWith("\n");
+    const insert = (needsNl ? "\n" : "") + "- ";
+    const next = before + insert + after;
+    setBody(next);
+    scheduleSave(title, next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + insert.length;
+    });
+  };
+
+  const label = index === 0 ? "—" : String(index);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-muted-foreground w-8">{label}</span>
+          <Input
+            value={title}
+            disabled={isLocked}
+            onChange={(e) => { setTitle(e.target.value); scheduleSave(e.target.value, body); }}
+            className="font-semibold"
+          />
+          {snapshot.is_core && <Badge variant="outline" className="text-[10px]">núcleo</Badge>}
+          {isPersonalized && (
+            <Badge variant="secondary" className="text-[10px]" title="O texto diverge do modelo padrão">
+              personalizada
+            </Badge>
+          )}
+          {!isLocked && (
+            <>
+              <Button variant="ghost" size="icon" onClick={() => onMove(-1)} disabled={index === 0}><ArrowUp className="h-3 w-3" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => onMove(1)} disabled={index === total - 1}><ArrowDown className="h-3 w-3" /></Button>
+              <Button variant="ghost" size="icon" onClick={onRemove} disabled={snapshot.is_core}>
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {!isLocked && (
+          <div className="flex items-center gap-1 border rounded-md p-1 bg-muted/30 w-fit">
+            <Button type="button" variant="ghost" size="icon" onClick={() => wrap("**")} title="Negrito">
+              <Bold className="h-3.5 w-3.5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={insertList} title="Item de lista">
+              <List className="h-3.5 w-3.5" />
+            </Button>
+            {source && isPersonalized && (
+              <Button type="button" variant="ghost" size="sm" onClick={onRestoreDefault} className="text-xs" title="Restaurar texto do modelo">
+                <RotateCcw className="h-3 w-3 mr-1" /> Restaurar padrão
+              </Button>
+            )}
+          </div>
+        )}
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          disabled={isLocked}
+          rows={Math.min(20, Math.max(4, (body || "").split("\n").length))}
+          onChange={(e) => { setBody(e.target.value); scheduleSave(title, e.target.value); }}
+          className="font-mono text-xs whitespace-pre-wrap"
+        />
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground min-h-[16px]">
+          {saveState === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /> Salvando…</>}
+          {saveState === "saved" && <><CheckCircle2 className="h-3 w-3 text-green-600" /> Alterações salvas</>}
+          {saveState === "error" && <><AlertCircle className="h-3 w-3 text-destructive" /> Erro ao salvar — tente novamente</>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Version history dialogs
+// ─────────────────────────────────────────────────────────
+function VersionHistoryDialog({
+  contractId, open, onClose, onView, canRestore, onRestored,
+}: {
+  contractId: string;
+  open: boolean;
+  onClose: () => void;
+  onView: (v: any) => void;
+  canRestore: boolean;
+  onRestored: () => void;
+}) {
+  const qc = useQueryClient();
+  const { data: versions } = useQuery({
+    queryKey: ["contract-versions", contractId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contract_versions")
+        .select("*, profiles:created_by(name, email)")
+        .eq("contract_id", contractId)
+        .order("version_number", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  const restore = async (versionId: string, versionNumber: number) => {
+    if (!confirm(`Restaurar o conteúdo da versão ${versionNumber}? Uma nova versão será criada preservando o estado atual e as versões anteriores permanecem no histórico.`)) return;
+    try {
+      await restoreContractVersion({ contractId, versionId });
+      qc.invalidateQueries({ queryKey: ["contract-versions", contractId] });
+      qc.invalidateQueries({ queryKey: ["contract-snapshots", contractId] });
+      qc.invalidateQueries({ queryKey: ["contract", contractId] });
+      qc.invalidateQueries({ queryKey: ["contract-signatories", contractId] });
+      qc.invalidateQueries({ queryKey: ["contract-witnesses", contractId] });
+      toast({ title: "Versão restaurada" });
+      onRestored();
+      onClose();
+    } catch (e: any) {
+      toast({ title: "Erro ao restaurar", description: e.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Histórico de versões</DialogTitle></DialogHeader>
+        <div className="space-y-2">
+          {(versions || []).length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão registrada ainda.</p>}
+          {(versions || []).map((v: any) => (
+            <div key={v.id} className="flex items-center justify-between border rounded-md p-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">v{v.version_number} · {v.change_summary || "—"}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {new Date(v.created_at).toLocaleString("pt-BR")} · {v.profiles?.name || v.profiles?.email || "sistema"}
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => onView(v)}>Visualizar</Button>
+                {canRestore && (
+                  <Button size="sm" variant="secondary" onClick={() => restore(v.id, v.version_number)}>
+                    <RotateCcw className="h-3 w-3 mr-1" /> Restaurar
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ViewVersionDialog({ version, onClose }: { version: any | null; onClose: () => void }) {
+  if (!version) return null;
+  const clauses = (version.clauses_data as any[]) || [];
+  return (
+    <Dialog open={!!version} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Versão {version.version_number} — {version.change_summary || "snapshot"}</DialogTitle>
+        </DialogHeader>
+        <div className="text-xs text-muted-foreground mb-2">
+          Criada em {new Date(version.created_at).toLocaleString("pt-BR")} (somente leitura)
+        </div>
+        <div className="space-y-3">
+          {clauses.sort((a, b) => a.order_index - b.order_index).map((c: any, i: number) => (
+            <div key={c.id || i} className="border rounded-md p-3">
+              <div className="text-sm font-semibold mb-1">{i === 0 ? "—" : i}. {c.title}</div>
+              <pre className="whitespace-pre-wrap font-mono text-xs">{c.body}</pre>
+            </div>
+          ))}
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Fechar</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -288,12 +681,10 @@ function SignatoriesEditor({ contractId, isLocked }: { contractId: string; isLoc
     });
     refetch();
   };
-
   const upd = async (id: string, patch: any) => {
     await supabase.from("contract_signatories").update(patch).eq("id", id);
     refetch();
   };
-
   const del = async (id: string) => {
     await supabase.from("contract_signatories").delete().eq("id", id);
     refetch();
@@ -399,4 +790,3 @@ function WitnessesEditor({ contractId, isLocked }: { contractId: string; isLocke
     </Card>
   );
 }
-

@@ -374,6 +374,20 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
           const { error } = await supabase.from("contract_clause_snapshots").insert(snapshotRows);
           if (error) throw error;
         }
+        // Snapshot initial version (v1)
+        try {
+          const { createContractVersion } = await import("@/lib/contractVersions");
+          await createContractVersion({
+            contractId: contract.id,
+            changeSummary: "Versão inicial (geração)",
+            explicitVersionNumber: 1,
+            bumpContract: false,
+          });
+        } catch (err) {
+          // non-fatal — contract exists
+          console.error("Falha ao gravar versão inicial:", err);
+        }
+
         return contract;
       };
 
