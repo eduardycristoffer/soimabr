@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
@@ -23,22 +24,24 @@ interface Props {
   onClose: () => void;
 }
 
+type Signatory = { name: string; cpf: string; rg?: string; cargo?: string };
+type Witness = { name: string; cpf: string; email?: string };
+
+// Human labels for clause_key toggles
+const CLAUSE_KEY_LABELS: Record<string, string> = {
+  operador: "Incluir cláusulas de operador (faturamento e condições)",
+  prestadora_servico: "Incluir cláusula de prestação de serviço acessória",
+};
+
 export default function GenerateContractDialog({ quoteId, open, onClose }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [prefilled, setPrefilled] = useState(false);
 
-  // Seller rep (SOIMA)
-  const [sellerRepName, setSellerRepName] = useState("");
-  const [sellerRepCpf, setSellerRepCpf] = useState("");
-  const [sellerRepRg, setSellerRepRg] = useState("");
-  const [sellerRepCargo, setSellerRepCargo] = useState("");
-
-  // Buyer rep
-  const [buyerRepName, setBuyerRepName] = useState("");
-  const [buyerRepCpf, setBuyerRepCpf] = useState("");
-  const [buyerRepRg, setBuyerRepRg] = useState("");
-  const [buyerRepCargo, setBuyerRepCargo] = useState("");
+  // Signatories (N per side)
+  const [sellerSigs, setSellerSigs] = useState<Signatory[]>([]);
+  const [buyerSigs, setBuyerSigs] = useState<Signatory[]>([]);
+  const [witnesses, setWitnesses] = useState<Witness[]>([]);
 
   // Managers
   const [sellerMgrName, setSellerMgrName] = useState("");
@@ -54,6 +57,11 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
   const [deliveryDays, setDeliveryDays] = useState<string>("");
   const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([]);
 
+  // Multi-contract control (for locação w/ services)
+  const [alsoGenerateService, setAlsoGenerateService] = useState(false);
+  // Optional clause toggles: keyed by `${templateId}::${clauseKey}` = boolean
+  const [clauseToggles, setClauseToggles] = useState<Record<string, boolean>>({});
+
   const { data: quote } = useQuery({
     queryKey: ["quote-for-contract", quoteId],
     queryFn: async () => {
@@ -68,14 +76,70 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     enabled: open && !!quoteId,
   });
 
-  const { data: company } = useQuery({
-    queryKey: ["company-settings-for-contract"],
+  // Active templates for this quote_type (+ 'servico' when locação)
+  const { data: templates } = useQuery({
+    queryKey: ["contract-templates-for-quote", quote?.quote_type],
     queryFn: async () => {
-      const { data } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
+      const types = quote?.quote_type === "locacao" ? ["locacao", "servico"] : [quote?.quote_type || "venda"];
+      const { data, error } = await supabase
+        .from("contract_templates")
+        .select("*, company:company_settings(*)")
+        .in("contract_type", types as any)
+        .eq("is_active", true)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      // Keep only the latest per contract_type
+      const seen = new Set<string>();
+      return (data || []).filter((t: any) => {
+        if (seen.has(t.contract_type)) return false;
+        seen.add(t.contract_type);
+        return true;
+      });
+    },
+    enabled: open && !!quote,
+  });
+
+  const primaryTemplate = useMemo(
+    () => templates?.find((t: any) => t.contract_type === (quote?.quote_type || "venda")),
+    [templates, quote],
+  );
+  const serviceTemplate = useMemo(
+    () => templates?.find((t: any) => t.contract_type === "servico"),
+    [templates],
+  );
+
+  // Load clauses for templates involved (to know optional ones)
+  const templateIds = useMemo(
+    () => [primaryTemplate?.id, alsoGenerateService ? serviceTemplate?.id : null].filter(Boolean) as string[],
+    [primaryTemplate, serviceTemplate, alsoGenerateService],
+  );
+
+  const { data: clausesAll } = useQuery({
+    queryKey: ["contract-clauses", templateIds],
+    queryFn: async () => {
+      if (templateIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("contract_clauses")
+        .select("*")
+        .in("template_id", templateIds)
+        .order("order_index");
+      if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: templateIds.length > 0,
   });
+
+  // Optional clause groups (unique clause_key per template with is_core=false)
+  const optionalGroups = useMemo(() => {
+    const map = new Map<string, { templateId: string; clauseKey: string }>();
+    (clausesAll || []).forEach((c: any) => {
+      if (!c.is_core && c.clause_key) {
+        const k = `${c.template_id}::${c.clause_key}`;
+        if (!map.has(k)) map.set(k, { templateId: c.template_id, clauseKey: c.clause_key });
+      }
+    });
+    return Array.from(map.values());
+  }, [clausesAll]);
 
   const { data: myProfile } = useQuery({
     queryKey: ["my-profile-for-contract", user?.id],
@@ -89,39 +153,80 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
 
   // Prefill once when data loads
   useEffect(() => {
-    if (!open || prefilled || !quote) return;
-    // Seller from company_settings
-    if (company) {
-      setSellerRepName(company.representante_nome || "");
-      setSellerRepCpf(company.representante_cpf || "");
-      setSellerRepRg(company.representante_rg || "");
-      setSellerRepCargo(company.representante_cargo || "");
+    if (!open || prefilled || !quote || !primaryTemplate) return;
+
+    // Seller signatory prefilled from primary template's company
+    const co = (primaryTemplate as any).company;
+    if (co && sellerSigs.length === 0) {
+      setSellerSigs([{
+        name: co.representante_nome || "",
+        cpf: co.representante_cpf || "",
+        rg: co.representante_rg || "",
+        cargo: co.representante_cargo || "",
+      }]);
     }
-    // Buyer manager from client contact
+    if (buyerSigs.length === 0) {
+      setBuyerSigs([{ name: "", cpf: "", rg: "", cargo: "" }]);
+    }
+
     const client = (quote as any).clients;
     if (client) {
       setBuyerMgrName(client.contato_nome || "");
       setBuyerMgrPhone(client.contato_telefone || client.telefone || "");
       setBuyerMgrEmail(client.contato_email || client.email || "");
     }
-    // Seller manager from logged-in user profile
     if (myProfile) {
       setSellerMgrName(myProfile.name || "");
       setSellerMgrEmail(myProfile.email || "");
     }
-    // Payment schedule 40/60 from quote total
     const total = Number(quote.total || 0);
     setSchedule([
       { label: "Entrada (40%)", value: +(total * 0.4).toFixed(2), due: "na confirmação do contrato" },
       { label: "Saldo (60%)", value: +(total * 0.6).toFixed(2), due: "à combinar" },
     ]);
     setDeliveryDays(String(quote.delivery_time ?? ""));
+
+    // Auto-detect service for rental: if operator/maintenance/technical assistance is included → propose gen'ing service contract
+    if (quote.quote_type === "locacao") {
+      const hasService = !!(quote.rental_operator_included || quote.rental_maintenance_included || quote.rental_technical_assistance);
+      setAlsoGenerateService(hasService);
+    }
     setPrefilled(true);
-  }, [open, quote, company, myProfile, prefilled]);
+  }, [open, quote, primaryTemplate, myProfile, prefilled, sellerSigs.length, buyerSigs.length]);
+
+  // Auto-toggle optional clauses when groups appear
+  useEffect(() => {
+    if (!optionalGroups.length) return;
+    setClauseToggles((prev) => {
+      const next = { ...prev };
+      optionalGroups.forEach(({ templateId, clauseKey }) => {
+        const k = `${templateId}::${clauseKey}`;
+        if (next[k] !== undefined) return;
+        // Defaults:
+        // - 'prestadora_servico' on locação template: enable if service contract is being generated
+        // - 'operador' on service template: enable if quote.rental_operator_included
+        if (clauseKey === "prestadora_servico" && templateId === primaryTemplate?.id) {
+          next[k] = alsoGenerateService;
+        } else if (clauseKey === "operador" && templateId === serviceTemplate?.id) {
+          next[k] = !!quote?.rental_operator_included;
+        } else {
+          next[k] = false;
+        }
+      });
+      return next;
+    });
+  }, [optionalGroups, alsoGenerateService, primaryTemplate?.id, serviceTemplate?.id, quote?.rental_operator_included]);
 
   // Reset when closing
   useEffect(() => {
-    if (!open) setPrefilled(false);
+    if (!open) {
+      setPrefilled(false);
+      setSellerSigs([]);
+      setBuyerSigs([]);
+      setWitnesses([]);
+      setClauseToggles({});
+      setAlsoGenerateService(false);
+    }
   }, [open]);
 
   const totalSchedule = schedule.reduce((s, p) => s + (Number(p.value) || 0), 0);
@@ -130,38 +235,27 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!quote) throw new Error("Proposta não carregada");
-      if (!buyerRepName || !buyerRepCpf) throw new Error("Informe o representante legal da compradora (nome e CPF)");
+      if (!primaryTemplate) throw new Error("Nenhum modelo ativo para este tipo de proposta");
+      if (!buyerSigs.length || !buyerSigs[0].name || !buyerSigs[0].cpf)
+        throw new Error("Informe ao menos um representante legal da compradora (nome e CPF)");
       if (schedule.length === 0) throw new Error("Adicione ao menos uma parcela no cronograma de pagamento");
-
-      const { data: template, error: tErr } = await supabase
-        .from("contract_templates")
-        .select("*")
-        .eq("contract_type", quote.quote_type || "venda")
-        .eq("is_active", true)
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (tErr) throw tErr;
-      if (!template) throw new Error("Nenhum modelo ativo encontrado para este tipo de proposta");
-
-      const { data: clauses, error: clErr } = await supabase
-        .from("contract_clauses")
-        .select("*")
-        .eq("template_id", template.id)
-        .order("order_index");
-      if (clErr) throw clErr;
+      if (alsoGenerateService && !serviceTemplate)
+        throw new Error("Nenhum modelo ativo de prestação de serviço encontrado");
 
       const { data: items } = await supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index");
 
-      const inputs: ContractGenerationInputs = {
-        seller_rep_name: sellerRepName,
-        seller_rep_cpf: sellerRepCpf,
-        seller_rep_rg: sellerRepRg,
-        seller_rep_cargo: sellerRepCargo,
-        buyer_rep_name: buyerRepName,
-        buyer_rep_cpf: buyerRepCpf,
-        buyer_rep_rg: buyerRepRg,
-        buyer_rep_cargo: buyerRepCargo,
+      const firstSeller = sellerSigs[0] || { name: "", cpf: "", rg: "", cargo: "" };
+      const firstBuyer = buyerSigs[0];
+
+      const inputsBase: ContractGenerationInputs = {
+        seller_rep_name: firstSeller.name,
+        seller_rep_cpf: firstSeller.cpf,
+        seller_rep_rg: firstSeller.rg,
+        seller_rep_cargo: firstSeller.cargo,
+        buyer_rep_name: firstBuyer.name,
+        buyer_rep_cpf: firstBuyer.cpf,
+        buyer_rep_rg: firstBuyer.rg,
+        buyer_rep_cargo: firstBuyer.cargo,
         seller_manager_name: sellerMgrName,
         seller_manager_cpf: sellerMgrCpf,
         seller_manager_phone: sellerMgrPhone,
@@ -174,64 +268,115 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         delivery_days: deliveryDays ? Number(deliveryDays) : undefined,
       };
 
-      const { data: contract, error: contractErr } = await supabase
-        .from("contracts")
-        .insert({
-          quote_id: quoteId,
-          template_id: template.id,
-          contract_number: "",
-          status: "draft",
-          seller_rep_name: sellerRepName || null,
-          seller_rep_cpf: sellerRepCpf || null,
-          seller_rep_rg: sellerRepRg || null,
-          seller_rep_cargo: sellerRepCargo || null,
-          buyer_rep_name: buyerRepName,
-          buyer_rep_cpf: buyerRepCpf,
-          buyer_rep_rg: buyerRepRg || null,
-          buyer_rep_cargo: buyerRepCargo || null,
-          seller_manager_name: sellerMgrName || null,
-          seller_manager_cpf: sellerMgrCpf || null,
-          seller_manager_phone: sellerMgrPhone || null,
-          seller_manager_email: sellerMgrEmail || null,
-          buyer_manager_name: buyerMgrName || null,
-          buyer_manager_cpf: buyerMgrCpf || null,
-          buyer_manager_phone: buyerMgrPhone || null,
-          buyer_manager_email: buyerMgrEmail || null,
-          payment_schedule: schedule as any,
-          delivery_days: deliveryDays ? Number(deliveryDays) : null,
-          generated_at: new Date().toISOString(),
-        })
-        .select("*")
-        .single();
-      if (contractErr) throw contractErr;
+      // Helper: create one contract for a given template
+      const createOne = async (template: any) => {
+        const { data: contract, error: cErr } = await supabase
+          .from("contracts")
+          .insert({
+            quote_id: quoteId,
+            template_id: template.id,
+            company_id: template.company_id,
+            contract_number: "",
+            status: "draft",
+            seller_rep_name: firstSeller.name || null,
+            seller_rep_cpf: firstSeller.cpf || null,
+            seller_rep_rg: firstSeller.rg || null,
+            seller_rep_cargo: firstSeller.cargo || null,
+            buyer_rep_name: firstBuyer.name,
+            buyer_rep_cpf: firstBuyer.cpf,
+            buyer_rep_rg: firstBuyer.rg || null,
+            buyer_rep_cargo: firstBuyer.cargo || null,
+            seller_manager_name: sellerMgrName || null,
+            seller_manager_cpf: sellerMgrCpf || null,
+            seller_manager_phone: sellerMgrPhone || null,
+            seller_manager_email: sellerMgrEmail || null,
+            buyer_manager_name: buyerMgrName || null,
+            buyer_manager_cpf: buyerMgrCpf || null,
+            buyer_manager_phone: buyerMgrPhone || null,
+            buyer_manager_email: buyerMgrEmail || null,
+            payment_schedule: schedule as any,
+            delivery_days: deliveryDays ? Number(deliveryDays) : null,
+            generated_at: new Date().toISOString(),
+          })
+          .select("*")
+          .single();
+        if (cErr) throw cErr;
 
-      const map = buildPlaceholderMap({
-        quote,
-        client: (quote as any).clients,
-        company,
-        items: items || [],
-        inputs,
-        contract_number: contract.contract_number,
-      });
+        // Signatories (all)
+        const sigRows = [
+          ...sellerSigs.filter((s) => s.name && s.cpf).map((s, i) => ({
+            contract_id: contract.id, side: "seller", name: s.name, cpf: s.cpf,
+            rg: s.rg || null, cargo: s.cargo || null, order_index: i,
+          })),
+          ...buyerSigs.filter((s) => s.name && s.cpf).map((s, i) => ({
+            contract_id: contract.id, side: "buyer", name: s.name, cpf: s.cpf,
+            rg: s.rg || null, cargo: s.cargo || null, order_index: i,
+          })),
+        ];
+        if (sigRows.length) {
+          const { error } = await supabase.from("contract_signatories").insert(sigRows);
+          if (error) throw error;
+        }
 
-      const snapshotRows = (clauses || []).map((c: any) => ({
-        contract_id: contract.id,
-        source_clause_id: c.id,
-        order_index: c.order_index,
-        title: c.title,
-        body: resolvePlaceholders(c.body, map),
-        is_core: c.is_core,
-      }));
+        // Witnesses
+        const witRows = witnesses.filter((w) => w.name && w.cpf).map((w, i) => ({
+          contract_id: contract.id, name: w.name, cpf: w.cpf, email: w.email || null, order_index: i,
+        }));
+        if (witRows.length) {
+          const { error } = await supabase.from("contract_witnesses").insert(witRows);
+          if (error) throw error;
+        }
 
-      const { error: snapErr } = await supabase.from("contract_clause_snapshots").insert(snapshotRows);
-      if (snapErr) throw snapErr;
+        // Clauses for THIS template, filtered by optional toggles
+        const templateClauses = (clausesAll || []).filter((c: any) => c.template_id === template.id);
+        const filtered = templateClauses.filter((c: any) => {
+          if (c.is_core) return true;
+          if (!c.clause_key) return true;
+          const key = `${template.id}::${c.clause_key}`;
+          return !!clauseToggles[key];
+        });
 
-      return contract;
+        const map = buildPlaceholderMap({
+          quote,
+          client: (quote as any).clients,
+          company: (template as any).company,
+          items: items || [],
+          inputs: inputsBase,
+          contract_number: contract.contract_number,
+        });
+
+        const snapshotRows = filtered.map((c: any) => ({
+          contract_id: contract.id,
+          source_clause_id: c.id,
+          order_index: c.order_index,
+          title: c.title,
+          body: resolvePlaceholders(c.body, map),
+          is_core: c.is_core,
+          clause_key: c.clause_key,
+        }));
+        if (snapshotRows.length) {
+          const { error } = await supabase.from("contract_clause_snapshots").insert(snapshotRows);
+          if (error) throw error;
+        }
+        return contract;
+      };
+
+      const primaryContract = await createOne(primaryTemplate);
+      let serviceContract: any = null;
+      if (alsoGenerateService && serviceTemplate) {
+        serviceContract = await createOne(serviceTemplate);
+      }
+      return { primaryContract, serviceContract };
     },
-    onSuccess: (contract) => {
-      toast({ title: "Contrato gerado", description: `Nº ${contract.contract_number}` });
+    onSuccess: ({ primaryContract, serviceContract }) => {
+      toast({
+        title: serviceContract ? "Contratos gerados" : "Contrato gerado",
+        description: serviceContract
+          ? `${primaryContract.contract_number} + ${serviceContract.contract_number}`
+          : `Nº ${primaryContract.contract_number}`,
+      });
       onClose();
-      navigate(`/contratos/${contract.id}`);
+      navigate(`/contratos/${primaryContract.id}`);
     },
     onError: (e: any) =>
       toast({ title: "Erro ao gerar contrato", description: e.message, variant: "destructive" }),
@@ -243,37 +388,145 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     );
   };
 
+  const updateSig = (list: Signatory[], setList: (v: Signatory[]) => void, idx: number, field: keyof Signatory, v: string) =>
+    setList(list.map((s, i) => (i === idx ? { ...s, [field]: v } : s)));
+
+  const updateWit = (idx: number, field: keyof Witness, v: string) =>
+    setWitnesses(witnesses.map((w, i) => (i === idx ? { ...w, [field]: v } : w)));
+
+  const primaryLabel =
+    primaryTemplate?.contract_type === "locacao" ? "Locação"
+    : primaryTemplate?.contract_type === "servico" ? "Prestação de Serviço"
+    : "Venda";
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Gerar Contrato a partir da Proposta</DialogTitle>
           <DialogDescription>
-            Dados da SOIMA, do cliente e da proposta foram pré-preenchidos. Revise e ajuste antes de gerar.
+            Modelo <strong>{primaryLabel}</strong>
+            {primaryTemplate && (primaryTemplate as any).company?.razao_social && (
+              <> · Empresa emissora: <strong>{(primaryTemplate as any).company.razao_social}</strong></>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Multi-contract for rental */}
+          {quote?.quote_type === "locacao" && serviceTemplate && (
+            <section className="rounded-lg border p-3 bg-muted/30">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  checked={alsoGenerateService}
+                  onCheckedChange={(v) => setAlsoGenerateService(!!v)}
+                />
+                <div className="text-sm">
+                  <div className="font-medium">Gerar também contrato de Prestação de Serviço</div>
+                  <div className="text-xs text-muted-foreground">
+                    Emitido por <strong>{(serviceTemplate as any).company?.razao_social}</strong>, vinculado à mesma proposta.
+                    Usado quando a locação inclui operador e/ou manutenção.
+                  </div>
+                </div>
+              </label>
+            </section>
+          )}
+
+          {/* Optional clause toggles */}
+          {optionalGroups.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">Cláusulas opcionais</h3>
+              <div className="space-y-2">
+                {optionalGroups.map(({ templateId, clauseKey }) => {
+                  const k = `${templateId}::${clauseKey}`;
+                  const isService = templateId === serviceTemplate?.id;
+                  const templateLabel = isService ? "Serviço" : primaryLabel;
+                  return (
+                    <label key={k} className="flex items-start gap-2 cursor-pointer text-sm">
+                      <Checkbox
+                        checked={!!clauseToggles[k]}
+                        onCheckedChange={(v) => setClauseToggles((prev) => ({ ...prev, [k]: !!v }))}
+                      />
+                      <div>
+                        <div>{CLAUSE_KEY_LABELS[clauseKey] || clauseKey}</div>
+                        <div className="text-xs text-muted-foreground">Contrato: {templateLabel}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <Separator />
+
+          {/* Seller signatories */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">Representante legal da vendedora (SOIMA)</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nome</Label><Input value={sellerRepName} onChange={(e) => setSellerRepName(e.target.value)} /></div>
-              <div><Label>CPF</Label><Input value={sellerRepCpf} onChange={(e) => setSellerRepCpf(e.target.value)} /></div>
-              <div><Label>RG</Label><Input value={sellerRepRg} onChange={(e) => setSellerRepRg(e.target.value)} /></div>
-              <div><Label>Cargo</Label><Input value={sellerRepCargo} onChange={(e) => setSellerRepCargo(e.target.value)} /></div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Representantes da vendedora</h3>
+              <Button variant="outline" size="sm" onClick={() => setSellerSigs([...sellerSigs, { name: "", cpf: "", rg: "", cargo: "" }])}>
+                <Plus className="h-3 w-3 mr-1" /> Adicionar representante
+              </Button>
             </div>
+            {sellerSigs.map((s, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
+                <div><Label className="text-xs">Nome</Label><Input value={s.name} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "name", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF</Label><Input value={s.cpf} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">RG</Label><Input value={s.rg || ""} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "rg", e.target.value)} /></div>
+                <div><Label className="text-xs">Cargo</Label><Input value={s.cargo || ""} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "cargo", e.target.value)} /></div>
+                <Button variant="ghost" size="icon" onClick={() => setSellerSigs(sellerSigs.filter((_, i) => i !== idx))}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
           </section>
 
           <Separator />
 
+          {/* Buyer signatories */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">Representante legal da compradora *</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nome *</Label><Input value={buyerRepName} onChange={(e) => setBuyerRepName(e.target.value)} /></div>
-              <div><Label>CPF *</Label><Input value={buyerRepCpf} onChange={(e) => setBuyerRepCpf(e.target.value)} /></div>
-              <div><Label>RG</Label><Input value={buyerRepRg} onChange={(e) => setBuyerRepRg(e.target.value)} /></div>
-              <div><Label>Cargo</Label><Input value={buyerRepCargo} onChange={(e) => setBuyerRepCargo(e.target.value)} /></div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Representantes da compradora *</h3>
+              <Button variant="outline" size="sm" onClick={() => setBuyerSigs([...buyerSigs, { name: "", cpf: "", rg: "", cargo: "" }])}>
+                <Plus className="h-3 w-3 mr-1" /> Adicionar representante
+              </Button>
             </div>
+            {buyerSigs.map((s, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
+                <div><Label className="text-xs">Nome *</Label><Input value={s.name} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "name", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF *</Label><Input value={s.cpf} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">RG</Label><Input value={s.rg || ""} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "rg", e.target.value)} /></div>
+                <div><Label className="text-xs">Cargo</Label><Input value={s.cargo || ""} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "cargo", e.target.value)} /></div>
+                <Button variant="ghost" size="icon" onClick={() => setBuyerSigs(buyerSigs.filter((_, i) => i !== idx))} disabled={buyerSigs.length === 1}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </section>
+
+          <Separator />
+
+          {/* Witnesses */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Testemunhas</h3>
+              <Button variant="outline" size="sm" onClick={() => setWitnesses([...witnesses, { name: "", cpf: "", email: "" }])}>
+                <Plus className="h-3 w-3 mr-1" /> Adicionar testemunha
+              </Button>
+            </div>
+            {witnesses.length === 0 && (
+              <p className="text-xs text-muted-foreground">Nenhuma testemunha adicionada.</p>
+            )}
+            {witnesses.map((w, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                <div><Label className="text-xs">Nome</Label><Input value={w.name} onChange={(e) => updateWit(idx, "name", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF</Label><Input value={w.cpf} onChange={(e) => updateWit(idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">E-mail</Label><Input value={w.email || ""} onChange={(e) => updateWit(idx, "email", e.target.value)} /></div>
+                <Button variant="ghost" size="icon" onClick={() => setWitnesses(witnesses.filter((_, i) => i !== idx))}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
           </section>
 
           <Separator />
@@ -331,7 +584,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
             {generateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Gerar Contrato
+            {alsoGenerateService ? "Gerar Contratos" : "Gerar Contrato"}
           </Button>
         </DialogFooter>
       </DialogContent>

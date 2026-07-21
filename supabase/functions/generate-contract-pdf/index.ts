@@ -22,7 +22,7 @@ function md(input: string): string {
   const lines = safe.split("\n");
   const out: string[] = [];
   let inList = false;
-  for (let raw of lines) {
+  for (const raw of lines) {
     const line = raw.trimEnd();
     if (/^\s*-\s+/.test(line)) {
       if (!inList) { out.push("<ul>"); inList = true; }
@@ -40,7 +40,36 @@ function md(input: string): string {
   return html;
 }
 
-function buildHTML(contract: any, snapshots: any[], company: any) {
+function signatureBlock(label: string, name: string, cpf?: string, rg?: string, cargo?: string) {
+  const meta = [
+    name ? `<strong>${esc(name)}</strong>` : "",
+    cargo ? esc(cargo) : "",
+    cpf ? `CPF: ${esc(cpf)}` : "",
+    rg ? `RG: ${esc(rg)}` : "",
+  ].filter(Boolean).join("<br/>");
+  return `
+    <div class="sig-block">
+      <div class="sig-line"></div>
+      <div class="sig-role">${esc(label)}</div>
+      <div class="sig-meta">${meta}</div>
+    </div>`;
+}
+
+function witnessBlock(w: any, idx: number) {
+  const meta = [
+    w.name ? `<strong>${esc(w.name)}</strong>` : "",
+    w.cpf ? `CPF: ${esc(w.cpf)}` : "",
+    w.email ? `E-mail: ${esc(w.email)}` : "",
+  ].filter(Boolean).join("<br/>");
+  return `
+    <div class="sig-block">
+      <div class="sig-line"></div>
+      <div class="sig-role">Testemunha ${idx + 1}</div>
+      <div class="sig-meta">${meta}</div>
+    </div>`;
+}
+
+function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[]) {
   const clausesHtml = snapshots
     .sort((a, b) => a.order_index - b.order_index)
     .map((c, idx) => {
@@ -52,6 +81,25 @@ function buildHTML(contract: any, snapshots: any[], company: any) {
       </section>`;
     })
     .join("\n");
+
+  const sellers = signatories.filter((s) => s.side === "seller");
+  const buyers = signatories.filter((s) => s.side === "buyer");
+
+  // Fallback to legacy single-rep fields if no signatories rows exist
+  const sellerBlocks = sellers.length
+    ? sellers.map((s) => signatureBlock("Pela VENDEDORA", s.name, s.cpf, s.rg, s.cargo)).join("")
+    : (contract.seller_rep_name
+        ? signatureBlock("Pela VENDEDORA", contract.seller_rep_name, contract.seller_rep_cpf, contract.seller_rep_rg, contract.seller_rep_cargo)
+        : "");
+  const buyerBlocks = buyers.length
+    ? buyers.map((s) => signatureBlock("Pela COMPRADORA", s.name, s.cpf, s.rg, s.cargo)).join("")
+    : (contract.buyer_rep_name
+        ? signatureBlock("Pela COMPRADORA", contract.buyer_rep_name, contract.buyer_rep_cpf, contract.buyer_rep_rg, contract.buyer_rep_cargo)
+        : "");
+
+  const witnessBlocks = witnesses.length
+    ? witnesses.map((w, i) => witnessBlock(w, i)).join("")
+    : "";
 
   return `<!doctype html>
 <html lang="pt-BR"><head>
@@ -71,6 +119,13 @@ function buildHTML(contract: any, snapshots: any[], company: any) {
   .clause-body p { margin: 4px 0; text-align: justify; }
   .clause-body ul { margin: 4px 0 4px 22px; }
   .clause-body li { margin: 2px 0; }
+  .sig-section { margin-top: 32px; page-break-inside: avoid; }
+  .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
+  .sig-block { margin-top: 34px; }
+  .sig-line { border-top: 1px solid #333; height: 0; margin-bottom: 6px; }
+  .sig-role { font-size: 9pt; font-weight: 600; color: #444; }
+  .sig-meta { font-size: 9pt; color: #333; margin-top: 2px; }
   footer { position: fixed; bottom: 8mm; left: 18mm; right: 18mm; text-align: center; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 4px; }
   .print-btn { position: fixed; top: 12px; right: 12px; padding: 10px 16px; background: #1e40af; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
   @media print { .print-btn { display: none; } }
@@ -90,6 +145,15 @@ function buildHTML(contract: any, snapshots: any[], company: any) {
 <div class="subtitle">Nº ${esc(contract.contract_number)}</div>
 
 ${clausesHtml}
+
+<section class="sig-section">
+  <h3>Assinaturas</h3>
+  <div class="sig-grid">
+    ${sellerBlocks}
+    ${buyerBlocks}
+  </div>
+  ${witnessBlocks ? `<h3 style="margin-top:24px">Testemunhas</h3><div class="sig-grid">${witnessBlocks}</div>` : ""}
+</section>
 
 <footer>${esc(company?.razao_social || "")} · ${esc(company?.cnpj || "")} · ${esc(company?.email || "")}</footer>
 </body></html>`;
@@ -144,12 +208,31 @@ Deno.serve(async (req) => {
       .eq("contract_id", contractId)
       .order("order_index");
 
-    const { data: company } = await admin
-      .from("company_settings").select("*").limit(1).single();
+    const { data: signatories } = await admin
+      .from("contract_signatories")
+      .select("*")
+      .eq("contract_id", contractId)
+      .order("order_index");
 
-    const html = buildHTML(contract, snapshots || [], company);
+    const { data: witnesses } = await admin
+      .from("contract_witnesses")
+      .select("*")
+      .eq("contract_id", contractId)
+      .order("order_index");
 
-    // Mark generated_at
+    // Company from contract.company_id when available, else fallback to first
+    let company: any = null;
+    if (contract.company_id) {
+      const { data } = await admin.from("company_settings").select("*").eq("id", contract.company_id).maybeSingle();
+      company = data;
+    }
+    if (!company) {
+      const { data } = await admin.from("company_settings").select("*").limit(1).maybeSingle();
+      company = data;
+    }
+
+    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || []);
+
     await admin.from("contracts").update({ generated_at: new Date().toISOString() }).eq("id", contractId);
 
     return new Response(JSON.stringify({ html, contract_number: contract.contract_number }), {
