@@ -126,12 +126,10 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   .sig-line { border-top: 1px solid #333; height: 0; margin-bottom: 6px; }
   .sig-role { font-size: 9pt; font-weight: 600; color: #444; }
   .sig-meta { font-size: 9pt; color: #333; margin-top: 2px; }
-  footer { position: fixed; bottom: 8mm; left: 18mm; right: 18mm; text-align: center; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 4px; }
-  .print-btn { position: fixed; top: 12px; right: 12px; padding: 10px 16px; background: #1e40af; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  @media print { .print-btn { display: none; } }
+  footer { text-align: center; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 4px; margin-top: 30px; }
 </style>
 </head><body>
-<button class="print-btn" onclick="window.print()">Imprimir / Salvar PDF</button>
+
 <header>
   <img src="${SOIMA_LOGO_URL}" alt="SOIMA"/>
   <div class="meta">
@@ -233,9 +231,67 @@ Deno.serve(async (req) => {
 
     const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || []);
 
-    await admin.from("contracts").update({ generated_at: new Date().toISOString() }).eq("id", contractId);
+    const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
+    if (!pdfshiftKey) {
+      return new Response(JSON.stringify({ error: "PDFSHIFT_API_KEY não configurada" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    return new Response(JSON.stringify({ html, contract_number: contract.contract_number }), {
+    const footerText = `${company?.razao_social || ""} · ${company?.cnpj || ""} · Contrato ${contract.contract_number}`;
+    const pdfRes = await fetch("https://api.pdfshift.io/v3/convert/pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + btoa("api:" + pdfshiftKey),
+      },
+      body: JSON.stringify({
+        source: html,
+        format: "A4",
+        margin: "22mm 18mm 22mm 18mm",
+        use_print: false,
+        sandbox: false,
+        footer: {
+          source: `<div style="width:100%;font-size:8pt;color:#888;text-align:center;font-family:Helvetica,Arial,sans-serif;padding:0 18mm;">${esc(footerText)} — Página <span class="pdfshift_page_number"></span> de <span class="pdfshift_total_pages"></span></div>`,
+          spacing: "8mm",
+        },
+      }),
+    });
+
+    if (!pdfRes.ok) {
+      const errText = await pdfRes.text();
+      console.error("PDFShift error:", pdfRes.status, errText);
+      return new Response(JSON.stringify({ error: "Falha na geração do PDF", details: errText }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const pdfBuffer = new Uint8Array(await pdfRes.arrayBuffer());
+
+    // Upload to storage
+    const path = `${contractId}/generated-v${contract.current_version || 1}-${Date.now()}.pdf`;
+    const { error: upErr } = await admin.storage
+      .from("contracts")
+      .upload(path, pdfBuffer, { contentType: "application/pdf", upsert: true });
+    if (upErr) {
+      console.error("Upload error:", upErr);
+    } else {
+      await admin.from("contracts").update({
+        pdf_url: path,
+        generated_at: new Date().toISOString(),
+      }).eq("id", contractId);
+    }
+
+    // Return PDF as base64 so the client can open/download without about:blank
+    let binary = "";
+    for (let i = 0; i < pdfBuffer.length; i++) binary += String.fromCharCode(pdfBuffer[i]);
+    const base64 = btoa(binary);
+
+    return new Response(JSON.stringify({
+      pdf_base64: base64,
+      contract_number: contract.contract_number,
+      storage_path: path,
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
