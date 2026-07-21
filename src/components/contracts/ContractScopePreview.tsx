@@ -42,7 +42,7 @@ export function ContractScopePreview({ quoteId }: Props) {
 
   const tabelaHtml = stripHtmlSentinels(itensInclusosTabela(data.items));
   const extensoItens = itensInclusosExtenso(data.items);
-  const extensoGrua = especificacoesGruaExtenso(data.quote);
+  const extensoGrua = especificacoesGruaExtenso(data.quote, data.items);
 
   return (
     <Card>

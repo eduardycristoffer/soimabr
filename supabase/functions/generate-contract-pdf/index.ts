@@ -174,16 +174,34 @@ function buildScopeExtenso(items: any[]): string {
   }).join("; ");
 }
 
+function buildGruaSpecsExtenso(quote: any, items: any[]): string {
+  const grua = (items || []).find((i: any) => String(i.product_category || "").toLowerCase() === "grua");
+  const techDesc = grua ? getTechnicalDescription(grua) : "";
+  const parts: string[] = [];
+  const add = (label: string, value: any, unit: string) => {
+    if (value == null || value === "") return;
+    parts.push(`${label} de ${value} ${unit}`);
+  };
+  add("lança", grua?.grua_lanca_m ?? quote?.grua_lanca_m, "metros");
+  add("altura de torre", grua?.grua_altura_torre_m ?? quote?.grua_altura_torre_m, "metros");
+  add("altura de trabalho", grua?.grua_altura_trabalho_m ?? quote?.grua_altura_trabalho_m, "metros");
+  add("carga máxima", grua?.grua_carga_maxima_kg ?? quote?.grua_carga_maxima_kg, "quilogramas");
+  add("carga na ponta", grua?.grua_carga_ponta_kg ?? quote?.grua_carga_ponta_kg, "quilogramas");
+  if (techDesc) parts.push(`descrição técnica: ${techDesc}`);
+  return parts.length ? parts.join(", ") : "conforme especificações técnicas anexas";
+}
+
 function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[]) {
   const scopeTableHtml = buildScopeTable(items);
   const scopeExtenso = buildScopeExtenso(items);
+  const gruaSpecsExtenso = buildGruaSpecsExtenso(quote, items);
 
   const replaceScopeTokens = (body: string): string => {
     if (!body) return body;
     return body
       .replace(/\{\{\s*itens_inclusos_tabela\s*\}\}/gi, scopeTableHtml ? `%%HTML%%${scopeTableHtml}%%/HTML%%` : "")
       .replace(/\{\{\s*itens_inclusos_extenso\s*\}\}/gi, scopeExtenso)
-      .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, "");
+      .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, gruaSpecsExtenso);
   };
 
   const refreshExistingScopeTable = (body: string): string => {
@@ -218,6 +236,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
         <div class="clause-body">
           ${scopeTableHtml}
           ${scopeExtenso ? `<p><strong>Descrição:</strong> ${esc(scopeExtenso)}.</p>` : ""}
+          ${gruaSpecsExtenso ? `<p><strong>Especificações técnicas da grua:</strong> ${esc(gruaSpecsExtenso)}.</p>` : ""}
         </div>
       </section>`
     : "";

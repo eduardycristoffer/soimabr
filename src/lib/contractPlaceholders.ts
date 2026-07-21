@@ -258,17 +258,20 @@ export function itensInclusosExtenso(items: any[]): string {
   return partes.join("; ");
 }
 
-export function especificacoesGruaExtenso(quote: any): string {
+export function especificacoesGruaExtenso(quote: any, items: any[] = []): string {
   const partes: string[] = [];
+  const grua = (items || []).find((i) => String(i.product_category || "").toLowerCase() === "grua");
+  const techDesc = grua ? getTechnicalDescription(grua) : "";
   const add = (label: string, val: number | null | undefined, unit: string) => {
     if (val == null) return;
     partes.push(`${label} de ${val} (${inteiroPorExtenso(Number(val))}) ${unit}`);
   };
-  add("lança", quote?.grua_lanca_m, "metros");
-  add("altura de torre", quote?.grua_altura_torre_m, "metros");
-  add("altura de trabalho", quote?.grua_altura_trabalho_m, "metros");
-  add("carga máxima", quote?.grua_carga_maxima_kg, "quilogramas");
-  add("carga na ponta", quote?.grua_carga_ponta_kg, "quilogramas");
+  add("lança", grua?.grua_lanca_m ?? quote?.grua_lanca_m, "metros");
+  add("altura de torre", grua?.grua_altura_torre_m ?? quote?.grua_altura_torre_m, "metros");
+  add("altura de trabalho", grua?.grua_altura_trabalho_m ?? quote?.grua_altura_trabalho_m, "metros");
+  add("carga máxima", grua?.grua_carga_maxima_kg ?? quote?.grua_carga_maxima_kg, "quilogramas");
+  add("carga na ponta", grua?.grua_carga_ponta_kg ?? quote?.grua_carga_ponta_kg, "quilogramas");
+  if (techDesc) partes.push(`descrição técnica: ${techDesc}`);
   return partes.length ? partes.join(", ") : "conforme especificações técnicas anexas";
 }
 
@@ -353,7 +356,7 @@ export function buildPlaceholderMap(params: {
     carga_ponta_kg: String(quote.grua_carga_ponta_kg ?? "—"),
     itens_inclusos_tabela: itensInclusosTabela(items),
     itens_inclusos_extenso: itensInclusosExtenso(items),
-    especificacoes_grua_extenso: especificacoesGruaExtenso(quote),
+    especificacoes_grua_extenso: especificacoesGruaExtenso(quote, items),
     servicos_inclusos_lista: servicosInclusosLista(items, quote),
     // valores
     valor_total_numerico: brl(total),
