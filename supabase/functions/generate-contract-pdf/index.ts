@@ -16,9 +16,18 @@ function esc(s: string) {
     .replace(/>/g, "&gt;");
 }
 
-// Minimal markdown → HTML (bold, italics, lists, paragraphs)
+// Minimal markdown → HTML (bold, italics, lists, paragraphs).
+// Preserves raw HTML blocks wrapped in %%HTML%%...%%/HTML%% sentinels
+// (used by contract placeholders like itens_inclusos_tabela).
 function md(input: string): string {
-  const safe = esc(input);
+  const HTML_RX = /%%HTML%%([\s\S]*?)%%\/HTML%%/g;
+  const blocks: string[] = [];
+  const withPlaceholders = (input || "").replace(HTML_RX, (_, html) => {
+    blocks.push(html);
+    return `\u0000HTMLBLOCK${blocks.length - 1}\u0000`;
+  });
+
+  const safe = esc(withPlaceholders);
   const lines = safe.split("\n");
   const out: string[] = [];
   let inList = false;
@@ -27,6 +36,9 @@ function md(input: string): string {
     if (/^\s*-\s+/.test(line)) {
       if (!inList) { out.push("<ul>"); inList = true; }
       out.push("<li>" + line.replace(/^\s*-\s+/, "") + "</li>");
+    } else if (/\u0000HTMLBLOCK\d+\u0000/.test(line)) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(line);
     } else {
       if (inList) { out.push("</ul>"); inList = false; }
       if (!line) out.push("");
@@ -37,6 +49,8 @@ function md(input: string): string {
   let html = out.join("\n");
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/_([^_\n]+)_/g, "<em>$1</em>");
+  // Reinsert raw HTML blocks unescaped
+  html = html.replace(/\u0000HTMLBLOCK(\d+)\u0000/g, (_, i) => blocks[Number(i)] || "");
   return html;
 }
 
