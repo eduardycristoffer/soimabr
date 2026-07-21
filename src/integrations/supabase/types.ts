@@ -259,6 +259,7 @@ export type Database = {
           representante_cpf: string | null
           representante_nome: string | null
           representante_rg: string | null
+          slug: string | null
           updated_at: string
           website: string | null
         }
@@ -278,6 +279,7 @@ export type Database = {
           representante_cpf?: string | null
           representante_nome?: string | null
           representante_rg?: string | null
+          slug?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -297,6 +299,7 @@ export type Database = {
           representante_cpf?: string | null
           representante_nome?: string | null
           representante_rg?: string | null
+          slug?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -305,6 +308,7 @@ export type Database = {
       contract_clause_snapshots: {
         Row: {
           body: string
+          clause_key: string | null
           contract_id: string
           created_at: string
           edited_at: string | null
@@ -317,6 +321,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          clause_key?: string | null
           contract_id: string
           created_at?: string
           edited_at?: string | null
@@ -329,6 +334,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          clause_key?: string | null
           contract_id?: string
           created_at?: string
           edited_at?: string | null
@@ -359,6 +365,7 @@ export type Database = {
       contract_clauses: {
         Row: {
           body: string
+          clause_key: string | null
           created_at: string
           id: string
           is_core: boolean
@@ -369,6 +376,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          clause_key?: string | null
           created_at?: string
           id?: string
           is_core?: boolean
@@ -379,6 +387,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          clause_key?: string | null
           created_at?: string
           id?: string
           is_core?: boolean
@@ -397,8 +406,53 @@ export type Database = {
           },
         ]
       }
+      contract_signatories: {
+        Row: {
+          cargo: string | null
+          contract_id: string
+          cpf: string | null
+          created_at: string
+          id: string
+          name: string | null
+          order_index: number
+          rg: string | null
+          side: string
+        }
+        Insert: {
+          cargo?: string | null
+          contract_id: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          order_index?: number
+          rg?: string | null
+          side: string
+        }
+        Update: {
+          cargo?: string | null
+          contract_id?: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          order_index?: number
+          rg?: string | null
+          side?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signatories_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_templates: {
         Row: {
+          company_id: string | null
           contract_type: Database["public"]["Enums"]["quote_type"]
           created_at: string
           created_by: string | null
@@ -409,6 +463,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          company_id?: string | null
           contract_type: Database["public"]["Enums"]["quote_type"]
           created_at?: string
           created_by?: string | null
@@ -419,6 +474,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          company_id?: string | null
           contract_type?: Database["public"]["Enums"]["quote_type"]
           created_at?: string
           created_by?: string | null
@@ -428,7 +484,53 @@ export type Database = {
           updated_at?: string
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contract_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_witnesses: {
+        Row: {
+          contract_id: string
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          order_index: number
+        }
+        Insert: {
+          contract_id: string
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          order_index?: number
+        }
+        Update: {
+          contract_id?: string
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          order_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_witnesses_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contracts: {
         Row: {
@@ -441,6 +543,7 @@ export type Database = {
           buyer_rep_name: string | null
           buyer_rep_rg: string | null
           cancelled_at: string | null
+          company_id: string | null
           contract_number: string
           created_at: string
           created_by: string | null
@@ -475,6 +578,7 @@ export type Database = {
           buyer_rep_name?: string | null
           buyer_rep_rg?: string | null
           cancelled_at?: string | null
+          company_id?: string | null
           contract_number: string
           created_at?: string
           created_by?: string | null
@@ -509,6 +613,7 @@ export type Database = {
           buyer_rep_name?: string | null
           buyer_rep_rg?: string | null
           cancelled_at?: string | null
+          company_id?: string | null
           contract_number?: string
           created_at?: string
           created_by?: string | null
@@ -534,6 +639,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contracts_quote_id_fkey"
             columns: ["quote_id"]
@@ -1881,7 +1993,7 @@ export type Database = {
         | "chassis"
         | "acessorio"
       quote_status: "draft" | "finalized" | "cancelled"
-      quote_type: "venda" | "locacao"
+      quote_type: "venda" | "locacao" | "servico"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2024,7 +2136,7 @@ export const Constants = {
         "acessorio",
       ],
       quote_status: ["draft", "finalized", "cancelled"],
-      quote_type: ["venda", "locacao"],
+      quote_type: ["venda", "locacao", "servico"],
     },
   },
 } as const
