@@ -213,6 +213,11 @@ export default function ContratoEditor() {
         </CardContent>
       </Card>
 
+      <SignatoriesEditor contractId={id!} isLocked={isLocked} />
+      <WitnessesEditor contractId={id!} isLocked={isLocked} />
+
+
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Cláusulas</h2>
         {!isLocked && (
