@@ -39,16 +39,14 @@ export function MainLayout() {
       <main className="flex-1 min-w-0 h-screen overflow-y-auto scrollbar-thin scroll-smooth">
         {/* Mobile top bar */}
         <div className="md:hidden sticky top-0 z-30 flex h-14 items-center border-b bg-background px-4">
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menu"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
         </div>
         <div className="container mx-auto max-w-screen-2xl p-6 lg:p-8">
           <Outlet />
