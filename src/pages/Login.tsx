@@ -96,19 +96,32 @@ export default function Login() {
         body: { action: "verify", user_id: otpUserId, code: otpCode },
       });
 
-      if (verifyError) throw verifyError;
+      if (verifyError) {
+        // Extract real server message from non-2xx response body
+        let serverMsg = "";
+        try {
+          const body = await (verifyError as any)?.context?.response?.json();
+          serverMsg = body?.error || "";
+        } catch { /* ignore */ }
+        throw new Error(serverMsg || verifyError.message);
+      }
       if (verifyData?.error) throw new Error(verifyData.error);
 
       // OTP valid - now do the real sign in
       await signIn(loginEmail, loginPassword);
       navigate("/dashboard");
     } catch (err: any) {
+      const msg = err?.message || "Verifique o código e tente novamente.";
       toast({
         variant: "destructive",
         title: "Código inválido",
-        description: err.message || "Verifique o código e tente novamente.",
+        description: msg,
       });
       setOtpCode("");
+      // If code expired/invalidated, take user back to login to request a new one
+      if (/expirado|Muitas tentativas/i.test(msg)) {
+        setTimeout(() => handleBackToLogin(), 1500);
+      }
     } finally {
       setLoading(false);
     }
