@@ -309,6 +309,8 @@ export function buildPlaceholderMap(params: {
     carga_maxima_kg: String(quote.grua_carga_maxima_kg ?? "—"),
     carga_ponta_kg: String(quote.grua_carga_ponta_kg ?? "—"),
     itens_inclusos_tabela: itensInclusosTabela(items),
+    itens_inclusos_extenso: itensInclusosExtenso(items),
+    especificacoes_grua_extenso: especificacoesGruaExtenso(quote),
     servicos_inclusos_lista: servicosInclusosLista(items, quote),
     // valores
     valor_total_numerico: brl(total),
