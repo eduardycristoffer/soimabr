@@ -333,7 +333,19 @@ Deno.serve(async (req) => {
       company = data;
     }
 
-    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || []);
+    // Load linked quote + items so we can inject a live scope section
+    let quote: any = null;
+    let items: any[] = [];
+    if (contract.quote_id) {
+      const [{ data: q }, { data: qi }] = await Promise.all([
+        admin.from("quotes").select("*").eq("id", contract.quote_id).maybeSingle(),
+        admin.from("quote_items").select("*").eq("quote_id", contract.quote_id).order("order_index"),
+      ]);
+      quote = q;
+      items = qi || [];
+    }
+
+    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items);
 
     const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
     if (!pdfshiftKey) {
