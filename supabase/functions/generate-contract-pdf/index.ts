@@ -126,12 +126,10 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   .sig-line { border-top: 1px solid #333; height: 0; margin-bottom: 6px; }
   .sig-role { font-size: 9pt; font-weight: 600; color: #444; }
   .sig-meta { font-size: 9pt; color: #333; margin-top: 2px; }
-  footer { position: fixed; bottom: 8mm; left: 18mm; right: 18mm; text-align: center; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 4px; }
-  .print-btn { position: fixed; top: 12px; right: 12px; padding: 10px 16px; background: #1e40af; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  @media print { .print-btn { display: none; } }
+  footer { text-align: center; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 4px; margin-top: 30px; }
 </style>
 </head><body>
-<button class="print-btn" onclick="window.print()">Imprimir / Salvar PDF</button>
+
 <header>
   <img src="${SOIMA_LOGO_URL}" alt="SOIMA"/>
   <div class="meta">
