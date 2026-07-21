@@ -19,7 +19,11 @@ export function ContractScopePreview({ quoteId }: Props) {
     queryFn: async () => {
       const [{ data: quote }, { data: items }] = await Promise.all([
         supabase.from("quotes").select("*").eq("id", quoteId).single(),
-        supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index"),
+        supabase
+          .from("quote_items")
+          .select("*, products(descricao, descricao_tecnica)")
+          .eq("quote_id", quoteId)
+          .order("order_index"),
       ]);
       return { quote, items: items || [] };
     },
@@ -38,7 +42,7 @@ export function ContractScopePreview({ quoteId }: Props) {
 
   const tabelaHtml = stripHtmlSentinels(itensInclusosTabela(data.items));
   const extensoItens = itensInclusosExtenso(data.items);
-  const extensoGrua = especificacoesGruaExtenso(data.quote);
+  const extensoGrua = especificacoesGruaExtenso(data.quote, data.items);
 
   return (
     <Card>
@@ -106,10 +110,15 @@ export function ContractScopePreview({ quoteId }: Props) {
         .scope-preview .c-cod { width: 100px; font-family: ui-monospace, monospace; font-size: 0.75rem; }
         .scope-preview .c-qtd { width: 48px; text-align: center; }
         .scope-preview .item-notes,
-        .scope-preview .item-specs {
+        .scope-preview .item-specs,
+        .scope-preview .item-commercial-desc,
+        .scope-preview .item-tech-desc {
           font-size: 0.75rem;
           color: hsl(var(--muted-foreground));
           margin-top: 2px;
+        }
+        .scope-preview .item-tech-desc {
+          white-space: pre-wrap;
         }
       `}</style>
     </Card>

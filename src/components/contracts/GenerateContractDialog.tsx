@@ -258,7 +258,11 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
       if (alsoGenerateService && !serviceTemplate)
         throw new Error("Nenhum modelo ativo de prestação de serviço encontrado");
 
-      const { data: items } = await supabase.from("quote_items").select("*").eq("quote_id", quoteId).order("order_index");
+      const { data: items } = await supabase
+        .from("quote_items")
+        .select("*, products(descricao, descricao_tecnica)")
+        .eq("quote_id", quoteId)
+        .order("order_index");
 
       const firstSeller = sellerSigs[0] || { name: "", cpf: "", rg: "", cargo: "" };
       const firstBuyer = buyerSigs[0];

@@ -16,6 +16,43 @@ function esc(s: string) {
     .replace(/>/g, "&gt;");
 }
 
+function getItemProduct(item: any): any {
+  return item?.products || item?.product || item?.product_data || {};
+}
+
+function getCommercialDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(product.descricao || item.descricao || item.description || "").trim();
+}
+
+function getTechnicalDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(
+    product.descricao_tecnica ||
+      item.descricao_tecnica ||
+      item.technical_description ||
+      "",
+  ).trim();
+}
+
+function descriptionLinesForItem(item: any): string {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `<div class="item-commercial-desc"><strong>Descrição:</strong> ${esc(commercial)}</div>` : "",
+    technical ? `<div class="item-tech-desc"><strong>Descrição técnica:</strong> ${esc(technical)}</div>` : "",
+  ].filter(Boolean).join("");
+}
+
+function textDescriptionsForItem(item: any): string[] {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `descrição: ${commercial}` : "",
+    technical ? `descrição técnica: ${technical}` : "",
+  ].filter(Boolean);
+}
+
 // Minimal markdown → HTML (bold, italics, lists, paragraphs).
 // Preserves raw HTML blocks wrapped in %%HTML%%...%%/HTML%% sentinels
 // (used by contract placeholders like itens_inclusos_tabela).
@@ -117,7 +154,7 @@ function buildScopeTable(items: any[]): string {
       const notes = it.notes ? `<div class="item-notes">${esc(it.notes)}</div>` : "";
       rows.push(
         `<tr><td class="c-idx">${idx}</td><td class="c-cod">${esc(it.product_code || "")}</td>` +
-        `<td class="c-desc"><strong>${esc(it.product_name || "")}</strong>${specsHtml}${notes}</td>` +
+        `<td class="c-desc"><strong>${esc(it.product_name || "")}</strong>${descriptionLinesForItem(it)}${specsHtml}${notes}</td>` +
         `<td class="c-qtd">${it.quantity ?? 1}</td></tr>`
       );
     }
@@ -131,25 +168,54 @@ function buildScopeExtenso(items: any[]): string {
     const qty = Number(i.quantity || 1);
     const qtyStr = String(qty).padStart(2, "0");
     const code = i.product_code ? ` (código ${i.product_code})` : "";
-    const notes = i.notes ? `, contendo: ${i.notes}` : "";
-    return `${qtyStr} × ${i.product_name}${code}${notes}`;
+    const details = [...textDescriptionsForItem(i), i.notes ? `observações: ${i.notes}` : ""];
+    const detailsText = details.length ? `, com ${details.join(", ")}` : "";
+    return `${qtyStr} × ${i.product_name}${code}${detailsText}`;
   }).join("; ");
+}
+
+function buildGruaSpecsExtenso(quote: any, items: any[]): string {
+  const grua = (items || []).find((i: any) => String(i.product_category || "").toLowerCase() === "grua");
+  const techDesc = grua ? getTechnicalDescription(grua) : "";
+  const parts: string[] = [];
+  const add = (label: string, value: any, unit: string) => {
+    if (value == null || value === "") return;
+    parts.push(`${label} de ${value} ${unit}`);
+  };
+  add("lança", grua?.grua_lanca_m ?? quote?.grua_lanca_m, "metros");
+  add("altura de torre", grua?.grua_altura_torre_m ?? quote?.grua_altura_torre_m, "metros");
+  add("altura de trabalho", grua?.grua_altura_trabalho_m ?? quote?.grua_altura_trabalho_m, "metros");
+  add("carga máxima", grua?.grua_carga_maxima_kg ?? quote?.grua_carga_maxima_kg, "quilogramas");
+  add("carga na ponta", grua?.grua_carga_ponta_kg ?? quote?.grua_carga_ponta_kg, "quilogramas");
+  if (techDesc) parts.push(`descrição técnica: ${techDesc}`);
+  return parts.length ? parts.join(", ") : "conforme especificações técnicas anexas";
 }
 
 function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[]) {
   const scopeTableHtml = buildScopeTable(items);
   const scopeExtenso = buildScopeExtenso(items);
+  const gruaSpecsExtenso = buildGruaSpecsExtenso(quote, items);
 
   const replaceScopeTokens = (body: string): string => {
     if (!body) return body;
     return body
       .replace(/\{\{\s*itens_inclusos_tabela\s*\}\}/gi, scopeTableHtml ? `%%HTML%%${scopeTableHtml}%%/HTML%%` : "")
       .replace(/\{\{\s*itens_inclusos_extenso\s*\}\}/gi, scopeExtenso)
-      .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, "");
+      .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, gruaSpecsExtenso);
   };
 
+  const refreshExistingScopeTable = (body: string): string => {
+    if (!body || !scopeTableHtml) return body;
+    const freshBlock = `%%HTML%%${scopeTableHtml}%%/HTML%%`;
+    return body
+      .replace(/%%HTML%%\s*<table\b[^>]*class=["'][^"']*\bscope-table\b[^"']*["'][\s\S]*?<\/table>\s*%%\/HTML%%/gi, freshBlock)
+      .replace(/<table\b[^>]*class=["'][^"']*\bscope-table\b[^"']*["'][\s\S]*?<\/table>/gi, scopeTableHtml);
+  };
+
+  const prepareClauseBody = (body: string): string => replaceScopeTokens(refreshExistingScopeTable(body));
+
   const sortedSnaps = [...snapshots].sort((a, b) => a.order_index - b.order_index);
-  const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela|ITENS INCLUSOS|ITENS DA PROPOSTA/i.test(c.body || ""));
+  const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela/i.test(c.body || ""));
 
   const clausesHtml = sortedSnaps
     .map((c, idx) => {
@@ -157,7 +223,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
       return `
       <section class="clause">
         <h2>${num}${esc(c.title)}</h2>
-        <div class="clause-body">${md(replaceScopeTokens(c.body))}</div>
+        <div class="clause-body">${md(prepareClauseBody(c.body))}</div>
       </section>`;
     })
     .join("\n");
@@ -170,6 +236,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
         <div class="clause-body">
           ${scopeTableHtml}
           ${scopeExtenso ? `<p><strong>Descrição:</strong> ${esc(scopeExtenso)}.</p>` : ""}
+          ${gruaSpecsExtenso ? `<p><strong>Especificações técnicas da grua:</strong> ${esc(gruaSpecsExtenso)}.</p>` : ""}
         </div>
       </section>`
     : "";
@@ -221,6 +288,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   table.scope-table tr.cat-row td { background: #f1f5f9; font-weight: 700; color: #1e40af; text-transform: uppercase; font-size: 8.5pt; letter-spacing: 0.03em; padding: 4px 8px; }
   table.scope-table .item-specs { color: #475569; font-size: 8.5pt; margin-top: 2px; }
   table.scope-table .item-notes { color: #475569; font-size: 8.5pt; margin-top: 3px; font-style: italic; }
+  table.scope-table .item-commercial-desc, table.scope-table .item-tech-desc { color: #475569; font-size: 8.5pt; margin-top: 3px; white-space: pre-wrap; }
   .sig-section { margin-top: 32px; page-break-inside: avoid; }
   .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
@@ -339,7 +407,7 @@ Deno.serve(async (req) => {
     if (contract.quote_id) {
       const [{ data: q }, { data: qi }] = await Promise.all([
         admin.from("quotes").select("*").eq("id", contract.quote_id).maybeSingle(),
-        admin.from("quote_items").select("*").eq("quote_id", contract.quote_id).order("order_index"),
+        admin.from("quote_items").select("*, products(descricao, descricao_tecnica)").eq("quote_id", contract.quote_id).order("order_index"),
       ]);
       quote = q;
       items = qi || [];

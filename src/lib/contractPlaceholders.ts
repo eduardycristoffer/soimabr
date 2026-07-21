@@ -148,6 +148,43 @@ export function stripHtmlSentinels(s: string): string {
   return (s || "").split(HTML_OPEN).join("").split(HTML_CLOSE).join("");
 }
 
+function getItemProduct(item: any): any {
+  return item?.products || item?.product || item?.product_data || {};
+}
+
+function getCommercialDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(product.descricao || item.descricao || item.description || "").trim();
+}
+
+function getTechnicalDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(
+    product.descricao_tecnica ||
+      item.descricao_tecnica ||
+      item.technical_description ||
+      "",
+  ).trim();
+}
+
+function descriptionLinesForItem(item: any): string {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `<div class="item-commercial-desc"><strong>Descrição:</strong> ${escHtml(commercial)}</div>` : "",
+    technical ? `<div class="item-tech-desc"><strong>Descrição técnica:</strong> ${escHtml(technical)}</div>` : "",
+  ].filter(Boolean).join("");
+}
+
+function textDescriptionsForItem(item: any): string[] {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `descrição: ${commercial}` : "",
+    technical ? `descrição técnica: ${technical}` : "",
+  ].filter(Boolean);
+}
+
 export function itensInclusosTabela(items: any[]): string {
 
   if (!items || items.length === 0) return "_(sem itens)_";
@@ -186,7 +223,7 @@ export function itensInclusosTabela(items: any[]): string {
         `<tr>` +
           `<td class="c-idx">${idx}</td>` +
           `<td class="c-cod">${escHtml(it.product_code || "")}</td>` +
-          `<td class="c-desc"><strong>${escHtml(it.product_name || "")}</strong>${specsHtml}${notes}</td>` +
+          `<td class="c-desc"><strong>${escHtml(it.product_name || "")}</strong>${descriptionLinesForItem(it)}${specsHtml}${notes}</td>` +
           `<td class="c-qtd">${it.quantity ?? 1}</td>` +
         `</tr>`,
       );
@@ -214,23 +251,27 @@ export function itensInclusosExtenso(items: any[]): string {
     const qtyExt = inteiroPorExtenso(qty);
     const qtyStr = String(qty).padStart(2, "0");
     const code = i.product_code ? ` (código ${i.product_code})` : "";
-    const notes = i.notes ? `, contendo: ${i.notes}` : "";
-    return `${qtyExt} (${qtyStr}) ${i.product_name}${code}${notes}`;
+    const details = [...textDescriptionsForItem(i), i.notes ? `observações: ${i.notes}` : ""];
+    const detailsText = details.length ? `, com ${details.join(", ")}` : "";
+    return `${qtyExt} (${qtyStr}) ${i.product_name}${code}${detailsText}`;
   });
   return partes.join("; ");
 }
 
-export function especificacoesGruaExtenso(quote: any): string {
+export function especificacoesGruaExtenso(quote: any, items: any[] = []): string {
   const partes: string[] = [];
+  const grua = (items || []).find((i) => String(i.product_category || "").toLowerCase() === "grua");
+  const techDesc = grua ? getTechnicalDescription(grua) : "";
   const add = (label: string, val: number | null | undefined, unit: string) => {
     if (val == null) return;
     partes.push(`${label} de ${val} (${inteiroPorExtenso(Number(val))}) ${unit}`);
   };
-  add("lança", quote?.grua_lanca_m, "metros");
-  add("altura de torre", quote?.grua_altura_torre_m, "metros");
-  add("altura de trabalho", quote?.grua_altura_trabalho_m, "metros");
-  add("carga máxima", quote?.grua_carga_maxima_kg, "quilogramas");
-  add("carga na ponta", quote?.grua_carga_ponta_kg, "quilogramas");
+  add("lança", grua?.grua_lanca_m ?? quote?.grua_lanca_m, "metros");
+  add("altura de torre", grua?.grua_altura_torre_m ?? quote?.grua_altura_torre_m, "metros");
+  add("altura de trabalho", grua?.grua_altura_trabalho_m ?? quote?.grua_altura_trabalho_m, "metros");
+  add("carga máxima", grua?.grua_carga_maxima_kg ?? quote?.grua_carga_maxima_kg, "quilogramas");
+  add("carga na ponta", grua?.grua_carga_ponta_kg ?? quote?.grua_carga_ponta_kg, "quilogramas");
+  if (techDesc) partes.push(`descrição técnica: ${techDesc}`);
   return partes.length ? partes.join(", ") : "conforme especificações técnicas anexas";
 }
 
@@ -315,7 +356,7 @@ export function buildPlaceholderMap(params: {
     carga_ponta_kg: String(quote.grua_carga_ponta_kg ?? "—"),
     itens_inclusos_tabela: itensInclusosTabela(items),
     itens_inclusos_extenso: itensInclusosExtenso(items),
-    especificacoes_grua_extenso: especificacoesGruaExtenso(quote),
+    especificacoes_grua_extenso: especificacoesGruaExtenso(quote, items),
     servicos_inclusos_lista: servicosInclusosLista(items, quote),
     // valores
     valor_total_numerico: brl(total),
