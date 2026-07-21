@@ -266,3 +266,137 @@ export default function ContratoEditor() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────
+// Signatories (multi per side)
+// ─────────────────────────────────────────────────────────
+function SignatoriesEditor({ contractId, isLocked }: { contractId: string; isLocked: boolean }) {
+  const { data: rows, refetch } = useQuery({
+    queryKey: ["contract-signatories", contractId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("contract_signatories")
+        .select("*").eq("contract_id", contractId).order("side").order("order_index");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const add = async (side: "seller" | "buyer") => {
+    const idx = (rows || []).filter((r: any) => r.side === side).length;
+    await supabase.from("contract_signatories").insert({
+      contract_id: contractId, side, name: "", cpf: "", order_index: idx,
+    });
+    refetch();
+  };
+
+  const upd = async (id: string, patch: any) => {
+    await supabase.from("contract_signatories").update(patch).eq("id", id);
+    refetch();
+  };
+
+  const del = async (id: string) => {
+    await supabase.from("contract_signatories").delete().eq("id", id);
+    refetch();
+  };
+
+  const renderSide = (side: "seller" | "buyer", label: string) => {
+    const list = (rows || []).filter((r: any) => r.side === side);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold">{label}</h4>
+          {!isLocked && (
+            <Button variant="outline" size="sm" onClick={() => add(side)}>
+              <Plus className="h-3 w-3 mr-1" /> Adicionar
+            </Button>
+          )}
+        </div>
+        {list.length === 0 && <p className="text-xs text-muted-foreground">Nenhum representante.</p>}
+        {list.map((s: any) => (
+          <div key={s.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
+            <div><Label className="text-xs">Nome</Label><Input defaultValue={s.name} disabled={isLocked} onBlur={(e) => e.target.value !== s.name && upd(s.id, { name: e.target.value })} /></div>
+            <div><Label className="text-xs">CPF</Label><Input defaultValue={s.cpf} disabled={isLocked} onBlur={(e) => e.target.value !== s.cpf && upd(s.id, { cpf: e.target.value })} /></div>
+            <div><Label className="text-xs">RG</Label><Input defaultValue={s.rg || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (s.rg || "") && upd(s.id, { rg: e.target.value || null })} /></div>
+            <div><Label className="text-xs">Cargo</Label><Input defaultValue={s.cargo || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (s.cargo || "") && upd(s.id, { cargo: e.target.value || null })} /></div>
+            {!isLocked && (
+              <Button variant="ghost" size="icon" onClick={() => del(s.id)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Signatários</CardTitle></CardHeader>
+      <CardContent className="space-y-6">
+        {renderSide("seller", "Pela Vendedora")}
+        <Separator />
+        {renderSide("buyer", "Pela Compradora")}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Witnesses
+// ─────────────────────────────────────────────────────────
+function WitnessesEditor({ contractId, isLocked }: { contractId: string; isLocked: boolean }) {
+  const { data: rows, refetch } = useQuery({
+    queryKey: ["contract-witnesses", contractId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("contract_witnesses")
+        .select("*").eq("contract_id", contractId).order("order_index");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const add = async () => {
+    const idx = (rows || []).length;
+    await supabase.from("contract_witnesses").insert({ contract_id: contractId, name: "", cpf: "", order_index: idx });
+    refetch();
+  };
+  const upd = async (id: string, patch: any) => {
+    await supabase.from("contract_witnesses").update(patch).eq("id", id);
+    refetch();
+  };
+  const del = async (id: string) => {
+    await supabase.from("contract_witnesses").delete().eq("id", id);
+    refetch();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Testemunhas</CardTitle>
+          {!isLocked && (
+            <Button variant="outline" size="sm" onClick={add}>
+              <Plus className="h-3 w-3 mr-1" /> Adicionar testemunha
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {(rows || []).length === 0 && <p className="text-xs text-muted-foreground">Nenhuma testemunha.</p>}
+        {(rows || []).map((w: any) => (
+          <div key={w.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+            <div><Label className="text-xs">Nome</Label><Input defaultValue={w.name} disabled={isLocked} onBlur={(e) => e.target.value !== w.name && upd(w.id, { name: e.target.value })} /></div>
+            <div><Label className="text-xs">CPF</Label><Input defaultValue={w.cpf} disabled={isLocked} onBlur={(e) => e.target.value !== w.cpf && upd(w.id, { cpf: e.target.value })} /></div>
+            <div><Label className="text-xs">E-mail</Label><Input defaultValue={w.email || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (w.email || "") && upd(w.id, { email: e.target.value || null })} /></div>
+            {!isLocked && (
+              <Button variant="ghost" size="icon" onClick={() => del(w.id)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
