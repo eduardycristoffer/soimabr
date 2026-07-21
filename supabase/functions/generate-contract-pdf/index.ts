@@ -16,6 +16,43 @@ function esc(s: string) {
     .replace(/>/g, "&gt;");
 }
 
+function getItemProduct(item: any): any {
+  return item?.products || item?.product || item?.product_data || {};
+}
+
+function getCommercialDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(product.descricao || item.descricao || item.description || "").trim();
+}
+
+function getTechnicalDescription(item: any): string {
+  const product = getItemProduct(item);
+  return String(
+    product.descricao_tecnica ||
+      item.descricao_tecnica ||
+      item.technical_description ||
+      "",
+  ).trim();
+}
+
+function descriptionLinesForItem(item: any): string {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `<div class="item-commercial-desc"><strong>Descrição:</strong> ${esc(commercial)}</div>` : "",
+    technical ? `<div class="item-tech-desc"><strong>Descrição técnica:</strong> ${esc(technical)}</div>` : "",
+  ].filter(Boolean).join("");
+}
+
+function textDescriptionsForItem(item: any): string[] {
+  const commercial = getCommercialDescription(item);
+  const technical = getTechnicalDescription(item);
+  return [
+    commercial ? `descrição: ${commercial}` : "",
+    technical ? `descrição técnica: ${technical}` : "",
+  ].filter(Boolean);
+}
+
 // Minimal markdown → HTML (bold, italics, lists, paragraphs).
 // Preserves raw HTML blocks wrapped in %%HTML%%...%%/HTML%% sentinels
 // (used by contract placeholders like itens_inclusos_tabela).
@@ -117,7 +154,7 @@ function buildScopeTable(items: any[]): string {
       const notes = it.notes ? `<div class="item-notes">${esc(it.notes)}</div>` : "";
       rows.push(
         `<tr><td class="c-idx">${idx}</td><td class="c-cod">${esc(it.product_code || "")}</td>` +
-        `<td class="c-desc"><strong>${esc(it.product_name || "")}</strong>${specsHtml}${notes}</td>` +
+        `<td class="c-desc"><strong>${esc(it.product_name || "")}</strong>${descriptionLinesForItem(it)}${specsHtml}${notes}</td>` +
         `<td class="c-qtd">${it.quantity ?? 1}</td></tr>`
       );
     }
@@ -131,8 +168,9 @@ function buildScopeExtenso(items: any[]): string {
     const qty = Number(i.quantity || 1);
     const qtyStr = String(qty).padStart(2, "0");
     const code = i.product_code ? ` (código ${i.product_code})` : "";
-    const notes = i.notes ? `, contendo: ${i.notes}` : "";
-    return `${qtyStr} × ${i.product_name}${code}${notes}`;
+    const details = [...textDescriptionsForItem(i), i.notes ? `observações: ${i.notes}` : ""];
+    const detailsText = details.length ? `, com ${details.join(", ")}` : "";
+    return `${qtyStr} × ${i.product_name}${code}${detailsText}`;
   }).join("; ");
 }
 
@@ -148,6 +186,16 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
       .replace(/\{\{\s*especificacoes_grua_extenso\s*\}\}/gi, "");
   };
 
+  const refreshExistingScopeTable = (body: string): string => {
+    if (!body || !scopeTableHtml) return body;
+    const freshBlock = `%%HTML%%${scopeTableHtml}%%/HTML%%`;
+    return body
+      .replace(/%%HTML%%\s*<table\b[^>]*class=["'][^"']*\bscope-table\b[^"']*["'][\s\S]*?<\/table>\s*%%\/HTML%%/gi, freshBlock)
+      .replace(/<table\b[^>]*class=["'][^"']*\bscope-table\b[^"']*["'][\s\S]*?<\/table>/gi, scopeTableHtml);
+  };
+
+  const prepareClauseBody = (body: string): string => replaceScopeTokens(refreshExistingScopeTable(body));
+
   const sortedSnaps = [...snapshots].sort((a, b) => a.order_index - b.order_index);
   const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela|ITENS INCLUSOS|ITENS DA PROPOSTA/i.test(c.body || ""));
 
@@ -157,7 +205,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
       return `
       <section class="clause">
         <h2>${num}${esc(c.title)}</h2>
-        <div class="clause-body">${md(replaceScopeTokens(c.body))}</div>
+        <div class="clause-body">${md(prepareClauseBody(c.body))}</div>
       </section>`;
     })
     .join("\n");
@@ -221,6 +269,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   table.scope-table tr.cat-row td { background: #f1f5f9; font-weight: 700; color: #1e40af; text-transform: uppercase; font-size: 8.5pt; letter-spacing: 0.03em; padding: 4px 8px; }
   table.scope-table .item-specs { color: #475569; font-size: 8.5pt; margin-top: 2px; }
   table.scope-table .item-notes { color: #475569; font-size: 8.5pt; margin-top: 3px; font-style: italic; }
+  table.scope-table .item-commercial-desc, table.scope-table .item-tech-desc { color: #475569; font-size: 8.5pt; margin-top: 3px; white-space: pre-wrap; }
   .sig-section { margin-top: 32px; page-break-inside: avoid; }
   .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
@@ -339,7 +388,7 @@ Deno.serve(async (req) => {
     if (contract.quote_id) {
       const [{ data: q }, { data: qi }] = await Promise.all([
         admin.from("quotes").select("*").eq("id", contract.quote_id).maybeSingle(),
-        admin.from("quote_items").select("*").eq("quote_id", contract.quote_id).order("order_index"),
+        admin.from("quote_items").select("*, products(descricao, descricao_tecnica)").eq("quote_id", contract.quote_id).order("order_index"),
       ]);
       quote = q;
       items = qi || [];
