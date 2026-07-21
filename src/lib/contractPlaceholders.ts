@@ -141,10 +141,15 @@ function escHtml(s: string): string {
 }
 
 // Marcador para o md() da Edge Function preservar HTML sem escapar.
-const HTML_OPEN = "%%HTML%%";
-const HTML_CLOSE = "%%/HTML%%";
+export const HTML_OPEN = "%%HTML%%";
+export const HTML_CLOSE = "%%/HTML%%";
 
-function itensInclusosTabela(items: any[]): string {
+export function stripHtmlSentinels(s: string): string {
+  return (s || "").split(HTML_OPEN).join("").split(HTML_CLOSE).join("");
+}
+
+export function itensInclusosTabela(items: any[]): string {
+
   if (!items || items.length === 0) return "_(sem itens)_";
   // Agrupa por categoria mantendo ordem canônica.
   const groups = new Map<string, any[]>();
@@ -202,7 +207,7 @@ function itensInclusosTabela(items: any[]): string {
   return `${HTML_OPEN}${html}${HTML_CLOSE}`;
 }
 
-function itensInclusosExtenso(items: any[]): string {
+export function itensInclusosExtenso(items: any[]): string {
   if (!items || items.length === 0) return "sem itens especificados";
   const partes = items.map((i) => {
     const qty = Number(i.quantity || 1);
@@ -215,7 +220,7 @@ function itensInclusosExtenso(items: any[]): string {
   return partes.join("; ");
 }
 
-function especificacoesGruaExtenso(quote: any): string {
+export function especificacoesGruaExtenso(quote: any): string {
   const partes: string[] = [];
   const add = (label: string, val: number | null | undefined, unit: string) => {
     if (val == null) return;
