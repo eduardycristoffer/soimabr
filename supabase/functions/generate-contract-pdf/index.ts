@@ -246,6 +246,8 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
 
 ${clausesHtml}
 
+${snapshotHasScope ? "" : liveScopeSection}
+
 <section class="sig-section">
   <h3>Assinaturas</h3>
   <div class="sig-grid">
