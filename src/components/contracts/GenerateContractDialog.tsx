@@ -596,9 +596,45 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
           </section>
         </div>
 
+        {(() => {
+          const warns: string[] = [];
+          const scheduleDiff = totalSchedule - quoteTotal;
+          if (schedule.length > 0 && Math.abs(scheduleDiff) > 0.01) {
+            warns.push(
+              `Cronograma diverge do total da proposta em R$ ${scheduleDiff.toFixed(2)} — ajuste antes de gerar.`,
+            );
+          }
+          const badCpfs = [...sellerSigs, ...buyerSigs, ...witnesses].filter(
+            (s) => s.cpf && !isValidCPF(s.cpf),
+          );
+          if (badCpfs.length) warns.push(`${badCpfs.length} CPF(s) inválido(s) em signatários/testemunhas.`);
+          const fakes = [...sellerSigs, ...buyerSigs, ...witnesses].filter(
+            (s) => isFakeName(s.name) || isFakeCpf(s.cpf),
+          );
+          if (fakes.length) warns.push(`Possíveis dados fictícios (nome/CPF padrão de teste) em ${fakes.length} entrada(s).`);
+          if (!warns.length) return null;
+          return (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4" /> Verifique antes de gerar
+              </div>
+              <ul className="list-disc pl-6">
+                {warns.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          );
+        })()}
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+          <Button
+            onClick={() => generateMutation.mutate()}
+            disabled={
+              generateMutation.isPending ||
+              (schedule.length > 0 && Math.abs(totalSchedule - quoteTotal) > 0.01) ||
+              [...sellerSigs, ...buyerSigs, ...witnesses].some((s) => s.cpf && !isValidCPF(s.cpf))
+            }
+          >
             {generateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {alsoGenerateService ? "Gerar Contratos" : "Gerar Contrato"}
           </Button>
