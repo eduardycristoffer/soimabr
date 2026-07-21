@@ -17,6 +17,15 @@ import {
   type PaymentScheduleItem,
   type ContractGenerationInputs,
 } from "@/lib/contractPlaceholders";
+import { isValidCPF } from "@/lib/validators";
+import { AlertTriangle } from "lucide-react";
+
+const FAKE_NAME_RX = /^(teste|test|xxx|fulano|beltrano|ciclano|nome do)/i;
+const isFakeName = (n?: string) => !!n && FAKE_NAME_RX.test(n.trim());
+const isFakeCpf = (c?: string) => {
+  const d = (c || "").replace(/\D/g, "");
+  return !!d && (/^(\d)\1{10}$/.test(d) || d === "12345678909");
+};
 
 interface Props {
   quoteId: string;
