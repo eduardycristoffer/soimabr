@@ -13,6 +13,8 @@ import GenerateContractDialog from "@/components/contracts/GenerateContractDialo
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
+  em_revisao: { label: "Em revisão", variant: "outline" },
+  aprovado: { label: "Aprovado", variant: "default" },
   sent: { label: "Enviado", variant: "outline" },
   signed: { label: "Assinado", variant: "default" },
   cancelled: { label: "Cancelado", variant: "destructive" },
