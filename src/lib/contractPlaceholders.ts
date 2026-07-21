@@ -91,6 +91,25 @@ function itensInclusosTabela(items: any[]): string {
   return rows.join("\n");
 }
 
+function servicosInclusosLista(items: any[], quote: any): string {
+  const svcItems = (items || []).filter((i) =>
+    ["servico", "montagem", "frete", "transporte", "operador", "manutencao"].includes(
+      String(i.product_category || "").toLowerCase(),
+    ),
+  );
+  const bullets: string[] = svcItems.map((i) => `- ${i.quantity}x ${i.product_name}`);
+  if (quote?.rental_operator_included) bullets.push("- Operador incluso");
+  if (quote?.rental_maintenance_included) bullets.push("- Manutenção preventiva inclusa");
+  if (quote?.rental_technical_assistance) bullets.push("- Assistência técnica inclusa");
+  if (quote?.rental_insurance_included) bullets.push("- Seguro incluso");
+  if (Number(quote?.rental_mobilization || 0) > 0) bullets.push("- Mobilização inclusa");
+  if (Number(quote?.rental_assembly || 0) > 0) bullets.push("- Montagem inclusa");
+  if (Number(quote?.rental_disassembly || 0) > 0) bullets.push("- Desmontagem inclusa");
+  if (Number(quote?.rental_freight || 0) > 0) bullets.push("- Frete incluso");
+  if (bullets.length === 0) return "_(nenhum serviço adicional incluso além do fornecimento do equipamento)_";
+  return bullets.join("\n");
+}
+
 function pagamentoTabela(schedule: PaymentScheduleItem[]): string {
   if (!schedule || schedule.length === 0) return "_(condições a definir)_";
   const linhas = schedule.map((p, idx) => `${idx + 1}. **${p.label}** — ${brl(p.value)} — ${p.due}`);
