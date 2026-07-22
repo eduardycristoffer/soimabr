@@ -1,0 +1,1 @@
+ALTER FUNCTION public.generate_quote_number() SECURITY DEFINER SET search_path TO 'public';
