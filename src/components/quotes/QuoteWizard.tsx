@@ -165,6 +165,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
 
   const saveMutation = useMutation({
     mutationFn: async (mode: "draft" | "finalized" | "request_approval") => {
+      await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
 
