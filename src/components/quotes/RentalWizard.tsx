@@ -105,6 +105,7 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
 
   const saveMutation = useMutation({
     mutationFn: async (mode: "draft" | "finalized") => {
+      await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
       const userId = userData.user.id;
