@@ -271,7 +271,12 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     </div>
                   )}
                   {quote.freight_terms && <p><span className="text-muted-foreground">Frete:</span> {quote.freight_terms}</p>}
-                  {quote.notes && <p><span className="text-muted-foreground">Obs:</span> {quote.notes}</p>}
+                  {quote.notes && (
+                    <div>
+                      <span className="text-muted-foreground">Obs:</span>
+                      <p className="whitespace-pre-line">{quote.notes}</p>
+                    </div>
+                  )}
                   {(quote as any).usd_brl_rate_used && (
                     <p className="pt-1 border-t mt-2">
                       <span className="text-muted-foreground">Cotação USD/BRL:</span>{" "}
