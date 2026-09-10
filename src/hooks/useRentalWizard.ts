@@ -99,8 +99,8 @@ const INITIAL_DATA: RentalWizardData = {
   validity_days: 30,
   notes: "",
   language: "pt-BR",
-  hide_discount_value: false,
-  hide_unit_prices: false,
+  hide_discount_value: true,
+  hide_unit_prices: true,
 };
 
 export const RENTAL_WIZARD_STEPS = [

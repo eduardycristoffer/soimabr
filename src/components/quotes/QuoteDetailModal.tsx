@@ -68,11 +68,39 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
     enabled: !!quoteId && open,
   });
 
+  const { data: versions } = useQuery({
+    queryKey: ["quote-versions-detail", quoteId],
+    queryFn: async () => {
+      if (!quoteId) return [];
+      const { data, error } = await supabase
+        .from("quote_versions")
+        .select("id, version_number, edited_at, edited_by")
+        .eq("quote_id", quoteId)
+        .order("version_number", { ascending: false });
+      if (error) throw error;
+
+      const editorIds = [...new Set((data || []).map((v: any) => v.edited_by).filter(Boolean))];
+      let names: Record<string, string> = {};
+      if (editorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles_directory")
+          .select("user_id, name")
+          .in("user_id", editorIds);
+        names = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.name]));
+      }
+      return (data || []).map((v: any) => ({ ...v, editor_name: names[v.edited_by] || "—" }));
+    },
+    enabled: !!quoteId && open,
+  });
+
   const formatCurrency = (value: number, currency: string = "BRL") =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+
+  const formatDateTime = (date: string) =>
+    new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 
   const handleGeneratePdf = async () => {
     if (!quoteId) return;
@@ -243,7 +271,12 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     </div>
                   )}
                   {quote.freight_terms && <p><span className="text-muted-foreground">Frete:</span> {quote.freight_terms}</p>}
-                  {quote.notes && <p><span className="text-muted-foreground">Obs:</span> {quote.notes}</p>}
+                  {quote.notes && (
+                    <div>
+                      <span className="text-muted-foreground">Obs:</span>
+                      <p className="whitespace-pre-line">{quote.notes}</p>
+                    </div>
+                  )}
                   {(quote as any).usd_brl_rate_used && (
                     <p className="pt-1 border-t mt-2">
                       <span className="text-muted-foreground">Cotação USD/BRL:</span>{" "}
@@ -277,9 +310,31 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   <CardTitle className="text-sm">Datas</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Criado em:</span> {formatDate(quote.created_at)}</p>
+                  <p><span className="text-muted-foreground">Criado em:</span> {formatDateTime(quote.created_at)}</p>
+                  <p><span className="text-muted-foreground">Última alteração:</span> {formatDateTime((quote as any).updated_at || quote.created_at)}</p>
                   {quote.finalized_at && <p><span className="text-muted-foreground">Finalizado em:</span> {formatDate(quote.finalized_at)}</p>}
                   {quote.cancelled_at && <p><span className="text-muted-foreground">Cancelado em:</span> {formatDate(quote.cancelled_at)}</p>}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">
+                    Histórico de salvamentos {versions && versions.length > 0 ? `(rev. ${versions[0].version_number})` : ""}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-2">
+                  {!versions || versions.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">Nenhuma revisão registrada ainda.</p>
+                  ) : (
+                    versions.map((v: any) => (
+                      <div key={v.id} className="flex items-center justify-between gap-2 border-b last:border-0 pb-1">
+                        <Badge variant="outline" className="text-[10px]">rev. {v.version_number}</Badge>
+                        <span className="text-xs flex-1 truncate">{v.editor_name}</span>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(v.edited_at)}</span>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 

@@ -69,9 +69,23 @@ export default function Orcamentos() {
         }
       }
 
+      // Revision count per quote (each save creates a version snapshot)
+      const quoteIds = data.map((q: any) => q.id);
+      const revisions: Record<string, number> = {};
+      if (quoteIds.length > 0) {
+        const { data: versions } = await supabase
+          .from("quote_versions")
+          .select("quote_id, version_number")
+          .in("quote_id", quoteIds);
+        (versions || []).forEach((v: any) => {
+          revisions[v.quote_id] = Math.max(revisions[v.quote_id] || 0, v.version_number);
+        });
+      }
+
       return data.map((q: any) => ({
         ...q,
         approver_name: q.discount_approved_by ? approverProfiles[q.discount_approved_by] || null : null,
+        revision_count: revisions[q.id] || 0,
       }));
     },
   });
@@ -98,6 +112,9 @@ export default function Orcamentos() {
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+
+  const formatDateTime = (date: string) =>
+    new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 
   const handleGeneratePdf = async (quoteId: string) => {
     setGeneratingPdf(quoteId);
@@ -267,7 +284,8 @@ export default function Orcamentos() {
                   <TableHead>Projeto</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead>Alterado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -283,6 +301,11 @@ export default function Orcamentos() {
                         <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
+                        {(quote as any).revision_count > 0 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            rev. {(quote as any).revision_count}
+                          </Badge>
+                        )}
                         {(quote as any).quote_type === "locacao" && (
                           <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
                         )}
@@ -295,6 +318,9 @@ export default function Orcamentos() {
                       </div>
                     </TableCell>
                     <TableCell>{formatDate(quote.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDateTime((quote as any).updated_at || quote.created_at)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
