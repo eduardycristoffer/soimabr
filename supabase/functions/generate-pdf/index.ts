@@ -1130,7 +1130,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
         ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
       </div>
       ${buildPaymentTopicsHTML(quote, lang)}
-      ${notesText ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${notesText}</span></div>` : ""}
+      ${notesText ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <div class="value" style="white-space:pre-line">${notesText}</div></div>` : ""}
     </div>
 
     ${warrantyHTML}
@@ -1663,7 +1663,7 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
         ${quote.freight_terms ? `<div><span class="label">${t.freight}:</span> <span class="value">${quote.freight_terms}</span></div>` : ""}
       </div>
       ${buildPaymentTopicsHTML(quote, lang)}
-      ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <span class="value">${quote.notes}</span></div>` : ""}
+      ${quote.notes ? `<div style="margin-top:6px"><span class="label">${t.notes}:</span> <div class="value" style="white-space:pre-line">${quote.notes}</div></div>` : ""}
     </div>
 
     <div class="section">
