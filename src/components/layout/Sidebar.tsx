@@ -91,7 +91,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
           "flex flex-col border-r bg-sidebar transition-all duration-300",
           mobile
             ? "h-full w-64"
-            : cn("sticky top-0 h-screen", effectiveCollapsed ? "w-16" : "w-64")
+            : cn("sticky top-9 h-[calc(100vh-2.25rem)]", effectiveCollapsed ? "w-16" : "w-64")
         )}
       >
         {/* Header */}

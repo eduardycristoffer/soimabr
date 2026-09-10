@@ -41,7 +41,7 @@ export function MainLayout() {
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 min-w-0 h-screen overflow-y-auto scrollbar-thin scroll-smooth">
+      <main className="flex-1 min-w-0 h-[calc(100vh-2.25rem)] overflow-y-auto scrollbar-thin scroll-smooth">
         {/* Mobile top bar */}
         <div className="md:hidden sticky top-0 z-30 flex h-14 items-center border-b bg-background px-4">
           <Button
