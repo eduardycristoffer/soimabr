@@ -69,9 +69,23 @@ export default function Orcamentos() {
         }
       }
 
+      // Revision count per quote (each save creates a version snapshot)
+      const quoteIds = data.map((q: any) => q.id);
+      const revisions: Record<string, number> = {};
+      if (quoteIds.length > 0) {
+        const { data: versions } = await supabase
+          .from("quote_versions")
+          .select("quote_id, version_number")
+          .in("quote_id", quoteIds);
+        (versions || []).forEach((v: any) => {
+          revisions[v.quote_id] = Math.max(revisions[v.quote_id] || 0, v.version_number);
+        });
+      }
+
       return data.map((q: any) => ({
         ...q,
         approver_name: q.discount_approved_by ? approverProfiles[q.discount_approved_by] || null : null,
+        revision_count: revisions[q.id] || 0,
       }));
     },
   });

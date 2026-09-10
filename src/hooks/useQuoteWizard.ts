@@ -151,8 +151,8 @@ const INITIAL_DATA: QuoteWizardData = {
   discount_justification: "",
   usd_brl_rate_used: null,
   usd_brl_rate_updated_at: null,
-  hide_discount_value: false,
-  hide_unit_prices: false,
+  hide_discount_value: true,
+  hide_unit_prices: true,
 };
 
 export const WIZARD_STEPS = [
