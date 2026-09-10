@@ -444,7 +444,27 @@ Deno.serve(async (req) => {
       items = qi || [];
     }
 
-    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items);
+    // Histórico de revisões do contrato + nome de quem salvou
+    const { data: rawVersions } = await admin
+      .from("contract_versions")
+      .select("version_number, created_at, created_by, change_summary")
+      .eq("contract_id", contractId)
+      .order("version_number", { ascending: false });
+
+    let versions: any[] = rawVersions || [];
+    const authorIds = [...new Set(versions.map((v: any) => v.created_by).filter(Boolean))];
+    if (authorIds.length) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("user_id, name, email")
+        .in("user_id", authorIds);
+      const nameById: Record<string, string> = Object.fromEntries(
+        (profs || []).map((p: any) => [p.user_id, p.name || p.email])
+      );
+      versions = versions.map((v: any) => ({ ...v, author_name: nameById[v.created_by] || null }));
+    }
+
+    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items, versions);
 
     const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
     if (!pdfshiftKey) {
