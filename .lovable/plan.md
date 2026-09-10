@@ -1,37 +1,26 @@
-## Objetivo
-Fazer o contrato herdar o escopo completo da proposta comercial — todos os itens com descrição/observações — em formato de tabela igual ao PDF da proposta, e também descrito por extenso na cláusula de Objeto.
+# Revisões, datas e ajustes de proposta
 
-## Estado atual (verificado)
-- `contractPlaceholders.ts` renderiza `{{itens_inclusos_tabela}}` como uma lista markdown simples: `- 1x Grua SGT 3610`. Sem código, sem coluna, sem notas/observações.
-- O renderer `md()` da Edge Function `generate-contract-pdf` só entende parágrafos, listas e negrito/itálico — **não** entende tabelas markdown.
-- As cláusulas seed já usam `{{itens_inclusos_tabela}}` (Objeto) e `{{valor_total_extenso}}` (Preço).
-- Especificações da grua já têm placeholders individuais (`{{lanca_m}}`, `{{altura_torre_m}}`, etc.), mas em números crus.
+## 1. Opções de esconder ativas por padrão
+- Em toda proposta nova (venda e locação), as opções "Esconder valor do desconto no PDF" e "Esconder valores unitários dos itens no PDF" já vêm marcadas.
+- O usuário continua podendo desmarcar.
+- Propostas já existentes mantêm o que foi salvo nelas.
 
-## Mudanças
+## 2. Revisões catalogadas
+- Cada vez que uma proposta é salva (rascunho ou finalização de edição), o sistema guarda uma revisão com: número da revisão, quem salvou, data e hora, e uma cópia do conteúdo daquele momento.
+- Na listagem de propostas, o selo passa a mostrar a revisão: "Rascunho · rev. 3", "Finalizado · rev. 5".
+- No detalhe da proposta, uma nova seção "Histórico de salvamentos" lista todas as revisões (mais recente primeiro) com número, autor e data/hora.
 
-### 1. `src/lib/contractPlaceholders.ts`
-- Reescrever `itensInclusosTabela` para produzir uma **tabela HTML** completa (não markdown), agrupada por categoria (Grua, Componentes, Acessórios, Serviços), colunas: `#`, `Código`, `Descrição` (nome + observações + specs da grua quando aplicável), `Qtd`. Mesmo visual da tabela "ITENS DA PROPOSTA" do PDF da proposta.
-- Novo placeholder `{{itens_inclusos_extenso}}`: descrição em prosa de cada item (`um (01) SGT3610TLTR — Grua ascensional SGT 3610 TL TR, contendo: [notes]`).
-- Novo placeholder `{{especificacoes_grua_extenso}}`: `lança de X (Y por extenso) metros, altura de torre de …, carga máxima de … kg, carga na ponta de … kg`.
-- Novo helper `numeroInteiroPorExtenso` (reutiliza `ate999`/lógica já existente) para dimensões em metros/kg.
-- Manter `{{itens_inclusos_tabela}}` funcionando (agora tabela HTML) para não quebrar templates existentes.
+## 3. Datas
+- A data de última alteração é atualizada em todo salvamento.
+- A listagem mostra duas colunas: "Criado em" e "Alterado em".
 
-### 2. `supabase/functions/generate-contract-pdf/index.ts`
-- Atualizar `md()` para:
-  - Passar HTML já pronto (blocos `<table>…</table>` gerados no placeholder) sem escapar/embrulhar em `<p>`. Fazer isso detectando linhas que começam com `<table`/`<tr`/etc. ou (mais simples) processando as partes tag-a-tag com um pequeno tokenizer que preserva blocos `<table>…</table>`.
-  - Alternativa mais segura: no `resolvePlaceholders`, marcar o bloco com um sentinela `%%HTML%%…%%/HTML%%` que o `md()` reinjeta sem escapar.
-- Adicionar CSS para tabela de escopo: cabeçalho azul (#1e40af), linhas com zebra, bordas cinza claras, `page-break-inside: avoid` por grupo, coluna descrição com `text-align:justify`.
+## 4. Observações com quebra de texto no PDF
+- O texto digitado em Observações passa a sair no PDF respeitando as quebras de linha e parágrafos, em vez de virar um bloco corrido. Vale para o PDF de venda e o de locação.
 
-### 3. Cláusula de OBJETO (opcional, sem migration obrigatória)
-Não vou alterar os seeds já existentes — o placeholder `{{itens_inclusos_tabela}}` continua funcionando e ganha o novo formato automaticamente. Vou apenas **documentar** os novos placeholders em `contractPlaceholders.ts` para que o admin possa colar `{{itens_inclusos_extenso}}` e `{{especificacoes_grua_extenso}}` em qualquer cláusula pelo editor.
-
-Se você quiser, atualizo também as cláusulas dos templates mestres para incluir a versão por extenso logo abaixo da tabela — me diga se quer isso incluso.
-
-## Fora do escopo
-- Não vou mexer no PDF da proposta.
-- Não vou refazer o layout de assinaturas.
-- Não vou criar novo template — só melhorar o que os placeholders produzem.
-
-## Verificação
-- `tsgo` no arquivo modificado.
-- Gerar um contrato de venda e um de locação a partir de propostas existentes e conferir o PDF (tabela renderizada + prosa por extenso, sem quebrar cláusulas atuais).
+## Detalhes técnicos
+- `useQuoteWizard.ts` / `useRentalWizard.ts`: `hide_discount_value` e `hide_unit_prices` iniciam como `true` no `INITIAL_DATA` (carregamento de proposta existente continua usando o valor salvo).
+- Revisões: reutilizar a tabela existente `quote_versions` (`quote_id`, `version_number`, `snapshot`, `edited_by`, `edited_at`). Inserir uma linha em cada save de `QuoteWizard.tsx` e `RentalWizard.tsx`, com `version_number = COALESCE(max,0)+1` obtido por consulta prévia. Snapshot = payload da proposta + itens.
+- Ajustar RLS/GRANT de `quote_versions` se o insert pelo próprio criador não estiver coberto (verificar policies atuais antes de migrar; migração só se necessário).
+- `Orcamentos.tsx`: buscar contagem/máximo de revisão por proposta (agregação em uma consulta a `quote_versions`) para o selo; adicionar coluna "Alterado em" usando `updated_at` (o trigger `update_quotes_updated_at` já existe).
+- `QuoteDetailModal.tsx`: nova seção que consulta `quote_versions` da proposta com join no nome do autor via `profiles`.
+- `supabase/functions/generate-pdf/index.ts`: renderizar o bloco de observações dentro de um container com `white-space: pre-line` (aplicar nos dois pontos onde `quote.notes` é impresso, venda e locação), mantendo o limite de 1500 caracteres.
