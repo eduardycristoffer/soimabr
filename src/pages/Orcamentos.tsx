@@ -113,6 +113,9 @@ export default function Orcamentos() {
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
 
+  const formatDateTime = (date: string) =>
+    new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
+
   const handleGeneratePdf = async (quoteId: string) => {
     setGeneratingPdf(quoteId);
     try {
