@@ -313,6 +313,11 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   table.scope-table .item-specs { color: #475569; font-size: 8.5pt; margin-top: 2px; }
   table.scope-table .item-notes { color: #475569; font-size: 8.5pt; margin-top: 3px; font-style: italic; }
   table.scope-table .item-commercial-desc, table.scope-table .item-tech-desc { color: #475569; font-size: 8.5pt; margin-top: 3px; white-space: pre-wrap; }
+  table.rev-table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 9.5pt; }
+  table.rev-table thead th { background: #1e40af; color: #fff; text-align: left; padding: 5px 8px; font-weight: 600; }
+  table.rev-table td { border-bottom: 1px solid #e5e7eb; padding: 5px 8px; vertical-align: top; }
+  table.rev-table th.c-rev, table.rev-table td.c-rev { width: 44px; text-align: center; }
+  table.rev-table th.c-when, table.rev-table td.c-when { width: 120px; white-space: nowrap; }
   .sig-section { margin-top: 32px; page-break-inside: avoid; }
   .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
