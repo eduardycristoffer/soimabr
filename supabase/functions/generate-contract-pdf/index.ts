@@ -345,6 +345,8 @@ ${clausesHtml}
 
 ${snapshotHasScope ? "" : liveScopeSection}
 
+${revisionSection}
+
 <section class="sig-section">
   <h3>Assinaturas</h3>
   <div class="sig-grid">
