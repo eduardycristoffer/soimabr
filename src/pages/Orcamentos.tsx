@@ -281,7 +281,8 @@ export default function Orcamentos() {
                   <TableHead>Projeto</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead>Alterado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
