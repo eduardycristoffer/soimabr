@@ -241,6 +241,30 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
       </section>`
     : "";
 
+  // Histórico de revisões (data, hora e autor de cada salvamento)
+  const fmtDateTime = (d: any) =>
+    d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-";
+  const sortedVersions = [...(versions || [])].sort((a, b) => (b.version_number || 0) - (a.version_number || 0));
+  const revisionSection = sortedVersions.length
+    ? `<section class="clause">
+        <h2>HISTÓRICO DE REVISÕES</h2>
+        <div class="clause-body">
+          <table class="rev-table">
+            <thead><tr><th class="c-rev">Rev.</th><th>Salvo por</th><th class="c-when">Data e hora</th><th>Alterações</th></tr></thead>
+            <tbody>
+              ${sortedVersions.map((v) => `<tr>
+                <td class="c-rev">${esc(String(v.version_number ?? ""))}</td>
+                <td>${esc(v.author_name || "-")}</td>
+                <td class="c-when">${esc(fmtDateTime(v.created_at))}</td>
+                <td>${esc(v.change_summary || "-")}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+          <p style="font-size:9pt;color:#555;">Versão atual: ${esc(String(contract.current_version ?? sortedVersions[0]?.version_number ?? 1))}. Última alteração em ${esc(fmtDateTime(contract.updated_at || contract.created_at))}.</p>
+        </div>
+      </section>`
+    : "";
+
   const sellers = signatories.filter((s) => s.side === "seller");
   const buyers = signatories.filter((s) => s.side === "buyer");
 
