@@ -191,7 +191,7 @@ function buildGruaSpecsExtenso(quote: any, items: any[]): string {
   return parts.length ? parts.join(", ") : "conforme especificações técnicas anexas";
 }
 
-function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[]) {
+function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[], versions: any[] = []) {
   const scopeTableHtml = buildScopeTable(items);
   const scopeExtenso = buildScopeExtenso(items);
   const gruaSpecsExtenso = buildGruaSpecsExtenso(quote, items);
@@ -237,6 +237,30 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
           ${scopeTableHtml}
           ${scopeExtenso ? `<p><strong>Descrição:</strong> ${esc(scopeExtenso)}.</p>` : ""}
           ${gruaSpecsExtenso ? `<p><strong>Especificações técnicas da grua:</strong> ${esc(gruaSpecsExtenso)}.</p>` : ""}
+        </div>
+      </section>`
+    : "";
+
+  // Histórico de revisões (data, hora e autor de cada salvamento)
+  const fmtDateTime = (d: any) =>
+    d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-";
+  const sortedVersions = [...(versions || [])].sort((a, b) => (b.version_number || 0) - (a.version_number || 0));
+  const revisionSection = sortedVersions.length
+    ? `<section class="clause">
+        <h2>HISTÓRICO DE REVISÕES</h2>
+        <div class="clause-body">
+          <table class="rev-table">
+            <thead><tr><th class="c-rev">Rev.</th><th>Salvo por</th><th class="c-when">Data e hora</th><th>Alterações</th></tr></thead>
+            <tbody>
+              ${sortedVersions.map((v) => `<tr>
+                <td class="c-rev">${esc(String(v.version_number ?? ""))}</td>
+                <td>${esc(v.author_name || "-")}</td>
+                <td class="c-when">${esc(fmtDateTime(v.created_at))}</td>
+                <td>${esc(v.change_summary || "-")}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+          <p style="font-size:9pt;color:#555;">Versão atual: ${esc(String(contract.current_version ?? sortedVersions[0]?.version_number ?? 1))}. Última alteração em ${esc(fmtDateTime(contract.updated_at || contract.created_at))}.</p>
         </div>
       </section>`
     : "";
@@ -289,6 +313,11 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   table.scope-table .item-specs { color: #475569; font-size: 8.5pt; margin-top: 2px; }
   table.scope-table .item-notes { color: #475569; font-size: 8.5pt; margin-top: 3px; font-style: italic; }
   table.scope-table .item-commercial-desc, table.scope-table .item-tech-desc { color: #475569; font-size: 8.5pt; margin-top: 3px; white-space: pre-wrap; }
+  table.rev-table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 9.5pt; }
+  table.rev-table thead th { background: #1e40af; color: #fff; text-align: left; padding: 5px 8px; font-weight: 600; }
+  table.rev-table td { border-bottom: 1px solid #e5e7eb; padding: 5px 8px; vertical-align: top; }
+  table.rev-table th.c-rev, table.rev-table td.c-rev { width: 44px; text-align: center; }
+  table.rev-table th.c-when, table.rev-table td.c-when { width: 120px; white-space: nowrap; }
   .sig-section { margin-top: 32px; page-break-inside: avoid; }
   .sig-section h3 { font-size: 11pt; color: #1e40af; margin: 0 0 12px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
@@ -315,6 +344,8 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
 ${clausesHtml}
 
 ${snapshotHasScope ? "" : liveScopeSection}
+
+${revisionSection}
 
 <section class="sig-section">
   <h3>Assinaturas</h3>
@@ -413,7 +444,27 @@ Deno.serve(async (req) => {
       items = qi || [];
     }
 
-    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items);
+    // Histórico de revisões do contrato + nome de quem salvou
+    const { data: rawVersions } = await admin
+      .from("contract_versions")
+      .select("version_number, created_at, created_by, change_summary")
+      .eq("contract_id", contractId)
+      .order("version_number", { ascending: false });
+
+    let versions: any[] = rawVersions || [];
+    const authorIds = [...new Set(versions.map((v: any) => v.created_by).filter(Boolean))];
+    if (authorIds.length) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("user_id, name, email")
+        .in("user_id", authorIds);
+      const nameById: Record<string, string> = Object.fromEntries(
+        (profs || []).map((p: any) => [p.user_id, p.name || p.email])
+      );
+      versions = versions.map((v: any) => ({ ...v, author_name: nameById[v.created_by] || null }));
+    }
+
+    const html = buildHTML(contract, snapshots || [], company, signatories || [], witnesses || [], quote, items, versions);
 
     const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
     if (!pdfshiftKey) {
