@@ -23,7 +23,12 @@ export function MainLayout() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background pt-9">
+      {/* Faixa de aviso fixa */}
+      <div className="fixed top-0 left-0 right-0 z-50 flex h-9 items-center justify-center bg-destructive px-4 text-center text-xs font-medium text-destructive-foreground sm:text-sm">
+        O sistema está passando por atualizações e pode apresentar lentidão ou instabilidade temporária.
+      </div>
+
       {/* Desktop sidebar */}
       <div className="hidden md:block">
         <Sidebar />
@@ -36,7 +41,7 @@ export function MainLayout() {
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 min-w-0 h-screen overflow-y-auto scrollbar-thin scroll-smooth">
+      <main className="flex-1 min-w-0 h-[calc(100vh-2.25rem)] overflow-y-auto scrollbar-thin scroll-smooth">
         {/* Mobile top bar */}
         <div className="md:hidden sticky top-0 z-30 flex h-14 items-center border-b bg-background px-4">
           <Button
