@@ -191,7 +191,7 @@ function buildGruaSpecsExtenso(quote: any, items: any[]): string {
   return parts.length ? parts.join(", ") : "conforme especificações técnicas anexas";
 }
 
-function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[]) {
+function buildHTML(contract: any, snapshots: any[], company: any, signatories: any[], witnesses: any[], quote: any, items: any[], versions: any[] = []) {
   const scopeTableHtml = buildScopeTable(items);
   const scopeExtenso = buildScopeExtenso(items);
   const gruaSpecsExtenso = buildGruaSpecsExtenso(quote, items);
