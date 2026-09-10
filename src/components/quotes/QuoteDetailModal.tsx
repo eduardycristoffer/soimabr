@@ -68,11 +68,39 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
     enabled: !!quoteId && open,
   });
 
+  const { data: versions } = useQuery({
+    queryKey: ["quote-versions-detail", quoteId],
+    queryFn: async () => {
+      if (!quoteId) return [];
+      const { data, error } = await supabase
+        .from("quote_versions")
+        .select("id, version_number, edited_at, edited_by")
+        .eq("quote_id", quoteId)
+        .order("version_number", { ascending: false });
+      if (error) throw error;
+
+      const editorIds = [...new Set((data || []).map((v: any) => v.edited_by).filter(Boolean))];
+      let names: Record<string, string> = {};
+      if (editorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles_directory")
+          .select("user_id, name")
+          .in("user_id", editorIds);
+        names = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.name]));
+      }
+      return (data || []).map((v: any) => ({ ...v, editor_name: names[v.edited_by] || "—" }));
+    },
+    enabled: !!quoteId && open,
+  });
+
   const formatCurrency = (value: number, currency: string = "BRL") =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+
+  const formatDateTime = (date: string) =>
+    new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 
   const handleGeneratePdf = async () => {
     if (!quoteId) return;
