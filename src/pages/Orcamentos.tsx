@@ -298,6 +298,11 @@ export default function Orcamentos() {
                         <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
+                        {(quote as any).revision_count > 0 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            rev. {(quote as any).revision_count}
+                          </Badge>
+                        )}
                         {(quote as any).quote_type === "locacao" && (
                           <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
                         )}
@@ -310,6 +315,9 @@ export default function Orcamentos() {
                       </div>
                     </TableCell>
                     <TableCell>{formatDate(quote.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDateTime((quote as any).updated_at || quote.created_at)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
