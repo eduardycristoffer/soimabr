@@ -310,9 +310,31 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   <CardTitle className="text-sm">Datas</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Criado em:</span> {formatDate(quote.created_at)}</p>
+                  <p><span className="text-muted-foreground">Criado em:</span> {formatDateTime(quote.created_at)}</p>
+                  <p><span className="text-muted-foreground">Última alteração:</span> {formatDateTime((quote as any).updated_at || quote.created_at)}</p>
                   {quote.finalized_at && <p><span className="text-muted-foreground">Finalizado em:</span> {formatDate(quote.finalized_at)}</p>}
                   {quote.cancelled_at && <p><span className="text-muted-foreground">Cancelado em:</span> {formatDate(quote.cancelled_at)}</p>}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">
+                    Histórico de salvamentos {versions && versions.length > 0 ? `(rev. ${versions[0].version_number})` : ""}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-2">
+                  {!versions || versions.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">Nenhuma revisão registrada ainda.</p>
+                  ) : (
+                    versions.map((v: any) => (
+                      <div key={v.id} className="flex items-center justify-between gap-2 border-b last:border-0 pb-1">
+                        <Badge variant="outline" className="text-[10px]">rev. {v.version_number}</Badge>
+                        <span className="text-xs flex-1 truncate">{v.editor_name}</span>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(v.edited_at)}</span>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
