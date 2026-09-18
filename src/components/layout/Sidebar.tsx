@@ -53,9 +53,10 @@ const COLLAPSED_KEY = "sidebar:collapsed";
 interface SidebarProps {
   mobile?: boolean;
   onNavigate?: () => void;
+  bannerVisible?: boolean;
 }
 
-export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
+export function Sidebar({ mobile = false, onNavigate, bannerVisible = false }: SidebarProps) {
   const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
           "flex flex-col border-r bg-sidebar transition-all duration-300",
           mobile
             ? "h-full w-64"
-            : cn("sticky top-9 h-[calc(100vh-2.25rem)]", effectiveCollapsed ? "w-16" : "w-64")
+            : cn(bannerVisible ? "sticky top-9 h-[calc(100vh-2.25rem)]" : "sticky top-0 h-screen", effectiveCollapsed ? "w-16" : "w-64")
         )}
       >
         {/* Header */}

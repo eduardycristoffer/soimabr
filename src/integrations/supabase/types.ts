@@ -1903,6 +1903,30 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          id: boolean
+          maintenance_banner_enabled: boolean
+          maintenance_banner_message: string
+          super_admin_id: string
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          maintenance_banner_enabled?: boolean
+          maintenance_banner_message?: string
+          super_admin_id: string
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          maintenance_banner_enabled?: boolean
+          maintenance_banner_message?: string
+          super_admin_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_quote_access: {
         Row: {
           created_at: string
