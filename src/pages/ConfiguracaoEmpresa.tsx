@@ -14,7 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Building2, Save } from "lucide-react";
+import { Loader2, Building2, Save, Megaphone } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const settingsSchema = z.object({
   company_name: z.string().min(1, "Nome é obrigatório"),
@@ -30,7 +32,7 @@ const settingsSchema = z.object({
 type SettingsForm = z.infer<typeof settingsSchema>;
 
 export default function ConfiguracaoEmpresa() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: settings, isLoading } = useQuery({
@@ -43,6 +45,39 @@ export default function ConfiguracaoEmpresa() {
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: systemSettings, isLoading: isSystemSettingsLoading } = useQuery({
+    queryKey: ["system-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_settings")
+        .select("*")
+        .eq("id", true)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const isSuperAdmin = systemSettings?.super_admin_id === user?.user_id;
+
+  const bannerMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (!isSuperAdmin) throw new Error("Você não tem permissão para alterar este aviso.");
+      const { error } = await supabase
+        .from("system_settings")
+        .update({ maintenance_banner_enabled: enabled, updated_at: new Date().toISOString() })
+        .eq("id", true);
+      if (error) throw error;
+    },
+    onSuccess: (_, enabled) => {
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+      toast({ title: enabled ? "Aviso ativado" : "Aviso desativado" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao alterar aviso", description: error.message, variant: "destructive" });
     },
   });
 
@@ -95,7 +130,7 @@ export default function ConfiguracaoEmpresa() {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
-  if (isLoading) {
+  if (isLoading || isSystemSettingsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -201,6 +236,37 @@ export default function ConfiguracaoEmpresa() {
           </Form>
         </CardContent>
       </Card>
+
+      {isSuperAdmin && systemSettings && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5" />
+              Aviso de Atualização
+            </CardTitle>
+            <CardDescription>
+              Controle a faixa vermelha exibida no topo para todos os usuários.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label htmlFor="maintenance-banner">Exibir aviso no topo</Label>
+                <p className="text-sm text-muted-foreground">
+                  {systemSettings.maintenance_banner_message}
+                </p>
+              </div>
+              <Switch
+                id="maintenance-banner"
+                checked={systemSettings.maintenance_banner_enabled}
+                disabled={bannerMutation.isPending}
+                onCheckedChange={(checked) => bannerMutation.mutate(checked)}
+                aria-label="Exibir aviso de atualização"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
