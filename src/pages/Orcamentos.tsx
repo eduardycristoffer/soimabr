@@ -328,7 +328,7 @@ export default function Orcamentos() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -338,6 +338,17 @@ export default function Orcamentos() {
               className="pl-9"
             />
           </div>
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(v) => v && setStatusFilter(v)}
+            className="justify-start w-full sm:w-auto bg-muted rounded-full p-1 gap-1 overflow-x-auto"
+          >
+            <ToggleGroupItem value="all" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Todas</ToggleGroupItem>
+            <ToggleGroupItem value="draft" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Rascunho</ToggleGroupItem>
+            <ToggleGroupItem value="finalized" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Finalizadas</ToggleGroupItem>
+            <ToggleGroupItem value="cancelled" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Canceladas</ToggleGroupItem>
+          </ToggleGroup>
         </CardHeader>
         <CardContent>
           {isLoading ? (
