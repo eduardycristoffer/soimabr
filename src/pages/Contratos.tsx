@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, FileSignature, Eye, Plus } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import SelectQuoteForContractDialog from "@/components/contracts/SelectQuoteForContractDialog";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 
@@ -25,6 +26,7 @@ export default function Contratos() {
   const [search, setSearch] = useState("");
   const [selectOpen, setSelectOpen] = useState(false);
   const [generateForQuoteId, setGenerateForQuoteId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["contracts", search],
