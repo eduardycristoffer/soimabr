@@ -8,6 +8,13 @@
       "when": 1789741798049,
       "tag": "0000_add_system_banner_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790387692026,
+      "tag": "0001_allow_finalized_quote_corrections",
+      "breakpoints": true
     }
   ]
 }

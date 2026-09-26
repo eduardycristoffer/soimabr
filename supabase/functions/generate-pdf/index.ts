@@ -461,6 +461,25 @@ Deno.serve(async (req) => {
       .eq("quote_id", quoteId)
       .order("order_index");
 
+    // Fetch revision log (same source as the app's "rev. N" badge / save history)
+    const { data: versions } = await supabase
+      .from("quote_versions")
+      .select("version_number, edited_by, edited_at")
+      .eq("quote_id", quoteId)
+      .order("version_number", { ascending: false });
+    const editorIds = [...new Set((versions || []).map((v: any) => v.edited_by).filter(Boolean))];
+    let editorsMap: Record<string, string> = {};
+    if (editorIds.length > 0) {
+      const { data: editors } = await supabase.from("profiles").select("user_id, name").in("user_id", editorIds);
+      editorsMap = Object.fromEntries((editors || []).map((p: any) => [p.user_id, p.name]));
+    }
+    (quote as any).__revisions = (versions || []).map((v: any) => ({
+      version_number: v.version_number,
+      edited_at: v.edited_at,
+      editor: editorsMap[v.edited_by] || "-",
+    }));
+    (quote as any).__revision_number = (versions || []).length;
+
     // Fetch creator profile
     const { data: creator } = await supabase
       .from("profiles")
@@ -738,7 +757,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const companyCrea = co.crea_registration || "";
 
   // Status translation
-  const statusLabel = quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled;
+  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   // International disclaimer
   const disclaimerHTML = isInternationalUsd ? `
@@ -1057,6 +1076,25 @@ function buildPageHeader(quote: any, companyName: string, companySubtitle: strin
   </div>`;
 }
 
+// ── Revision history (mini log, mirrors contract PDF "Histórico de Revisões") ──
+function buildRevisionHistoryHTML(quote: any, lang: string): string {
+  const revs: any[] = quote.__revisions || [];
+  const en = lang === "en";
+  const fmt = (d: string) => new Date(d).toLocaleString(en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const rows = revs.slice(0, 5).map((r) => `<tr>
+      <td style="padding:3px 6px;border-bottom:1px solid #eee;">Rev. ${r.version_number}</td>
+      <td style="padding:3px 6px;border-bottom:1px solid #eee;">${r.editor}</td>
+      <td style="padding:3px 6px;border-bottom:1px solid #eee;">${fmt(r.edited_at)}</td>
+    </tr>`).join("");
+  return `<div style="margin-top: 14px; font-size: 9px; color: #444; page-break-inside: avoid;">
+    <div style="font-weight: bold; margin-bottom: 4px;">${en ? "Revision history" : "Histórico de revisões"} — ${en ? "Current revision" : "Revisão atual"}: ${quote.__revision_number ?? 0}${quote.updated_at ? ` · ${en ? "Last change" : "Última alteração"}: ${fmt(quote.updated_at)}` : ""}</div>
+    ${revs.length > 0 ? `<table style="width:100%;border-collapse:collapse;font-size:9px;">
+      <thead><tr style="background:#f3f3f3;"><th style="text-align:left;padding:3px 6px;">${en ? "Revision" : "Revisão"}</th><th style="text-align:left;padding:3px 6px;">${en ? "Saved by" : "Salvo por"}</th><th style="text-align:left;padding:3px 6px;">${en ? "Date/time" : "Data/hora"}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>${revs.length > 5 ? `<div style="margin-top:2px;font-style:italic;">${en ? `+ ${revs.length - 5} earlier revisions` : `+ ${revs.length - 5} revisões anteriores`}</div>` : ""}` : `<div>${en ? "No revisions saved yet." : "Nenhuma revisão salva ainda."}</div>`}
+  </div>`;
+}
+
 // ── Content Page 2 (optional: Scope + Panel) ──
 function buildContentPage2HTML(quote: any, items: any[], productsMap: Record<string, any>, quotePanelItems: any[], defaultPanelItems: any[], t: Translations, lang: string, companyName: string, companySubtitle: string, companyPhone: string, companyEmail: string, companyWebsite: string, companyCrea: string, statusLabel: string, validityDate: Date): string {
   const scopeHTML = buildScopeHTML(quote, items, productsMap, t, lang);
@@ -1159,6 +1197,8 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
       <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
     </div>` : ""}
+
+    ${buildRevisionHistoryHTML(quote, lang)}
 
     <div style="text-align: center; margin-top: 20px; font-size: 9px; color: #555; font-style: italic;">
       ${lang === "en"
@@ -1369,7 +1409,7 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} • ${client.estado}` : (client?.cidade || client?.estado || "");
   const coverDate = formatDate(quote.created_at);
   const htmlLang = lang === "en" ? "en" : "pt-BR";
-  const statusLabel = quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled;
+  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
@@ -1696,6 +1736,8 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
     ${creator?.name ? `<div style="text-align: center; margin-top: 12px; font-size: 10px; color: #333;">
       <strong>${lang === "en" ? "Salesperson" : "Vendedor"}:</strong> ${creator.name}
     </div>` : ""}
+
+    ${buildRevisionHistoryHTML(quote, lang)}
     </div>
 
     <div class="footer" style="margin-top: auto;">
