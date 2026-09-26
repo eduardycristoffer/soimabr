@@ -267,11 +267,11 @@ export default function ContratoEditor() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/contratos")}>
+        <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate("/contratos")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             {contract.contract_number}
             {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
           </h1>
@@ -345,7 +345,7 @@ export default function ContratoEditor() {
       </div>
 
       {isLocked && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 flex items-start gap-2">
+        <div className="rounded-xl border border-amber-300/60 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-800/50 dark:text-amber-200 p-3.5 text-sm text-amber-900 flex items-start gap-2 shadow-sm">
           <Lock className="h-4 w-4 mt-0.5" />
           <div>
             Contrato em estado <strong>{statusLabel[status!]}</strong> — edição direta bloqueada.
@@ -524,7 +524,7 @@ function ClauseCard({
   const label = index === 0 ? "—" : String(index);
 
   return (
-    <Card>
+    <Card className="transition-shadow hover:shadow-md">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground w-8">{label}</span>
@@ -534,9 +534,9 @@ function ClauseCard({
             onChange={(e) => { setTitle(e.target.value); scheduleSave(e.target.value, body); }}
             className="font-semibold"
           />
-          {snapshot.is_core && <Badge variant="outline" className="text-[10px]">núcleo</Badge>}
+          {snapshot.is_core && <Badge variant="outline" className="text-[10px] rounded-full">núcleo</Badge>}
           {isPersonalized && (
-            <Badge variant="secondary" className="text-[10px]" title="O texto diverge do modelo padrão">
+            <Badge variant="secondary" className="text-[10px] rounded-full" title="O texto diverge do modelo padrão">
               personalizada
             </Badge>
           )}
@@ -553,7 +553,7 @@ function ClauseCard({
       </CardHeader>
       <CardContent className="space-y-2">
         {!isLocked && (
-          <div className="flex items-center gap-1 border rounded-md p-1 bg-muted/30 w-fit">
+          <div className="flex items-center gap-1 border rounded-full p-1 bg-muted/30 w-fit">
             <Button type="button" variant="ghost" size="icon" onClick={() => wrap("**")} title="Negrito">
               <Bold className="h-3.5 w-3.5" />
             </Button>
@@ -637,7 +637,7 @@ function VersionHistoryDialog({
         <div className="space-y-2">
           {(versions || []).length === 0 && <p className="text-sm text-muted-foreground">Nenhuma versão registrada ainda.</p>}
           {(versions || []).map((v: any) => (
-            <div key={v.id} className="flex items-center justify-between border rounded-md p-3">
+            <div key={v.id} className="flex items-center justify-between border rounded-xl p-3 transition-colors hover:bg-muted/40">
               <div className="min-w-0">
                 <div className="text-sm font-semibold">v{v.version_number} · {v.change_summary || "—"}</div>
                 <div className="text-xs text-muted-foreground truncate">
@@ -674,7 +674,7 @@ function ViewVersionDialog({ version, onClose }: { version: any | null; onClose:
         </div>
         <div className="space-y-3">
           {clauses.sort((a, b) => a.order_index - b.order_index).map((c: any, i: number) => (
-            <div key={c.id || i} className="border rounded-md p-3">
+            <div key={c.id || i} className="border rounded-xl p-3 bg-muted/20">
               <div className="text-sm font-semibold mb-1">{i === 0 ? "—" : i}. {c.title}</div>
               <pre className="whitespace-pre-wrap font-mono text-xs">{c.body}</pre>
             </div>

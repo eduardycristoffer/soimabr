@@ -238,49 +238,57 @@ export default function Relatorios() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="transition-shadow hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total de propostas</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <FileText className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold tracking-tight">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               {formatCurrency(stats.valorTotal)} em valor (exceto canceladas)
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-shadow hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Finalizadas</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.finalizadas}</div>
+            <div className="text-2xl font-bold tracking-tight">{stats.finalizadas}</div>
             <p className="text-xs text-muted-foreground">
               {stats.canceladas} cancelada{stats.canceladas === 1 ? "" : "s"}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-shadow hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Com contrato</CardTitle>
-            <FileSignature className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <FileSignature className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.comContrato}</div>
+            <div className="text-2xl font-bold tracking-tight">{stats.comContrato}</div>
             <p className="text-xs text-muted-foreground">
               {stats.assinados} assinado{stats.assinados === 1 ? "" : "s"}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-shadow hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Conversão</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.conversao}%</div>
+            <div className="text-2xl font-bold tracking-tight">{stats.conversao}%</div>
             <p className="text-xs text-muted-foreground">
               propostas até contrato assinado
             </p>
@@ -310,7 +318,7 @@ export default function Relatorios() {
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
                   style={{ width: `${step.pct}%` }}
                 />
               </div>

@@ -316,12 +316,12 @@ export default function Orcamentos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Propostas Comerciais</h1>
           <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
-        <Button onClick={handleNew}>
+        <Button onClick={handleNew} className="rounded-full self-start sm:self-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nova Proposta
         </Button>
@@ -335,7 +335,7 @@ export default function Orcamentos() {
               placeholder="Buscar por número ou projeto..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 rounded-full bg-muted/40 border-transparent focus-visible:bg-background focus-visible:border-input"
             />
           </div>
           <ToggleGroup
@@ -397,7 +397,7 @@ export default function Orcamentos() {
               </div>
               <div className="md:hidden space-y-3">
                 {filteredQuotes?.map((quote) => (
-                  <div key={quote.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div key={quote.id} className="rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-mono font-medium">{quote.quote_number}</p>
