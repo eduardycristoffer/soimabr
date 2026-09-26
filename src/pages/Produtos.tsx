@@ -108,6 +108,40 @@ export default function Produtos() {
     setFormOpen(true);
   };
 
+  const renderProductActions = (product: Product) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleEdit(product)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          Editar
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => toggleActiveMutation.mutate({
+            id: product.id,
+            isActive: !product.is_active,
+          })}
+        >
+          <Power className="mr-2 h-4 w-4" />
+          {product.is_active ? "Desativar" : "Ativar"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderStatusBadge = (product: Product) => (
+    <Badge
+      variant={product.is_active ? "default" : "secondary"}
+      className={product.is_active ? "status-badge-finalized" : "status-badge-revision"}
+    >
+      {product.is_active ? "Ativo" : "Inativo"}
+    </Badge>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
