@@ -355,110 +355,69 @@ export default function Orcamentos() {
             <div className="flex items-center justify-center py-8">
               <p className="text-muted-foreground">Carregando...</p>
             </div>
-          ) : quotes?.length === 0 ? (
+          ) : filteredQuotes?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-semibold">Nenhuma proposta encontrada</h3>
                <p className="text-muted-foreground">Crie sua primeira proposta clicando no botão acima</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Valor Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead>Alterado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {quotes?.map((quote) => (
-                  <TableRow key={quote.id}>
-                    <TableCell className="font-mono font-medium">{quote.quote_number}</TableCell>
-                    <TableCell>{quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}</TableCell>
-                    <TableCell>{quote.project_name || "-"}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <Badge variant={statusConfig[quote.status as QuoteStatus].variant} className={`status-badge-${quote.status}`}>
-                          {statusConfig[quote.status as QuoteStatus].label}
-                        </Badge>
-                        {(quote as any).revision_count > 0 && (
-                          <Badge variant="outline" className="text-[10px] status-badge-revision">
-                            rev. {(quote as any).revision_count}
-                          </Badge>
-                        )}
-                        {(quote as any).quote_type === "locacao" && (
-                          <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
-                        )}
-                        {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
-                        {quote.approver_name && (
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            por {quote.approver_name}
-                          </span>
-                        )}
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Projeto</TableHead>
+                      <TableHead>Valor Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Criado em</TableHead>
+                      <TableHead>Alterado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredQuotes?.map((quote) => (
+                      <TableRow key={quote.id}>
+                        <TableCell className="font-mono font-medium">{quote.quote_number}</TableCell>
+                        <TableCell>{quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}</TableCell>
+                        <TableCell>{quote.project_name || "-"}</TableCell>
+                        <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
+                        <TableCell>{renderQuoteBadges(quote)}</TableCell>
+                        <TableCell>{formatDate(quote.created_at)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDateTime((quote as any).updated_at || quote.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right">{renderQuoteActions(quote)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="md:hidden space-y-3">
+                {filteredQuotes?.map((quote) => (
+                  <div key={quote.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-mono font-medium">{quote.quote_number}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell>{formatDate(quote.created_at)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime((quote as any).updated_at || quote.created_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewingQuoteId(quote.id)}>
-                            <Eye className="mr-2 h-4 w-4" /> Ver detalhes
-                          </DropdownMenuItem>
-                          {(quote.status === "draft" || quote.status === "finalized") && (
-                            <DropdownMenuItem onClick={() => handleEdit(quote.id, (quote as any).quote_type)}>
-                              <Pencil className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
-                          )}
-                          {quote.status === "finalized" && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
-                                <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setContractQuoteId(quote.id)}>
-                                <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {(quote.status === "finalized" || quote.status === "draft") && (
-                            <DropdownMenuItem
-                              onClick={() => handleGeneratePdf(quote.id)}
-                              disabled={generatingPdf === quote.id}
-                            >
-                              {generatingPdf === quote.id ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : (
-                                <Download className="mr-2 h-4 w-4" />
-                              )}
-                              Gerar PDF
-                            </DropdownMenuItem>
-                          )}
-                          {quote.status === "draft" && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeletingQuoteId(quote.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      <div className="shrink-0 -mr-2 -mt-2">{renderQuoteActions(quote)}</div>
+                    </div>
+                    <div className="mt-3">{renderQuoteBadges(quote)}</div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="font-medium">{formatCurrency(quote.total, quote.currency)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDateTime((quote as any).updated_at || quote.created_at)}
+                      </span>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
