@@ -17,6 +17,7 @@ import {
   Building2,
   ShieldCheck,
   Webhook,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { title: "Pipeline", href: "/pipeline", icon: Kanban },
   { title: "Propostas", href: "/orcamentos", icon: FileText },
   { title: "Contratos", href: "/contratos", icon: FileSignature },
+  { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { title: "Modelos de Contrato", href: "/admin/modelos-contrato", icon: FileCog, adminOnly: true },
   { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Aprovações", href: "/aprovacoes", icon: CheckCircle2, adminOnly: true },
