@@ -42,6 +42,8 @@ export default function Contratos() {
     },
   });
 
+  const filteredContracts = statusFilter === "all" ? contracts : contracts?.filter((c: any) => c.status === statusFilter);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
