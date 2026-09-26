@@ -24,6 +24,7 @@ import Aprovacoes from "@/pages/Aprovacoes";
 import SolicitacoesAcesso from "@/pages/SolicitacoesAcesso";
 import ConfiguracaoEmpresa from "@/pages/ConfiguracaoEmpresa";
 import WebhooksIntegracoes from "@/pages/WebhooksIntegracoes";
+import Relatorios from "@/pages/Relatorios";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/contratos" element={<Contratos />} />
+              <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/contratos/:id" element={<ContratoEditor />} />
               <Route path="/admin/modelos-contrato" element={<ContractTemplates />} />
               <Route path="/usuarios" element={<Usuarios />} />
