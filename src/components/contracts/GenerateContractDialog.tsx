@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Sparkles, Check } from "lucide-react";
 import {
   buildPlaceholderMap,
   servicosInclusosBullets,
@@ -67,6 +68,11 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
   const [deliveryDays, setDeliveryDays] = useState<string>("");
   const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([]);
   const [extraServices, setExtraServices] = useState<string[]>([]);
+  const [notesDraft, setNotesDraft] = useState<string>("");
+  const [notesTouched, setNotesTouched] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{ servico: string; texto: string; trecho: string }[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Multi-contract control (for locação w/ services)
   const [alsoGenerateService, setAlsoGenerateService] = useState(false);
@@ -104,6 +110,38 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     () => (quote ? servicosInclusosBullets(previewItems || [], quote, []) : []),
     [previewItems, quote],
   );
+
+  useEffect(() => {
+    if (quote && !notesTouched) setNotesDraft(String(quote.notes || ""));
+  }, [quote, notesTouched]);
+
+  const analyzeNotes = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiSuggestions([]);
+    try {
+      const current = [
+        ...structuredServices.map((b) => b.replace(/^-\s*/, "")),
+        ...extraServices.map((s) => s.trim()).filter(Boolean),
+      ];
+      const { data, error } = await supabase.functions.invoke("suggest-contract-services", {
+        body: { notes: notesDraft, current_services: current },
+      });
+      if (error) {
+        let msg = error.message;
+        try { msg = (await (error as any).context?.json())?.error || msg; } catch (_) { /* */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      const list = data?.suggestions || [];
+      setAiSuggestions(list);
+      if (!list.length) toast({ title: "Nenhum serviço faltando encontrado nas observações." });
+    } catch (e: any) {
+      setAiError(e?.message || "Falha ao analisar com IA");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Active templates for this quote_type (+ 'servico' when locação)
   const { data: templates } = useQuery({
@@ -662,6 +700,50 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
                 </blockquote>
               </div>
             )}
+            <div className="rounded-md border p-3 space-y-2">
+              <Label className="text-xs">Observações da proposta (informadas pelo vendedor)</Label>
+              <Textarea
+                rows={4}
+                value={notesDraft}
+                onChange={(e) => { setNotesTouched(true); setNotesDraft(e.target.value); }}
+                placeholder="Descreva o que foi ofertado: frete, montagem, operador, treinamento..."
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={analyzeNotes}
+                disabled={aiLoading || !notesDraft.trim()}
+              >
+                {aiLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                Identificar serviços faltantes com IA
+              </Button>
+              {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+              {aiSuggestions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Sugestões da IA — revise antes de incluir:</p>
+                  {aiSuggestions.map((sg, i) => {
+                    const added = extraServices.some((x) => x.trim() === sg.texto.trim());
+                    return (
+                      <div key={i} className="flex gap-2 items-start rounded border bg-muted/40 p-2">
+                        <div className="flex-1 min-w-0 text-sm">
+                          <div className="font-medium">{sg.servico}</div>
+                          <div>{sg.texto}</div>
+                          {sg.trecho && <div className="text-xs text-muted-foreground italic mt-1">“{sg.trecho}”</div>}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={added ? "ghost" : "outline"}
+                          disabled={added}
+                          onClick={() => setExtraServices((arr) => [...arr, sg.texto])}
+                        >
+                          {added ? <><Check className="h-3 w-3 mr-1" />Incluído</> : <><Plus className="h-3 w-3 mr-1" />Incluir</>}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <Label className="text-xs">Serviços adicionais a incluir na cláusula 5</Label>
             {extraServices.map((s, idx) => (
               <div key={idx} className="flex gap-2 items-center">
