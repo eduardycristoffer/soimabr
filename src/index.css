@@ -42,9 +42,13 @@ All colors MUST be HSL.
     --status-draft: 36.49 100% 51.96%;
     --status-success: 135.1 58.57% 49.22%;
     --status-cancelled: 3.19 100% 59.41%;
-    --status-draft-foreground: 34 80% 25%;
-    --status-success-foreground: 146 70% 24%;
-    --status-cancelled-foreground: 4 75% 34%;
+   --status-draft-foreground: 34 80% 25%;
+   --status-success-foreground: 146 70% 24%;
+   --status-cancelled-foreground: 4 75% 34%;
+   --status-review: 205 90% 50%;
+   --status-sent: 245 60% 58%;
+   --status-review-foreground: 205 90% 32%;
+   --status-sent-foreground: 245 55% 40%;
 
     --sidebar-background: 240 20% 98%;
 
@@ -96,9 +100,13 @@ All colors MUST be HSL.
     --status-draft: 36 100% 60%;
     --status-success: 142 69% 55%;
     --status-cancelled: 4 100% 65%;
-    --status-draft-foreground: 36 100% 75%;
-    --status-success-foreground: 142 69% 75%;
-    --status-cancelled-foreground: 4 100% 78%;
+   --status-draft-foreground: 36 100% 75%;
+   --status-success-foreground: 142 69% 75%;
+   --status-cancelled-foreground: 4 100% 78%;
+   --status-review: 205 90% 62%;
+   --status-sent: 245 70% 70%;
+   --status-review-foreground: 205 95% 78%;
+   --status-sent-foreground: 245 70% 82%;
     --sidebar-background: 222 30% 10%;
     --sidebar-foreground: 210 20% 90%;
     --sidebar-primary: 213 80% 62%;
@@ -138,6 +146,16 @@ All colors MUST be HSL.
     background: hsl(var(--status-cancelled) / 0.14);
     border-color: hsl(var(--status-cancelled) / 0.24);
     color: hsl(var(--status-cancelled-foreground));
+  }
+  .status-badge-em_revisao {
+    background: hsl(var(--status-review) / 0.14);
+    border-color: hsl(var(--status-review) / 0.24);
+    color: hsl(var(--status-review-foreground));
+  }
+  .status-badge-sent {
+    background: hsl(var(--status-sent) / 0.14);
+    border-color: hsl(var(--status-sent) / 0.24);
+    color: hsl(var(--status-sent-foreground));
   }
   .status-badge-revision {
     background: hsl(var(--muted));
