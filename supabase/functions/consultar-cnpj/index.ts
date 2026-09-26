@@ -55,9 +55,19 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}))
     const raw = String(body?.cnpj ?? '')
     cnpjDigits = raw.replace(/\D/g, '')
-    if (cnpjDigits.length !== 14) {
+    const validCnpj = (c: string) => {
+      if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false
+      const calc = (len: number) => {
+        const w = len === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2]
+        const s = w.reduce((acc, wt, i) => acc + Number(c[i]) * wt, 0)
+        const r = s % 11
+        return r < 2 ? 0 : 11 - r
+      }
+      return calc(12) === Number(c[12]) && calc(13) === Number(c[13])
+    }
+    if (!validCnpj(cnpjDigits)) {
       await log({ status: 'error', message: 'CNPJ inválido', http_status: 400 })
-      return new Response(JSON.stringify({ error: 'CNPJ inválido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ error: 'CNPJ inválido. Verifique os dígitos.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const { data: cfg } = await admin.from('cnpj_lookup_config').select('is_active').limit(1).maybeSingle()
@@ -67,6 +77,10 @@ Deno.serve(async (req) => {
     }
 
     const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`)
+    if (resp.status === 400) {
+      await log({ status: 'error', message: 'CNPJ inválido (upstream)', http_status: 400 })
+      return new Response(JSON.stringify({ error: 'CNPJ inválido. Verifique os dígitos.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
     if (resp.status === 404) {
       await log({ status: 'error', message: 'CNPJ não encontrado', http_status: 404 })
       return new Response(JSON.stringify({ error: 'CNPJ não encontrado' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
