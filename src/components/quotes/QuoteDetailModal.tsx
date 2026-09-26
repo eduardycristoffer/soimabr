@@ -169,7 +169,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
             {quote ? (
               <>
                 <span className="font-mono">{quote.quote_number}</span>
-                <Badge variant={statusLabels[quote.status]?.variant || "secondary"}>
+                <Badge variant={statusLabels[quote.status]?.variant || "secondary"} className={`status-badge-${quote.status}`}>
                   {statusLabels[quote.status]?.label || quote.status}
                 </Badge>
               </>
@@ -329,7 +329,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   ) : (
                     versions.map((v: any) => (
                       <div key={v.id} className="flex items-center justify-between gap-2 border-b last:border-0 pb-1">
-                        <Badge variant="outline" className="text-[10px]">rev. {v.version_number}</Badge>
+                        <Badge variant="outline" className="text-[10px] status-badge-revision">rev. {v.version_number}</Badge>
                         <span className="text-xs flex-1 truncate">{v.editor_name}</span>
                         <span className="text-xs text-muted-foreground">{formatDateTime(v.edited_at)}</span>
                       </div>
