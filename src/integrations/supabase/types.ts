@@ -2084,6 +2084,12 @@ export type Database = {
         | "tramo"
         | "chassis"
         | "acessorio"
+        | "servico"
+        | "montagem"
+        | "frete"
+        | "transporte"
+        | "operador"
+        | "manutencao"
       quote_status: "draft" | "finalized" | "cancelled"
       quote_type: "venda" | "locacao" | "servico"
     }
@@ -2233,6 +2239,12 @@ export const Constants = {
         "tramo",
         "chassis",
         "acessorio",
+        "servico",
+        "montagem",
+        "frete",
+        "transporte",
+        "operador",
+        "manutencao",
       ],
       quote_status: ["draft", "finalized", "cancelled"],
       quote_type: ["venda", "locacao", "servico"],
