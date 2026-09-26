@@ -123,7 +123,7 @@ All colors MUST be HSL.
   }
 }
 
-@layer components {
+@layer utilities {
   .status-badge-draft {
     background: hsl(var(--status-draft) / 0.14);
     border-color: hsl(var(--status-draft) / 0.24);
