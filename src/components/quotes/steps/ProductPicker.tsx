@@ -18,6 +18,12 @@ const categoryLabels: Record<string, string> = {
   tramo: "📐 Tramo",
   chassis: "🔧 Chassis",
   acessorio: "🔩 Acessório",
+  servico: "🛠️ Serviço",
+  montagem: "🔧 Montagem",
+  frete: "🚚 Frete",
+  transporte: "🚛 Transporte",
+  operador: "👷 Operador",
+  manutencao: "🧰 Manutenção",
 };
 
 interface Props {
@@ -105,6 +111,15 @@ export default function ProductPicker({
 
   const removeItem = (productId: string) => {
     onItemsChange(items.filter((i) => i.product_id !== productId));
+  };
+
+  const SERVICE_CATS = ["servico", "montagem", "frete", "transporte", "operador", "manutencao"];
+  const updatePrice = (productId: string, price: number) => {
+    onItemsChange(
+      items.map((i) =>
+        i.product_id === productId ? { ...i, unit_price: price, total_price: price * i.quantity } : i
+      )
+    );
   };
 
   const itemsTotal = items.reduce((sum, i) => sum + i.total_price, 0);
@@ -206,6 +221,20 @@ export default function ProductPicker({
                           {item.product_code}
                           {isAdmin && ` · ${formatCurrencyValue(item.unit_price, "BRL")}/un`}
                         </p>
+                        {SERVICE_CATS.includes(String(item.product_category)) && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-xs text-muted-foreground">Preço un. (R$):</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="h-7 w-28 text-xs"
+                              value={item.unit_price}
+                              onChange={(e) => updatePrice(item.product_id, Number(e.target.value) || 0)}
+                            />
+                            <span className="text-[10px] text-muted-foreground">0 = embutido no total</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 ml-2">
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product_id, -1)}>
