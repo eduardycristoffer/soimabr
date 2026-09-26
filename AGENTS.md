@@ -1,0 +1,1 @@
+- AI features call Lovable AI Gateway (openai/gpt-6-astra, /v1/responses streamed) from edge functions only, e.g. suggest-contract-services — keeps the key server-side.
