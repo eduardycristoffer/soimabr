@@ -757,7 +757,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const companyCrea = co.crea_registration || "";
 
   // Status translation
-  const statusLabel = quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled + ` · Rev. ${quote.__revision_number ?? 0}`;
+  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   // International disclaimer
   const disclaimerHTML = isInternationalUsd ? `
@@ -1409,7 +1409,7 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} • ${client.estado}` : (client?.cidade || client?.estado || "");
   const coverDate = formatDate(quote.created_at);
   const htmlLang = lang === "en" ? "en" : "pt-BR";
-  const statusLabel = quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled + ` · Rev. ${quote.__revision_number ?? 0}`;
+  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
