@@ -218,83 +218,94 @@ export default function Produtos() {
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead className="text-right">Preço</TableHead>
-                  <TableHead className="text-right">Preço Intl.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products?.map((product) => (
-                  <TableRow key={product.id} className={!product.is_active ? "opacity-50" : ""}>
-                    <TableCell className="font-mono text-sm">
-                      {product.codigo}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{product.nome}</span>
-                        {product.needs_review && (
-                          <Badge variant="destructive" className="gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            Revisar
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead className="text-right">Preço Intl.</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products?.map((product) => (
+                      <TableRow key={product.id} className={!product.is_active ? "opacity-50" : ""}>
+                        <TableCell className="font-mono text-sm">
+                          {product.codigo}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{product.nome}</span>
+                            {product.needs_review && (
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Revisar
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {categoryLabels[product.categoria]}
                           </Badge>
-                        )}
+                        </TableCell>
+                        <TableCell>{product.unidade}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatPrice(product.preco)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-muted-foreground">
+                          {(product as any).international_price_brl != null
+                            ? formatPrice((product as any).international_price_brl)
+                            : "-"}
+                        </TableCell>
+                        <TableCell>{renderStatusBadge(product)}</TableCell>
+                        <TableCell className="text-right">{renderProductActions(product)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="md:hidden space-y-3">
+                {products?.map((product) => (
+                  <div
+                    key={product.id}
+                    className={`rounded-xl border bg-card p-4 shadow-sm ${!product.is_active ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{product.nome}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{product.codigo}</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {categoryLabels[product.categoria]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{product.unidade}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatPrice(product.preco)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-muted-foreground">
-                      {(product as any).international_price_brl != null
-                        ? formatPrice((product as any).international_price_brl)
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_active ? "default" : "secondary"}>
-                        {product.is_active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(product)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => toggleActiveMutation.mutate({
-                              id: product.id,
-                              isActive: !product.is_active,
-                            })}
-                          >
-                            <Power className="mr-2 h-4 w-4" />
-                            {product.is_active ? "Desativar" : "Ativar"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      <div className="shrink-0 -mr-2 -mt-2">{renderProductActions(product)}</div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-1 flex-wrap">
+                      {renderStatusBadge(product)}
+                      <Badge variant="outline">{categoryLabels[product.categoria]}</Badge>
+                      {product.needs_review && (
+                        <Badge variant="destructive" className="gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Revisar
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="font-medium">{formatPrice(product.preco)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Intl.: {(product as any).international_price_brl != null
+                          ? formatPrice((product as any).international_price_brl)
+                          : "-"}
+                      </span>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
