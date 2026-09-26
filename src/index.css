@@ -39,9 +39,9 @@ All colors MUST be HSL.
     --radius: 0.875rem;
     --shadow-surface: 0 1px 2px hsl(220 20% 12% / 0.04), 0 4px 14px hsl(220 20% 12% / 0.06);
     --shadow-floating: 0 4px 10px hsl(220 20% 12% / 0.08), 0 18px 48px hsl(220 20% 12% / 0.12);
-    --status-draft: 36 100% 52%;
-    --status-success: 142 69% 49%;
-    --status-cancelled: 4 100% 59%;
+    --status-draft: 36.49 100% 51.96%;
+    --status-success: 135.1 58.57% 49.22%;
+    --status-cancelled: 3.19 100% 59.41%;
     --status-draft-foreground: 34 80% 25%;
     --status-success-foreground: 146 70% 24%;
     --status-cancelled-foreground: 4 75% 34%;
