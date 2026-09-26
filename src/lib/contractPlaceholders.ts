@@ -30,7 +30,11 @@ export interface ContractGenerationInputs {
   // payment
   payment_schedule: PaymentScheduleItem[];
   delivery_days?: number;
+  // serviços adicionais digitados na geração do contrato (entram na cláusula 5)
+  extra_services?: string[];
 }
+
+export const SERVICE_CATEGORIES = ["servico", "montagem", "frete", "transporte", "operador", "manutencao"];
 
 const brl = (v: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -275,9 +279,9 @@ export function especificacoesGruaExtenso(quote: any, items: any[] = []): string
   return partes.length ? partes.join(", ") : "conforme especificações técnicas anexas";
 }
 
-function servicosInclusosLista(items: any[], quote: any): string {
+export function servicosInclusosBullets(items: any[], quote: any, extra: string[] = []): string[] {
   const svcItems = (items || []).filter((i) =>
-    ["servico", "montagem", "frete", "transporte", "operador", "manutencao"].includes(
+    SERVICE_CATEGORIES.includes(
       String(i.product_category || "").toLowerCase(),
     ),
   );
@@ -290,6 +294,15 @@ function servicosInclusosLista(items: any[], quote: any): string {
   if (Number(quote?.rental_assembly || 0) > 0) bullets.push("- Montagem inclusa");
   if (Number(quote?.rental_disassembly || 0) > 0) bullets.push("- Desmontagem inclusa");
   if (Number(quote?.rental_freight || 0) > 0) bullets.push("- Frete incluso");
+  for (const e of extra || []) {
+    const t = String(e || "").trim();
+    if (t) bullets.push(`- ${t}`);
+  }
+  return bullets;
+}
+
+function servicosInclusosLista(items: any[], quote: any, extra: string[] = []): string {
+  const bullets = servicosInclusosBullets(items, quote, extra);
   if (bullets.length === 0) return "_(nenhum serviço adicional incluso além do fornecimento do equipamento)_";
   return bullets.join("\n");
 }
@@ -357,7 +370,7 @@ export function buildPlaceholderMap(params: {
     itens_inclusos_tabela: itensInclusosTabela(items),
     itens_inclusos_extenso: itensInclusosExtenso(items),
     especificacoes_grua_extenso: especificacoesGruaExtenso(quote, items),
-    servicos_inclusos_lista: servicosInclusosLista(items, quote),
+    servicos_inclusos_lista: servicosInclusosLista(items, quote, inputs.extra_services || []),
     // valores
     valor_total_numerico: brl(total),
     valor_total_extenso: numeroPorExtenso(total),

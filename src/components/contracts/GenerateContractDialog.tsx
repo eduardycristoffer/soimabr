@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
   buildPlaceholderMap,
+  servicosInclusosBullets,
   resolvePlaceholders,
   type PaymentScheduleItem,
   type ContractGenerationInputs,
@@ -65,6 +66,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
   // Payment
   const [deliveryDays, setDeliveryDays] = useState<string>("");
   const [schedule, setSchedule] = useState<PaymentScheduleItem[]>([]);
+  const [extraServices, setExtraServices] = useState<string[]>([]);
 
   // Multi-contract control (for locação w/ services)
   const [alsoGenerateService, setAlsoGenerateService] = useState(false);
@@ -84,6 +86,24 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     },
     enabled: open && !!quoteId,
   });
+
+  const { data: previewItems } = useQuery({
+    queryKey: ["quote-items-for-contract", quoteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quote_items")
+        .select("product_name, product_category, quantity")
+        .eq("quote_id", quoteId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open && !!quoteId,
+  });
+
+  const structuredServices = useMemo(
+    () => (quote ? servicosInclusosBullets(previewItems || [], quote, []) : []),
+    [previewItems, quote],
+  );
 
   // Active templates for this quote_type (+ 'servico' when locação)
   const { data: templates } = useQuery({
@@ -286,6 +306,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         buyer_manager_email: buyerMgrEmail,
         payment_schedule: schedule,
         delivery_days: deliveryDays ? Number(deliveryDays) : undefined,
+        extra_services: extraServices.map((s) => s.trim()).filter(Boolean),
       };
 
       // Helper: create one contract for a given template
@@ -611,6 +632,52 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
               <Label>Prazo de entrega (dias)</Label>
               <Input type="number" value={deliveryDays} onChange={(e) => setDeliveryDays(e.target.value)} />
             </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Serviços inclusos no contrato (cláusula 5)</h3>
+            {(() => {
+              const extras = extraServices.map((s) => s.trim()).filter(Boolean).map((s) => `- ${s}`);
+              const all = [...structuredServices, ...extras];
+              return all.length ? (
+                <ul className="list-disc pl-6 text-sm space-y-0.5">
+                  {all.map((b, i) => <li key={i}>{b.replace(/^-\s*/, "")}</li>)}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Nenhum serviço — a cláusula 5 dirá "nenhum serviço adicional incluso além do fornecimento do equipamento".
+                </p>
+              );
+            })()}
+            {structuredServices.length === 0 && !!String(quote?.notes || "").trim() && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-2">
+                <div className="flex items-start gap-2 font-medium">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  Nenhum serviço estruturado encontrado, mas a proposta tem texto em Observações — revise se frete, montagem ou outro serviço foi ofertado e não vai aparecer no contrato.
+                </div>
+                <blockquote className="border-l-2 border-amber-400 pl-3 whitespace-pre-line text-xs max-h-40 overflow-y-auto">
+                  {quote?.notes}
+                </blockquote>
+              </div>
+            )}
+            <Label className="text-xs">Serviços adicionais a incluir na cláusula 5</Label>
+            {extraServices.map((s, idx) => (
+              <div key={idx} className="flex gap-2 items-center">
+                <Input
+                  value={s}
+                  placeholder="ex: Frete/transporte do equipamento de Anápolis-GO até Betim-MG"
+                  onChange={(e) => setExtraServices((arr) => arr.map((v, i) => (i === idx ? e.target.value : v)))}
+                />
+                <Button variant="ghost" size="icon" aria-label="Remover serviço" onClick={() => setExtraServices((arr) => arr.filter((_, i) => i !== idx))}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setExtraServices((arr) => [...arr, ""])}>
+              <Plus className="h-3 w-3 mr-1" /> Adicionar serviço
+            </Button>
           </section>
         </div>
 

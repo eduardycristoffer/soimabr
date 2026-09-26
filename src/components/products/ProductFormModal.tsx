@@ -30,7 +30,7 @@ const productSchema = z.object({
   descricao_tecnica: z.string().trim().max(5000).optional().or(z.literal("")),
   descricao_tecnica_en: z.string().trim().max(5000).optional().or(z.literal("")),
   show_tech_desc_pdf: z.boolean(),
-  categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio"]),
+  categoria: z.enum(["grua", "configuracao", "torre", "tramo", "chassis", "acessorio", "servico", "montagem", "frete", "transporte", "operador", "manutencao"]),
   unidade: z.string().trim().min(1, "Unidade é obrigatória").max(10),
   preco: z.coerce.number().min(0, "Preço não pode ser negativo"),
   international_price_brl: z.coerce.number().min(0, "Preço não pode ser negativo").nullable().optional(),
@@ -76,6 +76,12 @@ const categoryOptions: { value: ProductCategory; label: string }[] = [
   { value: "tramo", label: "📐 Tramo" },
   { value: "chassis", label: "🔧 Chassis" },
   { value: "acessorio", label: "🔩 Acessório" },
+  { value: "servico", label: "🛠️ Serviço" },
+  { value: "montagem", label: "🔧 Montagem" },
+  { value: "frete", label: "🚚 Frete" },
+  { value: "transporte", label: "🚛 Transporte" },
+  { value: "operador", label: "👷 Operador" },
+  { value: "manutencao", label: "🧰 Manutenção" },
 ];
 
 interface ProductFormModalProps {

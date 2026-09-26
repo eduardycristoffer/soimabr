@@ -13,10 +13,10 @@ interface Props {
 export default function StepAccessories({ data, updateData, onNext, onPrev, isInternationalUsd, usdBrlRate }: Props) {
   return (
     <ProductPicker
-      categories={["acessorio"]}
+      categories={["acessorio", "servico", "montagem", "frete", "transporte"]}
       items={data.accessories}
       onItemsChange={(items) => updateData({ accessories: items })}
-      title="Acessórios"
+      title="Acessórios e Serviços"
       onNext={onNext}
       onPrev={onPrev}
       currency={data.currency}

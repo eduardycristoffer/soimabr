@@ -27,10 +27,17 @@ const categoryLabels: Record<ProductCategory, string> = {
   tramo: "📐 Tramos",
   chassis: "🔧 Chassis",
   acessorio: "🔩 Acessórios",
+  servico: "🛠️ Serviço",
+  montagem: "🔧 Montagem",
+  frete: "🚚 Frete",
+  transporte: "🚛 Transporte",
+  operador: "👷 Operador",
+  manutencao: "🧰 Manutenção",
 };
 
 const categoryOrder: ProductCategory[] = [
   "grua", "configuracao", "torre", "tramo", "chassis", "acessorio",
+  "servico", "montagem", "frete", "transporte", "operador", "manutencao",
 ];
 
 export default function Produtos() {
