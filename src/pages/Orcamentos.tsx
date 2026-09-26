@@ -330,7 +330,7 @@ export default function Orcamentos() {
                           <DropdownMenuItem onClick={() => setViewingQuoteId(quote.id)}>
                             <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                           </DropdownMenuItem>
-                          {quote.status === "draft" && (
+                          {(quote.status === "draft" || quote.status === "finalized") && (
                             <DropdownMenuItem onClick={() => handleEdit(quote.id, (quote as any).quote_type)}>
                               <Pencil className="mr-2 h-4 w-4" /> Editar
                             </DropdownMenuItem>

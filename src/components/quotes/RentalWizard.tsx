@@ -28,7 +28,7 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
   const sourceQuoteId = editingQuoteId || duplicatingQuoteId;
 
   // Load existing quote for editing/duplicating
-  const { isLoading: isLoadingQuote } = useQuery({
+  const { isLoading: isLoadingQuote, data: sourceQuote } = useQuery({
     queryKey: ["rental-quote-source", sourceQuoteId],
     queryFn: async () => {
       if (!sourceQuoteId) return null;
@@ -103,14 +103,17 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
     enabled: !!sourceQuoteId,
   });
 
+  // Status of the quote being edited (null when creating/duplicating)
+  const originalStatus: string | null = editingQuoteId ? ((sourceQuote as any)?.status ?? null) : null;
+
   const saveMutation = useMutation({
-    mutationFn: async (mode: "draft" | "finalized") => {
+    mutationFn: async (mode: "draft" | "finalized" | "keep") => {
       await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
       const userId = userData.user.id;
       const session = { session: { user: userData.user } };
-      const finalStatus = mode === "finalized" ? "finalized" : "draft";
+      const finalStatus = mode === "keep" ? (originalStatus === "finalized" ? "finalized" : "draft") : mode === "finalized" ? "finalized" : "draft";
 
       const quotePayload: Record<string, any> = {
         client_id: wizard.data.client_id,
@@ -187,7 +190,9 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
           .from("quotes")
           .update({
             ...quotePayload,
-            finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
+            finalized_at: finalStatus === "finalized"
+              ? (mode === "keep" && (currentQuote as any)?.finalized_at ? (currentQuote as any).finalized_at : new Date().toISOString())
+              : null,
           } as any)
           .eq("id", editingQuoteId);
         if (updateError) throw updateError;
@@ -236,7 +241,9 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
     onSuccess: ({ quoteNumber, mode }) => {
       const isEdit = !!editingQuoteId;
       toast({
-        title: mode === "finalized"
+        title: mode === "keep"
+          ? `Alteração salva (mantida como ${originalStatus === "finalized" ? "Finalizada" : "Rascunho"})`
+          : mode === "finalized"
           ? (isEdit ? "Proposta de locação atualizada e finalizada!" : "Proposta de locação finalizada!")
           : (isEdit ? "Proposta de locação atualizada!" : "Rascunho de locação salvo!"),
         description: `Número: ${quoteNumber}`,
@@ -354,6 +361,7 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
             onPrev={wizard.prevStep}
             onSaveDraft={() => saveMutation.mutate("draft")}
             onFinalize={() => saveMutation.mutate("finalized")}
+            onSaveChanges={originalStatus === "finalized" ? () => saveMutation.mutate("keep") : undefined}
             isSaving={saveMutation.isPending}
           />
         )}

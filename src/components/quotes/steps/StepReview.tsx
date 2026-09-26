@@ -22,6 +22,7 @@ interface Props {
   onPrev: () => void;
   onSaveDraft: () => void;
   onFinalize: () => void;
+  onSaveChanges?: () => void;
   onRequestApproval: () => void;
   needsApproval: boolean;
   isSaving: boolean;
@@ -31,7 +32,7 @@ interface Props {
 }
 
 export default function StepReview({
-  data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize,
+  data, subtotal, discountValue, total, onPrev, onSaveDraft, onFinalize, onSaveChanges,
   onRequestApproval, needsApproval, isSaving, usdBrlRate, usdBrlLastUpdated, isRateStale,
 }: Props) {
   const isInternationalUsd = data.client_type === "internacional" && data.currency === "USD";
@@ -305,11 +306,18 @@ export default function StepReview({
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev} disabled={isSaving}>Voltar</Button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
+          {onSaveChanges && !needsApproval && (
+            <Button variant="secondary" onClick={onSaveChanges} disabled={isSaving || data.equipment.length === 0} title="Salva a correção mantendo a proposta finalizada e registra nova revisão">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Salvar alteração (manter finalizada)
+            </Button>
+          )}
           <Button variant="outline" onClick={onSaveDraft} disabled={isSaving || data.equipment.length === 0}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Salvar Rascunho
+            {onSaveChanges ? "Voltar para Rascunho" : "Salvar Rascunho"}
           </Button>
           {needsApproval ? (
             <Button onClick={onRequestApproval} disabled={isSaving || data.equipment.length === 0}>

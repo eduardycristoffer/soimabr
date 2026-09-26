@@ -37,7 +37,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
   const sourceQuoteId = editingQuoteId || duplicatingQuoteId;
 
   // Load existing quote data for editing or duplicating
-  const { isLoading: isLoadingQuote } = useQuery({
+  const { isLoading: isLoadingQuote, data: sourceQuote } = useQuery({
     queryKey: ["quote-source", sourceQuoteId],
     queryFn: async () => {
       if (!sourceQuoteId) return null;
@@ -163,15 +163,18 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
   const maxDiscount = isAdmin ? 100 : (operatorRule?.max_discount_percent || 0);
   const needsApproval = !isAdmin && wizard.data.discount_percent > maxDiscount;
 
+  // Status of the quote being edited (null when creating/duplicating)
+  const originalStatus: string | null = editingQuoteId ? ((sourceQuote as any)?.status ?? null) : null;
+
   const saveMutation = useMutation({
-    mutationFn: async (mode: "draft" | "finalized" | "request_approval") => {
+    mutationFn: async (mode: "draft" | "finalized" | "request_approval" | "keep") => {
       await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
 
       const userId = userData.user.id;
-      const finalStatus = mode === "finalized" ? "finalized" : "draft";
-      const discountApproved = mode === "finalized" || (mode === "draft" && !needsApproval);
+      const finalStatus = mode === "keep" ? (originalStatus === "finalized" ? "finalized" : "draft") : mode === "finalized" ? "finalized" : "draft";
+      const discountApproved = mode === "finalized" || mode === "keep" || (mode === "draft" && !needsApproval);
 
       // Copy specs from first grua for backward compat with quotes table
       const firstGrua = wizard.data.equipment[0];
@@ -259,7 +262,9 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
           .from("quotes")
           .update({
             ...quotePayload,
-            finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
+            finalized_at: finalStatus === "finalized"
+              ? (mode === "keep" && (currentQuote as any)?.finalized_at ? (currentQuote as any).finalized_at : new Date().toISOString())
+              : null,
           } as any)
           .eq("id", editingQuoteId);
         if (updateError) throw updateError;
@@ -416,6 +421,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
       const messages = {
         finalized: { title: isEdit ? "Proposta atualizada e finalizada!" : "Proposta finalizada!", description: `Número: ${quoteNumber}` },
         draft: { title: isEdit ? "Proposta atualizada!" : "Rascunho salvo!", description: `Número: ${quoteNumber}` },
+        keep: { title: "Alteração salva!", description: `Proposta ${quoteNumber} mantida como ${originalStatus === "finalized" ? "Finalizada" : "Rascunho"}. Nova revisão registrada.` },
         request_approval: { title: "Enviado para aprovação!", description: `Proposta ${quoteNumber} aguardando aprovação de desconto.` },
       };
       toast(messages[mode]);
@@ -552,6 +558,7 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
             onPrev={wizard.prevStep}
             onSaveDraft={() => saveMutation.mutate("draft")}
             onFinalize={() => saveMutation.mutate("finalized")}
+            onSaveChanges={originalStatus === "finalized" ? () => saveMutation.mutate("keep") : undefined}
             onRequestApproval={() => saveMutation.mutate("request_approval")}
             needsApproval={needsApproval}
             isSaving={saveMutation.isPending}
