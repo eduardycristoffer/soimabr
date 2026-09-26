@@ -241,6 +241,79 @@ export default function Orcamentos() {
     return null;
   };
 
+  const filteredQuotes = statusFilter === "all" ? quotes : quotes?.filter((q) => q.status === statusFilter);
+
+  const renderQuoteActions = (quote: any) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setViewingQuoteId(quote.id)}>
+          <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+        </DropdownMenuItem>
+        {(quote.status === "draft" || quote.status === "finalized") && (
+          <DropdownMenuItem onClick={() => handleEdit(quote.id, (quote as any).quote_type)}>
+            <Pencil className="mr-2 h-4 w-4" /> Editar
+          </DropdownMenuItem>
+        )}
+        {quote.status === "finalized" && (
+          <>
+            <DropdownMenuItem onClick={() => handleDuplicate(quote.id, (quote as any).quote_type)}>
+              <Copy className="mr-2 h-4 w-4" /> Duplicar como Rascunho
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContractQuoteId(quote.id)}>
+              <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
+            </DropdownMenuItem>
+          </>
+        )}
+        {(quote.status === "finalized" || quote.status === "draft") && (
+          <DropdownMenuItem
+            onClick={() => handleGeneratePdf(quote.id)}
+            disabled={generatingPdf === quote.id}
+          >
+            {generatingPdf === quote.id ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Gerar PDF
+          </DropdownMenuItem>
+        )}
+        {quote.status === "draft" && (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setDeletingQuoteId(quote.id)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const renderQuoteBadges = (quote: any) => (
+    <div className="flex items-center gap-1 flex-wrap">
+      <Badge variant={statusConfig[quote.status as QuoteStatus].variant} className={`status-badge-${quote.status}`}>
+        {statusConfig[quote.status as QuoteStatus].label}
+      </Badge>
+      {(quote as any).revision_count > 0 && (
+        <Badge variant="outline" className="text-[10px] status-badge-revision">
+          rev. {(quote as any).revision_count}
+        </Badge>
+      )}
+      {(quote as any).quote_type === "locacao" && (
+        <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
+      )}
+      {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
+      {quote.approver_name && (
+        <span className="text-[10px] text-muted-foreground ml-1">
+          por {quote.approver_name}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
