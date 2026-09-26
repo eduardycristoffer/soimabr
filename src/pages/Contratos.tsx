@@ -91,7 +91,7 @@ export default function Contratos() {
                       <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[c.status]?.variant}>{statusConfig[c.status]?.label}</Badge>
+                      <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
                     </TableCell>
                     <TableCell>{new Date(c.created_at).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-right">

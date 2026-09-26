@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      boxShadow: {
+        surface: "var(--shadow-surface)",
+        floating: "var(--shadow-floating)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

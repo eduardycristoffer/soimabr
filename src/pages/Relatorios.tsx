@@ -366,7 +366,7 @@ export default function Relatorios() {
                         <TableCell>{sellerName.get(q.created_by) || "-"}</TableCell>
                         <TableCell>{formatDate(q.created_at)}</TableCell>
                         <TableCell>
-                          <Badge variant={statusConfig[q.status]?.variant}>
+                          <Badge variant={statusConfig[q.status]?.variant} className={`status-badge-${q.status}`}>
                             {statusConfig[q.status]?.label}
                           </Badge>
                         </TableCell>
@@ -374,7 +374,7 @@ export default function Relatorios() {
                           {cStatus ? (
                             <Badge
                               variant={cStatus === "signed" ? "default" : "outline"}
-                              className="whitespace-nowrap"
+                              className={`whitespace-nowrap status-badge-${cStatus}`}
                             >
                               {contractStatusLabel[cStatus] || cStatus}
                             </Badge>

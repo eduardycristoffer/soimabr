@@ -70,7 +70,7 @@ export default function RecentQuotes() {
                   <span className="text-sm font-medium">
                     {formatCurrency(quote.total, quote.currency)}
                   </span>
-                  <Badge variant={statusConfig[quote.status as QuoteStatus]?.variant}>
+                  <Badge variant={statusConfig[quote.status as QuoteStatus]?.variant} className={`status-badge-${quote.status}`}>
                     {statusConfig[quote.status as QuoteStatus]?.label}
                   </Badge>
                 </div>

@@ -280,7 +280,7 @@ export default function ContratoEditor() {
             {" · "}v{(contract as any).current_version || 1}
           </p>
         </div>
-        <Badge variant={statusVariant[contract.status]}>{statusLabel[contract.status]}</Badge>
+        <Badge variant={statusVariant[contract.status]} className={`status-badge-${contract.status}`}>{statusLabel[contract.status]}</Badge>
       </div>
 
       {/* Status actions */}

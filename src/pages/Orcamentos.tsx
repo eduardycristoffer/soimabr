@@ -210,28 +210,28 @@ export default function Orcamentos() {
 
     if (approvalStatus === "pending") {
       return (
-        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600 ml-1">
+        <Badge variant="outline" className="text-[10px] status-badge-draft ml-1">
           <Clock className="h-2.5 w-2.5 mr-0.5" /> Aguardando
         </Badge>
       );
     }
     if (approvalStatus === "rejected") {
       return (
-        <Badge variant="outline" className="text-[10px] border-destructive text-destructive ml-1">
+        <Badge variant="outline" className="text-[10px] status-badge-cancelled ml-1">
           <XCircle className="h-2.5 w-2.5 mr-0.5" /> Rejeitado
         </Badge>
       );
     }
     if (approvalStatus === "approved" || discountApproved) {
       return (
-        <Badge variant="outline" className="text-[10px] border-green-300 text-green-600 ml-1">
+        <Badge variant="outline" className="text-[10px] status-badge-aprovado ml-1">
           <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Aprovado
         </Badge>
       );
     }
     if (!discountApproved) {
       return (
-        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600 ml-1">
+        <Badge variant="outline" className="text-[10px] status-badge-draft ml-1">
           <Clock className="h-2.5 w-2.5 mr-0.5" /> Pendente
         </Badge>
       );
@@ -298,11 +298,11 @@ export default function Orcamentos() {
                     <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 flex-wrap">
-                        <Badge variant={statusConfig[quote.status as QuoteStatus].variant}>
+                        <Badge variant={statusConfig[quote.status as QuoteStatus].variant} className={`status-badge-${quote.status}`}>
                           {statusConfig[quote.status as QuoteStatus].label}
                         </Badge>
                         {(quote as any).revision_count > 0 && (
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-[10px] status-badge-revision">
                             rev. {(quote as any).revision_count}
                           </Badge>
                         )}
