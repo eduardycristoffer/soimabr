@@ -57,56 +57,97 @@ export default function Contratos() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar por número..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <ToggleGroup
+            type="single"
+            value={statusFilter}
+            onValueChange={(v) => v && setStatusFilter(v)}
+            className="justify-start w-full sm:w-auto bg-muted rounded-full p-1 gap-1 overflow-x-auto"
+          >
+            <ToggleGroupItem value="all" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Todos</ToggleGroupItem>
+            <ToggleGroupItem value="draft" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Rascunho</ToggleGroupItem>
+            <ToggleGroupItem value="em_revisao" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Em revisão</ToggleGroupItem>
+            <ToggleGroupItem value="sent" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Enviado</ToggleGroupItem>
+            <ToggleGroupItem value="signed" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Assinado</ToggleGroupItem>
+          </ToggleGroup>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground text-center py-8">Carregando...</p>
-          ) : contracts?.length === 0 ? (
+          ) : filteredContracts?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <FileSignature className="h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-semibold">Nenhum contrato encontrado</h3>
               <p className="text-muted-foreground">Gere contratos a partir de propostas finalizadas.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Proposta</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contracts?.map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-mono font-medium">{c.contract_number}</TableCell>
-                    <TableCell className="font-mono">{c.quotes?.quote_number}</TableCell>
-                    <TableCell>{c.quotes?.clients?.nome_fantasia || c.quotes?.clients?.razao_social || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
-                    </TableCell>
-                    <TableCell>{new Date(c.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${c.id}`)}>
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Proposta</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContracts?.map((c: any) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-mono font-medium">{c.contract_number}</TableCell>
+                        <TableCell className="font-mono">{c.quotes?.quote_number}</TableCell>
+                        <TableCell>{c.quotes?.clients?.nome_fantasia || c.quotes?.clients?.razao_social || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
+                        </TableCell>
+                        <TableCell>{new Date(c.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${c.id}`)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="md:hidden space-y-3">
+                {filteredContracts?.map((c: any) => (
+                  <div key={c.id} className="rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-mono font-medium">{c.contract_number}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {c.quotes?.clients?.nome_fantasia || c.quotes?.clients?.razao_social || "-"}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="shrink-0 -mr-2 -mt-2" onClick={() => navigate(`/contratos/${c.id}`)}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="mt-3 flex items-center gap-1 flex-wrap">
+                      <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
+                      <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="font-mono text-xs text-muted-foreground">{c.quotes?.quote_number}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
