@@ -601,6 +601,7 @@ export type Database = {
           created_by: string | null
           current_version: number
           delivery_days: number | null
+          extra_services: Json
           finalized_at: string | null
           generated_at: string | null
           id: string
@@ -640,6 +641,7 @@ export type Database = {
           created_by?: string | null
           current_version?: number
           delivery_days?: number | null
+          extra_services?: Json
           finalized_at?: string | null
           generated_at?: string | null
           id?: string
@@ -679,6 +681,7 @@ export type Database = {
           created_by?: string | null
           current_version?: number
           delivery_days?: number | null
+          extra_services?: Json
           finalized_at?: string | null
           generated_at?: string | null
           id?: string
