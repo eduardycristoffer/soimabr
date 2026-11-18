@@ -16,7 +16,7 @@ Peça, uma de cada vez, sem alterar o código:
 - *"Faça o deploy da edge function `proposal-email` com o código que está no repositório, sem alterar nada."*
   (nova — conectar o e-mail da empresa e enviar propostas aos clientes)
 - *"Faça o deploy da edge function `generate-pdf` com o código que está no repositório, sem alterar nada."*
-  (atualizada — passa a gerar o arquivo PDF para baixar/anexar e tira a palavra "Rascunho" do cabeçalho; o botão antigo de imprimir continua igual)
+  (atualizada — passa a gerar o arquivo PDF para baixar/anexar, tira a palavra "Rascunho" do cabeçalho e gera o PDF da **proposta de serviço**; o botão antigo de imprimir continua igual)
 
 Confira em **More → Database → Manage → Edge functions** (ou o equivalente) que as quatro estão publicadas.
 
@@ -26,6 +26,7 @@ Peça no chat *"execute esta migration"* e cole o conteúdo, ou use o SQL editor
 1. `2026-11-17_contracts_extra_services.sql` — serviços adicionais editáveis no contrato (opcional)
 2. `2026-11-17_autentique.sql` — tabelas e colunas da assinatura digital
 3. `2026-11-18_email_integration.sql` — conta de e-mail da empresa e registro dos envios de proposta
+4. `2026-11-19_service_proposal.sql` — colunas da proposta de serviço (só depois dele a opção **Serviço** aparece em Nova Proposta)
 
 São só colunas/tabelas **novas**; nada existente é alterado. O app funciona sem eles.
 
@@ -73,6 +74,18 @@ O que o PWA faz: ícone na tela, abre em tela cheia, aviso de "nova versão" com
 guardados no aparelho**: só os arquivos do próprio app (telas, ícones) entram no cache; tudo do Supabase vai
 sempre direto para a rede. O app continua precisando de internet para trabalhar.
 
+## 8. Proposta de serviço (modelo TECSU)
+Depois de publicar a função `generate-pdf` e rodar o SQL do item 4 da seção 3:
+1. **Propostas → Nova Proposta → Serviço**. São 5 etapas: Cliente, Escopo (obra, objeto, equipamento), Preços, Condições e Revisão.
+2. **Empresa emitente:** vem **Dacrom Brasil Serviços** por padrão (cabeçalho, rodapé e assinante saem dela); dá para trocar na etapa Escopo.
+3. **Tabela de preços:** cada linha tem quantidade, unidade (Vb, Hs, Mês, Dia, Único, Un) e preço unitário.
+   - com quantidade → soma no total;
+   - sem quantidade → *sob medição* (vale o preço unitário, não soma);
+   - *Opcional* → aparece com a marcação "OPCIONAL" e não soma.
+   O menu **Atalhos de serviços** traz os serviços do modelo (montagem, telescopagem, manutenção, hora técnica...) **sem preço** — o preço é sempre definido por quem faz a proposta.
+4. **Textos:** responsabilidades, pagamento, reajuste, retenções etc. já vêm preenchidos e são totalmente editáveis (com botão "Restaurar"). Para finalizar é preciso marcar que os textos foram revisados — reajuste, retenções e prazos do modelo **devem ser conferidos** para cada cliente.
+5. Propostas de serviço funcionam com o que já existe: lista, **Baixar PDF**, **Enviar ao cliente** (e-mail), Relatórios, editar e duplicar.
+
 ## O que NÃO foi testado
 A integração foi escrita pela documentação pública do Autentique (https://docs.autentique.com.br/api/2),
 mas **não foi executada contra a API real** (não havia chave). O teste do passo 5 é obrigatório.
@@ -89,3 +102,9 @@ e por inspeção do manifesto no navegador, mas **o registro do service worker n
 ambiente de desenvolvimento** (ele não suporta service workers). Teste no ar: abra o sistema no Chrome, confira em
 DevTools → Application que o service worker está ativo e use **Instalar app**. Os ícones foram gerados a partir do
 logotipo de 212 px; se quiser nitidez total, forneça a marca em alta resolução.
+
+**Proposta de serviço:** o texto e o layout do PDF foram conferidos no navegador (a mesma página que a função monta), e as
+telas, os cálculos e a ordem de gravação foram testados automaticamente (com banco simulado). Mas **não foi aberta com
+login no sistema real** nem gerada pelo PDFShift — confira no primeiro teste: margens, o rodapé com "Página X de Y" e
+as quebras de página da tabela. O botão **Gerar Contrato** numa proposta de serviço usa o modelo de contrato de serviço
+que já existe no sistema; não foi testado.

@@ -14,6 +14,7 @@ import { downloadQuotePdf } from "@/lib/quotePdf";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
+import ServiceItemsCard from "./ServiceItemsCard";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 import { QuoteAmount } from "@/components/quotes/QuoteAmount";
 import { formatMoney, isUsdEstimateQuote } from "@/lib/quoteMoney";
@@ -157,6 +158,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const accessoryItems = items?.filter((i) => i.product_category === "acessorio") || [];
 
   const isRental = (quote as any)?.quote_type === "locacao";
+  const isService = (quote as any)?.quote_type === "servico";
   const hideUnitPrices = !!(quote as any)?.hide_unit_prices;
   const rentalServices: string[] = [];
   if (isRental && quote) {
@@ -373,7 +375,9 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
 
             {/* Right column */}
             <div className="space-y-4">
-              {isRental ? (
+              {isService ? (
+                <ServiceItemsCard rows={(items as any[]) || []} hidePrices={hideUnitPrices} />
+              ) : isRental ? (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Detalhamento de Custos</CardTitle>

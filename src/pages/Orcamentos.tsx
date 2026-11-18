@@ -22,6 +22,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { QuoteStatus } from "@/types";
 import QuoteWizard from "@/components/quotes/QuoteWizard";
 import RentalWizard from "@/components/quotes/RentalWizard";
+import ServiceWizard from "@/components/quotes/ServiceWizard";
+import { useServiceProposalEnabled } from "@/hooks/useServiceProposalEnabled";
 import QuoteTypeSelector from "@/components/quotes/QuoteTypeSelector";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
@@ -44,7 +46,8 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [deletingQuoteId, setDeletingQuoteId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [wizardType, setWizardType] = useState<"venda" | "locacao">("venda");
+  const [wizardType, setWizardType] = useState<"venda" | "locacao" | "servico">("venda");
+  const serviceEnabled = useServiceProposalEnabled();
   const [typeSelectorOpen, setTypeSelectorOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
@@ -172,9 +175,12 @@ export default function Orcamentos() {
     }
   };
 
+  const toWizardType = (quoteType?: string): "venda" | "locacao" | "servico" =>
+    quoteType === "locacao" ? "locacao" : quoteType === "servico" ? "servico" : "venda";
+
   const handleEdit = (quoteId: string, quoteType?: string) => {
     setEditingQuoteId(quoteId);
-    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
+    setWizardType(toWizardType(quoteType));
     setWizardOpen(true);
   };
 
@@ -184,7 +190,7 @@ export default function Orcamentos() {
     setTypeSelectorOpen(true);
   };
 
-  const handleTypeSelect = (type: "venda" | "locacao") => {
+  const handleTypeSelect = (type: "venda" | "locacao" | "servico") => {
     setWizardType(type);
     setTypeSelectorOpen(false);
     setWizardOpen(true);
@@ -193,7 +199,7 @@ export default function Orcamentos() {
   const handleDuplicate = (quoteId: string, quoteType?: string) => {
     setDuplicatingQuoteId(quoteId);
     setEditingQuoteId(null);
-    setWizardType(quoteType === "locacao" ? "locacao" : "venda");
+    setWizardType(toWizardType(quoteType));
     setWizardOpen(true);
   };
 
@@ -223,6 +229,9 @@ export default function Orcamentos() {
   if (wizardOpen) {
     if (wizardType === "locacao") {
       return <RentalWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
+    }
+    if (wizardType === "servico") {
+      return <ServiceWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
     }
     return <QuoteWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
   }
@@ -348,6 +357,9 @@ export default function Orcamentos() {
       )}
       {(quote as any).quote_type === "locacao" && (
         <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Locação</Badge>
+      )}
+      {(quote as any).quote_type === "servico" && (
+        <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Serviço</Badge>
       )}
       {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
       {quote.approver_name && (
@@ -488,7 +500,7 @@ export default function Orcamentos() {
         />
       )}
 
-      <QuoteTypeSelector open={typeSelectorOpen} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
+      <QuoteTypeSelector open={typeSelectorOpen} serviceEnabled={serviceEnabled} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
 
       <AlertDialog open={!!deletingQuoteId} onOpenChange={(open) => !open && setDeletingQuoteId(null)}>
         <AlertDialogContent>
