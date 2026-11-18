@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Download, FileSignature, FileDown, Mail } from "lucide-react";
+import { Loader2, Download, FileSignature, FileDown, Mail, Globe, BadgeCheck, RotateCcw } from "lucide-react";
 import SendProposalEmailDialog from "@/components/quotes/SendProposalEmailDialog";
 import { useEmailIntegration } from "@/hooks/useEmailIntegration";
 import { downloadQuotePdf } from "@/lib/quotePdf";
@@ -15,6 +15,10 @@ import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
 import ServiceItemsCard from "./ServiceItemsCard";
+import CloseQuoteDialog from "./CloseQuoteDialog";
+import { useQuoteClosingEnabled } from "@/hooks/useQuoteClosingEnabled";
+import { isInternationalQuote, internationalReason } from "@/lib/quoteFlags";
+import { canConfirmClosing, canUndoClosing, closingDateLabel, isClosed } from "@/lib/quoteClosing";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
 import { QuoteAmount } from "@/components/quotes/QuoteAmount";
 import { formatMoney, isUsdEstimateQuote } from "@/lib/quoteMoney";
@@ -45,6 +49,8 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const closingEnabled = useQuoteClosingEnabled();
+  const [closingMode, setClosingMode] = useState<"close" | "undo" | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const emailIntegration = useEmailIntegration();
   const emailAvailable = emailIntegration.dbReady && emailIntegration.deployed;
@@ -55,7 +61,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
       if (!quoteId) return null;
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(razao_social, nome_fantasia, cnpj, cidade, estado)")
+        .select("*, clients(razao_social, nome_fantasia, cnpj, cidade, estado, client_type)")
         .eq("id", quoteId)
         .single();
       if (error) throw error;
@@ -202,6 +208,20 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                 <Badge variant={statusLabels[quote.status]?.variant || "secondary"} className={`status-badge-${quote.status}`}>
                   {statusLabels[quote.status]?.label || quote.status}
                 </Badge>
+                {isInternationalQuote(quote as any) && (
+                  <Badge
+                    variant="outline"
+                    title={`Proposta internacional: ${internationalReason(quote as any)}`}
+                    className="gap-1 border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                  >
+                    <Globe className="h-3 w-3" /> Internacional
+                  </Badge>
+                )}
+                {closingEnabled && quote.status === "finalized" && isClosed(quote as any) && (
+                  <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <BadgeCheck className="h-3 w-3" /> Fechada
+                  </Badge>
+                )}
               </>
             ) : (
               "Detalhes da Proposta"
@@ -344,6 +364,12 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   <p><span className="text-muted-foreground">Última alteração:</span> {formatDateTime((quote as any).updated_at || quote.created_at)}</p>
                   {quote.finalized_at && <p><span className="text-muted-foreground">Finalizado em:</span> {formatDate(quote.finalized_at)}</p>}
                   {quote.cancelled_at && <p><span className="text-muted-foreground">Cancelado em:</span> {formatDate(quote.cancelled_at)}</p>}
+                  {closingEnabled && isClosed(quote as any) && (
+                    <p><span className="text-muted-foreground">Fechada em:</span> {closingDateLabel((quote as any).closed_at)}</p>
+                  )}
+                  {closingEnabled && isClosed(quote as any) && (quote as any).closing_note && (
+                    <p><span className="text-muted-foreground">Obs. do fechamento:</span> {(quote as any).closing_note}</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -469,6 +495,16 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
         ) : null}
 
         <DialogFooter>
+          {closingEnabled && quote && canConfirmClosing(quote as any) && (
+            <Button variant="default" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => setClosingMode("close")}>
+              <BadgeCheck className="mr-2 h-4 w-4" /> Confirmar fechamento
+            </Button>
+          )}
+          {closingEnabled && quote && canUndoClosing(quote as any) && (
+            <Button variant="outline" onClick={() => setClosingMode("undo")}>
+              <RotateCcw className="mr-2 h-4 w-4" /> Desfazer fechamento
+            </Button>
+          )}
           {quote && quote.status === "finalized" && (
             <Button variant="default" onClick={() => setContractDialogOpen(true)}>
               <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
@@ -499,6 +535,14 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
           quoteId={quoteId}
           open={contractDialogOpen}
           onClose={() => setContractDialogOpen(false)}
+        />
+      )}
+      {quote && (
+        <CloseQuoteDialog
+          quote={quote as any}
+          mode={closingMode ?? "close"}
+          open={closingMode !== null}
+          onClose={() => setClosingMode(null)}
         />
       )}
       {quoteId && emailDialogOpen && (
