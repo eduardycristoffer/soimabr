@@ -412,9 +412,11 @@ export type Database = {
           contract_id: string
           cpf: string | null
           created_at: string
+          email: string | null
           id: string
           name: string | null
           order_index: number
+          phone: string | null
           rg: string | null
           side: string
         }
@@ -423,9 +425,11 @@ export type Database = {
           contract_id: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string | null
           order_index?: number
+          phone?: string | null
           rg?: string | null
           side: string
         }
@@ -434,15 +438,117 @@ export type Database = {
           contract_id?: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string | null
           order_index?: number
+          phone?: string | null
           rg?: string | null
           side?: string
         }
         Relationships: [
           {
             foreignKeyName: "contract_signatories_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_signature_events: {
+        Row: {
+          contract_id: string | null
+          event_id: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          received_at: string
+        }
+        Insert: {
+          contract_id?: string | null
+          event_id?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          received_at?: string
+        }
+        Update: {
+          contract_id?: string | null
+          event_id?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signature_events_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_signature_requests: {
+        Row: {
+          autentique_public_id: string | null
+          contract_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          rejected_at: string | null
+          rejected_reason: string | null
+          sign_link: string | null
+          signed_at: string | null
+          signer_id: string | null
+          signer_kind: string
+          status: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          autentique_public_id?: string | null
+          contract_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          rejected_at?: string | null
+          rejected_reason?: string | null
+          sign_link?: string | null
+          signed_at?: string | null
+          signer_id?: string | null
+          signer_kind: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          autentique_public_id?: string | null
+          contract_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          rejected_at?: string | null
+          rejected_reason?: string | null
+          sign_link?: string | null
+          signed_at?: string | null
+          signer_id?: string | null
+          signer_kind?: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signature_requests_contract_id_fkey"
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
@@ -553,6 +659,7 @@ export type Database = {
           id: string
           name: string | null
           order_index: number
+          phone: string | null
         }
         Insert: {
           contract_id: string
@@ -562,6 +669,7 @@ export type Database = {
           id?: string
           name?: string | null
           order_index?: number
+          phone?: string | null
         }
         Update: {
           contract_id?: string
@@ -571,6 +679,7 @@ export type Database = {
           id?: string
           name?: string | null
           order_index?: number
+          phone?: string | null
         }
         Relationships: [
           {
@@ -586,6 +695,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          autentique_document_id: string | null
+          autentique_sent_at: string | null
+          autentique_status: string | null
           buyer_manager_cpf: string | null
           buyer_manager_email: string | null
           buyer_manager_name: string | null
@@ -626,6 +738,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          autentique_document_id?: string | null
+          autentique_sent_at?: string | null
+          autentique_status?: string | null
           buyer_manager_cpf?: string | null
           buyer_manager_email?: string | null
           buyer_manager_name?: string | null
@@ -666,6 +781,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          autentique_document_id?: string | null
+          autentique_sent_at?: string | null
+          autentique_status?: string | null
           buyer_manager_cpf?: string | null
           buyer_manager_email?: string | null
           buyer_manager_name?: string | null
