@@ -112,6 +112,23 @@ Como os números são calculados:
 - **Rentabilidade (ROI)** = resultado ÷ valor empregado. **Rendimento mensal** = mensalidade atual ÷ valor empregado. **Utilização** = dias em obra ÷ dias disponíveis nos últimos 12 meses.
 - Valores de propostas em dólar são convertidos pela cotação gravada na proposta; em outra moeda sem cotação, preencha em reais.
 
+## 11. Proposta de locação com quadro de preços (modelo por equipamento)
+
+Usa o mesmo SQL da proposta de serviço (item 4 da seção 3) e exige publicar de novo a função `generate-pdf`. **Sem o SQL**, a locação continua funcionando no formato simples de antes (só não grava os textos e as linhas detalhadas).
+
+1. **Propostas → Nova Proposta → Locação.** São 8 etapas: Cliente, Obra, Grua, **Preços**, **Condições**, Comercial, Resumo e Revisão.
+2. **Preços:** cada custo é uma linha própria, em dois blocos — *Locação de bens móveis* (locação mensal, hora adicional, caçamba, **seguro**) e *Serviços de mão-de-obra* (montagem, desmontagem, mobilização, desmobilização, frete, **operador**, **manutenção**, **assistência técnica**...). Cada linha tem quantidade, unidade e valor unitário.
+   - **Linha sem valor não aparece na proposta**; é só desligar o interruptor para tirar (ex.: mobilização). Os itens desligados ficam numa linha só.
+   - Dá para **acrescentar itens próprios** (botão *Adicionar item*) em qualquer bloco.
+   - Itens mensais acompanham o prazo da locação (clique no texto abaixo da linha para usar uma quantidade fixa).
+   - *Manutenção corretiva fora do horário comercial* (após 17h e após 22h): tabelas de valor por hora com campo **Adesão: Sim / Não** na proposta; só aparecem se tiverem valor e **não somam** no total.
+3. **Condições:** seguro, incluso, não incluso, observações, compromissos da contratante/contratada, medição e pagamentos, prazos, jornadas, aceite. Os textos já vêm preenchidos e são editáveis (botão *Restaurar*). São um **ponto de partida genérico**: percentuais, multas, prazos e reajustes **devem ser conferidos** para cada cliente. Para finalizar é preciso marcar que os textos foram revisados.
+4. **Obra:** nome, local, contato (Att.), período, início previsto e requisitos técnicos. **Tipo de obra, condição do terreno e fundação especial não são mais perguntados** (propostas antigas mantêm o que já tinham gravado; no contrato de locação cadastrado, as linhas 4.1, 4.3 e 4.4 que citam esses dados saem com "—" até o modelo do contrato ser ajustado).
+5. **Comercial:** **imposto** e **desconto** continuam como antes (o desconto respeita o limite de cada usuário e o pedido de aprovação).
+6. O **PDF** sai em formato de carta, com o quadro de preços (valor total por equipamento), as tabelas de adesão, os textos numerados e o aceite. A empresa emitente é escolhida na etapa Condições (padrão: Dacrom). "Esconder valores unitários" (etapa Comercial) tira as colunas de preço e deixa só o total.
+7. Propostas de locação antigas continuam abrindo: ao editar, os valores já gravados viram linhas do quadro (o que era "incluso" vira linha ligada **sem valor**, com aviso, até alguém informar o preço). Contrato, frota e relatórios continuam lendo os mesmos campos de antes.
+8. A proposta detalhada é sempre em português. O **contrato** de locação segue o modelo cadastrado em Modelos de Contrato; incluir ali as mesmas cláusulas da proposta (e outras) é um passo à parte.
+
 ## O que NÃO foi testado
 A integração foi escrita pela documentação pública do Autentique (https://docs.autentique.com.br/api/2),
 mas **não foi executada contra a API real** (não havia chave). O teste do passo 5 é obrigatório.

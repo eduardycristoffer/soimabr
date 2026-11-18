@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
 import ServiceItemsCard from "./ServiceItemsCard";
+import RentalItemsCard from "./RentalItemsCard";
 import CloseQuoteDialog from "./CloseQuoteDialog";
 import { useQuoteClosingEnabled } from "@/hooks/useQuoteClosingEnabled";
 import { isInternationalQuote, internationalReason } from "@/lib/quoteFlags";
@@ -165,9 +166,11 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
 
   const isRental = (quote as any)?.quote_type === "locacao";
   const isService = (quote as any)?.quote_type === "servico";
+  // Locação feita no quadro de preços (cada custo em sua linha); as antigas continuam como eram
+  const isRentalDetailed = isRental && (quote as any)?.service_data?.kind === "locacao";
   const hideUnitPrices = !!(quote as any)?.hide_unit_prices;
   const rentalServices: string[] = [];
-  if (isRental && quote) {
+  if (isRental && !isRentalDetailed && quote) {
     if ((quote as any).rental_operator_included) rentalServices.push("Operador incluso");
     if ((quote as any).rental_maintenance_included) rentalServices.push("Manutenção inclusa");
     if ((quote as any).rental_insurance_included) rentalServices.push("Seguro incluso");
@@ -281,7 +284,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                     {(quote as any).rental_duration_months && <p><span className="text-muted-foreground">Duração:</span> {(quote as any).rental_duration_months} meses</p>}
                     {(quote as any).rental_start_date && <p><span className="text-muted-foreground">Início previsto:</span> {formatDate((quote as any).rental_start_date)}</p>}
                     {(quote as any).rental_terrain_condition && <p><span className="text-muted-foreground">Terreno:</span> {(quote as any).rental_terrain_condition}</p>}
-                    <p><span className="text-muted-foreground">Fundação especial:</span> {(quote as any).rental_special_foundation ? "Sim" : "Não"}</p>
+                    {(quote as any).rental_special_foundation && <p><span className="text-muted-foreground">Fundação especial:</span> Sim</p>}
                   </CardContent>
                 </Card>
               )}
@@ -403,6 +406,15 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
             <div className="space-y-4">
               {isService ? (
                 <ServiceItemsCard rows={(items as any[]) || []} hidePrices={hideUnitPrices} />
+              ) : isRentalDetailed ? (
+                <RentalItemsCard
+                  serviceData={(quote as any).service_data}
+                  months={Number((quote as any).rental_duration_months) || 0}
+                  discountPercent={Number(quote.discount_percent) || 0}
+                  taxPercent={Number((quote as any).rental_tax_percent) || 0}
+                  total={Number(quote.total) || 0}
+                  hidePrices={hideUnitPrices}
+                />
               ) : isRental ? (
                 <Card>
                   <CardHeader className="pb-3">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RentalWizardData } from "@/hooks/useRentalWizard";
+import { withLinePrice } from "@/lib/rentalProposal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,9 +69,12 @@ export default function RentalStepCrane({ data, updateData, onNext, onPrev }: Pr
       grua_carga_maxima_kg: crane.default_carga_maxima_kg ?? null,
       grua_carga_ponta_kg: crane.default_carga_ponta_kg ?? null,
       grua_altura_trabalho_m: crane.default_altura_trabalho_m ?? null,
-      rental_monthly_value: (crane as any).rental_monthly_price ?? null,
-      rental_mobilization: (crane as any).rental_mobilization_default ?? 0,
-      rental_assembly: (crane as any).rental_assembly_default ?? 0,
+      // valores-padrão do cadastro da grua entram nas linhas do quadro de preços (só se o cadastro tiver valor)
+      lines: withLinePrice(
+        withLinePrice(withLinePrice(data.lines, "rent", crane.rental_monthly_price), "mobilization", crane.rental_mobilization_default),
+        "assembly",
+        crane.rental_assembly_default,
+      ),
     });
   };
 
