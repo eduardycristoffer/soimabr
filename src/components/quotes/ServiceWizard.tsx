@@ -5,9 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { useServiceWizard, SERVICE_WIZARD_STEPS } from "@/hooks/useServiceWizard";
 import { cityFromAddress, itemsFromRows, normalizeServiceData, serviceProblems } from "@/lib/serviceProposal";
 import { saveServiceProposal } from "@/lib/serviceProposalSave";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check } from "lucide-react";
+import WizardHeader from "./WizardHeader";
 
 import StepClient from "./steps/StepClient";
 import ServiceStepScope, { IssuerCompany } from "./service-steps/ServiceStepScope";
@@ -188,39 +186,13 @@ export default function ServiceWizard({ onClose, editingQuoteId, duplicatingQuot
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Voltar para a lista">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {editingQuoteId ? "Editar Proposta de Serviço" : duplicatingQuoteId ? "Duplicar Proposta de Serviço" : "Nova Proposta de Serviço"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Etapa {wizard.step} de {SERVICE_WIZARD_STEPS.length} — {SERVICE_WIZARD_STEPS[wizard.step - 1].description}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 overflow-x-auto pb-2">
-        {SERVICE_WIZARD_STEPS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => { if (s.id < wizard.step) wizard.goToStep(s.id); }}
-            className={cn(
-              "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              s.id === wizard.step
-                ? "bg-primary text-primary-foreground"
-                : s.id < wizard.step
-                ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/30"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {s.id < wizard.step ? <Check className="h-3 w-3" /> : <span className="text-[10px]">{s.id}</span>}
-            {s.title}
-          </button>
-        ))}
-      </div>
+      <WizardHeader
+        title={editingQuoteId ? "Editar proposta de serviço" : duplicatingQuoteId ? "Duplicar proposta de serviço" : "Nova proposta de serviço"}
+        steps={SERVICE_WIZARD_STEPS}
+        current={wizard.step}
+        onBack={onClose}
+        onGoTo={wizard.goToStep}
+      />
 
       <div className="min-h-[400px]">
         {wizard.step === 1 && (

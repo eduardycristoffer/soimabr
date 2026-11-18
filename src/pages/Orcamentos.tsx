@@ -33,7 +33,11 @@ import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
 import SendProposalEmailDialog from "@/components/quotes/SendProposalEmailDialog";
 import { useEmailIntegration } from "@/hooks/useEmailIntegration";
 import { downloadQuotePdf } from "@/lib/quotePdf";
-import { Mail, FileDown } from "lucide-react";
+import { Mail, FileDown, Globe, BadgeCheck, RotateCcw } from "lucide-react";
+import CloseQuoteDialog from "@/components/quotes/CloseQuoteDialog";
+import { useQuoteClosingEnabled } from "@/hooks/useQuoteClosingEnabled";
+import { isInternationalQuote, internationalReason } from "@/lib/quoteFlags";
+import { canConfirmClosing, canUndoClosing, closingDateLabel, isClosed } from "@/lib/quoteClosing";
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizado", variant: "default" },
@@ -48,6 +52,8 @@ export default function Orcamentos() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardType, setWizardType] = useState<"venda" | "locacao" | "servico">("venda");
   const serviceEnabled = useServiceProposalEnabled();
+  const closingEnabled = useQuoteClosingEnabled();
+  const [closingTarget, setClosingTarget] = useState<{ quote: any; mode: "close" | "undo" } | null>(null);
   const [typeSelectorOpen, setTypeSelectorOpen] = useState(false);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
@@ -78,7 +84,7 @@ export default function Orcamentos() {
     queryFn: async () => {
       let query = supabase
         .from("quotes")
-        .select("*, clients(razao_social, nome_fantasia)")
+        .select("*, clients(razao_social, nome_fantasia, client_type)")
         .order("created_at", { ascending: false });
       if (search) {
         query = query.or(`quote_number.ilike.%${search}%,project_name.ilike.%${search}%`);
@@ -271,7 +277,12 @@ export default function Orcamentos() {
     return null;
   };
 
-  const filteredQuotes = statusFilter === "all" ? quotes : quotes?.filter((q) => q.status === statusFilter);
+  const filteredQuotes =
+    statusFilter === "all"
+      ? quotes
+      : statusFilter === "closed"
+      ? quotes?.filter((q) => q.status === "finalized" && isClosed(q as any))
+      : quotes?.filter((q) => q.status === statusFilter);
 
   // Propostas internacionais em USD são em R$: o dólar é só estimativa pela cotação de hoje.
   // A cotação só é buscada quando há alguma proposta assim na lista.
@@ -301,6 +312,16 @@ export default function Orcamentos() {
               <FileSignature className="mr-2 h-4 w-4" /> Gerar Contrato
             </DropdownMenuItem>
           </>
+        )}
+        {closingEnabled && canConfirmClosing(quote) && (
+          <DropdownMenuItem onClick={() => setClosingTarget({ quote, mode: "close" })}>
+            <BadgeCheck className="mr-2 h-4 w-4 text-emerald-600" /> Confirmar fechamento
+          </DropdownMenuItem>
+        )}
+        {closingEnabled && canUndoClosing(quote) && (
+          <DropdownMenuItem onClick={() => setClosingTarget({ quote, mode: "undo" })}>
+            <RotateCcw className="mr-2 h-4 w-4" /> Desfazer fechamento
+          </DropdownMenuItem>
         )}
         {(quote.status === "finalized" || quote.status === "draft") && (
           <DropdownMenuItem
@@ -361,6 +382,24 @@ export default function Orcamentos() {
       {(quote as any).quote_type === "servico" && (
         <Badge variant="outline" className="text-[10px] border-primary text-primary ml-1">Serviço</Badge>
       )}
+      {isInternationalQuote(quote) && (
+        <Badge
+          variant="outline"
+          title={`Proposta internacional: ${internationalReason(quote)}`}
+          className="ml-1 gap-0.5 border-sky-300 bg-sky-50 text-[10px] text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300"
+        >
+          <Globe className="h-2.5 w-2.5" /> Internacional
+        </Badge>
+      )}
+      {closingEnabled && quote.status === "finalized" && isClosed(quote) && (
+        <Badge
+          variant="outline"
+          title={`Fechamento confirmado em ${closingDateLabel(quote.closed_at)}${quote.closing_note ? ` — ${quote.closing_note}` : ""}`}
+          className="ml-1 gap-0.5 border-emerald-300 bg-emerald-50 text-[10px] text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+        >
+          <BadgeCheck className="h-2.5 w-2.5" /> Fechada
+        </Badge>
+      )}
       {renderApprovalBadge(quote.id, quote.discount_percent, quote.discount_approved)}
       {quote.approver_name && (
         <span className="text-[10px] text-muted-foreground ml-1">
@@ -403,6 +442,9 @@ export default function Orcamentos() {
             <ToggleGroupItem value="all" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Todas</ToggleGroupItem>
             <ToggleGroupItem value="draft" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Rascunho</ToggleGroupItem>
             <ToggleGroupItem value="finalized" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Finalizadas</ToggleGroupItem>
+            {closingEnabled && (
+              <ToggleGroupItem value="closed" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Fechadas</ToggleGroupItem>
+            )}
             <ToggleGroupItem value="cancelled" className="rounded-full px-4 h-9 text-sm data-[state=on]:bg-card data-[state=on]:shadow-sm data-[state=on]:text-foreground text-muted-foreground">Canceladas</ToggleGroupItem>
           </ToggleGroup>
         </CardHeader>
@@ -499,6 +541,13 @@ export default function Orcamentos() {
           onClose={() => setEmailQuoteId(null)}
         />
       )}
+
+      <CloseQuoteDialog
+        quote={closingTarget?.quote ?? null}
+        mode={closingTarget?.mode ?? "close"}
+        open={!!closingTarget}
+        onClose={() => setClosingTarget(null)}
+      />
 
       <QuoteTypeSelector open={typeSelectorOpen} serviceEnabled={serviceEnabled} onSelect={handleTypeSelect} onClose={() => setTypeSelectorOpen(false)} />
 

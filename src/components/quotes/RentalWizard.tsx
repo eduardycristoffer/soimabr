@@ -3,9 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useRentalWizard, RENTAL_WIZARD_STEPS } from "@/hooks/useRentalWizard";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check } from "lucide-react";
+import WizardHeader from "./WizardHeader";
 
 import StepClient from "./steps/StepClient";
 import RentalStepWork from "./rental-steps/RentalStepWork";
@@ -325,39 +323,13 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {editingQuoteId ? "Editar Proposta de Locação" : duplicatingQuoteId ? "Duplicar Proposta de Locação" : "Nova Proposta de Locação"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Etapa {wizard.step} de 7 — {RENTAL_WIZARD_STEPS[wizard.step - 1].description}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 overflow-x-auto pb-2">
-        {RENTAL_WIZARD_STEPS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => { if (s.id < wizard.step) wizard.goToStep(s.id); }}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-              s.id === wizard.step
-                ? "bg-primary text-primary-foreground"
-                : s.id < wizard.step
-                ? "bg-primary/20 text-primary cursor-pointer hover:bg-primary/30"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {s.id < wizard.step ? <Check className="h-3 w-3" /> : <span className="text-[10px]">{s.id}</span>}
-            {s.title}
-          </button>
-        ))}
-      </div>
+      <WizardHeader
+        title={editingQuoteId ? "Editar proposta de locação" : duplicatingQuoteId ? "Duplicar proposta de locação" : "Nova proposta de locação"}
+        steps={RENTAL_WIZARD_STEPS}
+        current={wizard.step}
+        onBack={onClose}
+        onGoTo={wizard.goToStep}
+      />
 
       <div className="min-h-[400px]">
         {wizard.step === 1 && (

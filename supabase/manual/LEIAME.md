@@ -27,6 +27,7 @@ Peça no chat *"execute esta migration"* e cole o conteúdo, ou use o SQL editor
 2. `2026-11-17_autentique.sql` — tabelas e colunas da assinatura digital
 3. `2026-11-18_email_integration.sql` — conta de e-mail da empresa e registro dos envios de proposta
 4. `2026-11-19_service_proposal.sql` — colunas da proposta de serviço (só depois dele a opção **Serviço** aparece em Nova Proposta)
+5. `2026-11-20_proposal_closing.sql` — colunas do **fechamento** da proposta (só depois dele aparece **Confirmar fechamento**)
 
 São só colunas/tabelas **novas**; nada existente é alterado. O app funciona sem eles.
 
@@ -85,6 +86,13 @@ Depois de publicar a função `generate-pdf` e rodar o SQL do item 4 da seção 
    O menu **Atalhos de serviços** traz os serviços do modelo (montagem, telescopagem, manutenção, hora técnica...) **sem preço** — o preço é sempre definido por quem faz a proposta.
 4. **Textos:** responsabilidades, pagamento, reajuste, retenções etc. já vêm preenchidos e são totalmente editáveis (com botão "Restaurar"). Para finalizar é preciso marcar que os textos foram revisados — reajuste, retenções e prazos do modelo **devem ser conferidos** para cada cliente.
 5. Propostas de serviço funcionam com o que já existe: lista, **Baixar PDF**, **Enviar ao cliente** (e-mail), Relatórios, editar e duplicar.
+
+## 9. Confirmar o fechamento de uma proposta finalizada
+Depois do SQL do item 5 da seção 3:
+1. Em **Propostas**, no menu "⋯" de uma proposta **finalizada** (ou no detalhe dela): **Confirmar fechamento**. Escolha a data (hoje por padrão; não aceita futuro nem antes da criação da proposta) e, se quiser, uma observação (ex.: nº do pedido de compra).
+2. A proposta ganha o selo **Fechada** e entra no filtro **Fechadas**. A situação continua "Finalizada": "fechada" significa que o cliente aceitou.
+3. Marcou por engano? **Desfazer fechamento**, no mesmo menu.
+4. Propostas **internacionais** (cliente do exterior ou proposta em US$/€) ganham o selo **Internacional** na lista e no detalhe — isso não depende de SQL.
 
 ## O que NÃO foi testado
 A integração foi escrita pela documentação pública do Autentique (https://docs.autentique.com.br/api/2),
