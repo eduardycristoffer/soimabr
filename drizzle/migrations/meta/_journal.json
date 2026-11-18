@@ -36,6 +36,13 @@
       "when": 1794968946629,
       "tag": "0004_autentique_contract_signatures",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794969044346,
+      "tag": "0005_email_integration_proposal_dispatches",
+      "breakpoints": true
     }
   ]
 }

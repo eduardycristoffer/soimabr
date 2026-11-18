@@ -954,6 +954,69 @@ export type Database = {
         }
         Relationships: []
       }
+      email_integration: {
+        Row: {
+          bcc_email: string | null
+          enabled: boolean
+          from_email: string | null
+          from_name: string | null
+          id: boolean
+          last_test_at: string | null
+          last_test_error: string | null
+          last_test_ok: boolean | null
+          reply_to: string | null
+          require_admin_approval: boolean
+          signature_text: string | null
+          smtp_host: string | null
+          smtp_password_encrypted: string | null
+          smtp_port: number
+          smtp_security: string
+          smtp_username: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bcc_email?: string | null
+          enabled?: boolean
+          from_email?: string | null
+          from_name?: string | null
+          id?: boolean
+          last_test_at?: string | null
+          last_test_error?: string | null
+          last_test_ok?: boolean | null
+          reply_to?: string | null
+          require_admin_approval?: boolean
+          signature_text?: string | null
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
+          smtp_port?: number
+          smtp_security?: string
+          smtp_username?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bcc_email?: string | null
+          enabled?: boolean
+          from_email?: string | null
+          from_name?: string | null
+          id?: boolean
+          last_test_at?: string | null
+          last_test_error?: string | null
+          last_test_ok?: boolean | null
+          reply_to?: string | null
+          require_admin_approval?: boolean
+          signature_text?: string | null
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
+          smtp_port?: number
+          smtp_security?: string
+          smtp_username?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       email_verification_tokens: {
         Row: {
           created_at: string
@@ -1558,6 +1621,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      proposal_email_dispatches: {
+        Row: {
+          attachment_name: string | null
+          authorized_at: string | null
+          authorized_by: string | null
+          body_text: string
+          cc_emails: string[]
+          created_at: string
+          error: string | null
+          id: string
+          quote_id: string
+          rejection_reason: string | null
+          requested_by: string
+          sent_at: string | null
+          status: string
+          subject: string
+          to_emails: string[]
+          updated_at: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
+          body_text: string
+          cc_emails?: string[]
+          created_at?: string
+          error?: string | null
+          id?: string
+          quote_id: string
+          rejection_reason?: string | null
+          requested_by: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+          to_emails: string[]
+          updated_at?: string
+        }
+        Update: {
+          attachment_name?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
+          body_text?: string
+          cc_emails?: string[]
+          created_at?: string
+          error?: string | null
+          id?: string
+          quote_id?: string
+          rejection_reason?: string | null
+          requested_by?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_emails?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_email_dispatches_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_items: {
         Row: {
