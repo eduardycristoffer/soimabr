@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
     logEntry.status = "failed";
     logEntry.http_status = 500;
     logEntry.response = { error: err.message || "Erro interno" };
-    await supabase.from("webhook_logs").insert(logEntry).catch(() => {});
+    await supabase.from("webhook_logs").insert(logEntry);
     return new Response(
       JSON.stringify({ error: err.message || "Erro interno" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
