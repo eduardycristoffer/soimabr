@@ -5,52 +5,68 @@ import RecentQuotes from "@/components/dashboard/RecentQuotes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, Users, FileText, Kanban } from "lucide-react";
+import { Users, FileText, Kanban } from "lucide-react";
+import type { ReactNode } from "react";
 
-export default function Dashboard() {
-  const { user, isAdmin } = useAuth();
-  const navigate = useNavigate();
+interface DashboardViewProps {
+  name?: string | null;
+  isAdmin?: boolean;
+  onNavigate: (path: string) => void;
+  /** troca os blocos que buscam dados (nos testes e na pré-visualização) */
+  slots?: { stats?: ReactNode; pipeline?: ReactNode; recent?: ReactNode };
+}
+
+/** Painel inicial. Separado da busca de dados para poder ser testado e conferido em qualquer largura. */
+export function DashboardView({ name, isAdmin, onNavigate, slots }: DashboardViewProps) {
+  const navigate = onNavigate;
+  const user = { name };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dashboard</h1>
+        <p className="truncate text-sm text-muted-foreground sm:text-base">
           Bem-vindo, {user?.name}! {isAdmin && "(Admin)"}
         </p>
       </div>
 
       {/* Stats Grid */}
-      <StatsCards />
+      {slots?.stats ?? <StatsCards />}
 
       {/* Charts + Recent */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <PipelineChart />
-        <RecentQuotes />
+      <div className="grid gap-4 xl:grid-cols-2">
+        {slots?.pipeline ?? <PipelineChart />}
+        {slots?.recent ?? <RecentQuotes />}
       </div>
 
       {/* Quick Actions */}
       <Card>
-        <CardHeader>
-          <CardTitle>Ações Rápidas</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Ações rápidas</CardTitle>
           <CardDescription>Atalhos para as tarefas mais comuns</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => navigate("/clientes")}>
+        <CardContent className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+          <Button variant="outline" className="h-11 justify-start" onClick={() => navigate("/clientes")}>
             <Users className="mr-2 h-4 w-4" />
-            Novo Cliente
+            Novo cliente
           </Button>
-          <Button variant="outline" onClick={() => navigate("/pipeline")}>
+          <Button variant="outline" className="h-11 justify-start" onClick={() => navigate("/pipeline")}>
             <Kanban className="mr-2 h-4 w-4" />
-            Novo Lead
+            Novo lead
           </Button>
-          <Button variant="outline" onClick={() => navigate("/orcamentos")}>
+          <Button variant="outline" className="h-11 justify-start" onClick={() => navigate("/orcamentos")}>
             <FileText className="mr-2 h-4 w-4" />
-            Novo Orçamento
+            Nova proposta
           </Button>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+export default function Dashboard() {
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  return <DashboardView name={user?.name} isAdmin={isAdmin} onNavigate={(path) => navigate(path)} />;
 }

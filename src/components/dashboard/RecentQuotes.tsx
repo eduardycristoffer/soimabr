@@ -13,6 +13,60 @@ const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "s
   cancelled: { label: "Cancelado", variant: "destructive" },
 };
 
+export interface RecentQuote {
+  id: string;
+  quote_number: string;
+  status: string;
+  total: number;
+  currency?: string | null;
+  usd_brl_rate_used?: number | string | null;
+  clients?: { razao_social?: string | null; nome_fantasia?: string | null } | null;
+}
+
+/** Últimas propostas: nome do cliente com reticências, e valor + situação empilhados no celular. */
+export function RecentQuotesView({ quotes }: { quotes?: RecentQuote[] | null }) {
+  return (
+    <Card className="min-w-0">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base sm:text-lg">Propostas recentes</CardTitle>
+        <CardDescription>Últimas propostas criadas</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!quotes || quotes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6">
+            <FileText className="h-8 w-8 text-muted-foreground/50" />
+            <p className="mt-2 text-sm text-muted-foreground">Nenhuma proposta ainda</p>
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {quotes.map((quote) => (
+              <li
+                key={quote.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-xl border p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-sm font-medium">{quote.quote_number}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <span className="whitespace-nowrap text-sm font-medium tabular-nums">
+                    {formatQuoteAmount(quote.total, quote as any)}
+                  </span>
+                  <Badge variant={statusConfig[quote.status as QuoteStatus]?.variant} className={`status-badge-${quote.status}`}>
+                    {statusConfig[quote.status as QuoteStatus]?.label}
+                  </Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function RecentQuotes() {
   const { isAdmin, user } = useAuth();
 
@@ -32,51 +86,5 @@ export default function RecentQuotes() {
     enabled: !!user,
   });
 
-  const formatDate = (date: string) =>
-    new Intl.DateTimeFormat("pt-BR").format(new Date(date));
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Propostas Recentes</CardTitle>
-        <CardDescription>Últimas propostas criadas</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!quotes || quotes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6">
-            <FileText className="h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              Nenhuma proposta ainda
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {quotes.map((quote) => (
-              <div
-                key={quote.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-medium font-mono">
-                    {quote.quote_number}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">
-                    {formatQuoteAmount(quote.total, quote as any)}
-                  </span>
-                  <Badge variant={statusConfig[quote.status as QuoteStatus]?.variant} className={`status-badge-${quote.status}`}>
-                    {statusConfig[quote.status as QuoteStatus]?.label}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return <RecentQuotesView quotes={quotes as any} />;
 }
