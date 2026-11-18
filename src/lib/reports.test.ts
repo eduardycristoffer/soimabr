@@ -16,6 +16,13 @@ import {
   signedByMonth,
   toCsv,
   type ReportQuote,
+  closedByMonth,
+  closingStats,
+  contractStatusCounts,
+  monthlyByStatus,
+  signDaysBuckets,
+  statusCounts,
+  topClients,
 } from "@/lib/reports";
 
 const q = (over: Partial<ReportQuote> = {}): ReportQuote => ({
@@ -176,5 +183,104 @@ describe("toCsv", () => {
   it("usa ; e escapa aspas, ; e quebra de linha", () => {
     const csv = toCsv(["A", "B"], [["x;y", 'diz "oi"'], [1, null]]);
     expect(csv).toBe('A;B\r\n"x;y";"diz ""oi"""\r\n1;');
+  });
+});
+
+// ───────────── para os gráficos ─────────────
+
+describe("dados dos gráficos", () => {
+  const mk = (over: Partial<ReportQuote> & { id: string }): ReportQuote => ({
+    quote_number: over.id, status: "finalized", quote_type: "venda", total: 1000, currency: "BRL",
+    created_at: "2026-11-10T15:00:00Z", created_by: "u1", clients: { razao_social: "Cliente A Ltda", nome_fantasia: "Cliente A" }, contracts: [], ...over,
+  } as ReportQuote);
+  const months = ["2026-09", "2026-10", "2026-11"];
+
+  it("situação das propostas: sempre as três, na mesma ordem", () => {
+    const r = statusCounts([mk({ id: "1" }), mk({ id: "2", status: "draft" }), mk({ id: "3" })]);
+    expect(r).toEqual([
+      { key: "draft", label: "Rascunho", value: 1 },
+      { key: "finalized", label: "Finalizada", value: 2 },
+      { key: "cancelled", label: "Cancelada", value: 0 },
+    ]);
+  });
+
+  it("propostas por mês e situação (no fuso de Brasília)", () => {
+    const r = monthlyByStatus([
+      mk({ id: "1", created_at: "2026-10-31T23:30:00Z" }),            // ainda 31/10 em Brasília
+      mk({ id: "2", created_at: "2026-11-01T01:00:00Z" }),            // 31/10 22:00 em Brasília → outubro
+      mk({ id: "3", created_at: "2026-11-01T04:00:00Z", status: "draft" }), // 01/11 01:00 → novembro
+      mk({ id: "4", created_at: "2026-11-20T12:00:00Z", status: "cancelled" }),
+      mk({ id: "5", created_at: "2025-01-01T12:00:00Z" }),            // fora da janela
+    ], months);
+    expect(r.map((p) => [p.label, p.draft, p.finalized, p.cancelled])).toEqual([
+      ["set/26", 0, 0, 0], ["out/26", 0, 2, 0], ["nov/26", 1, 0, 1],
+    ]);
+  });
+
+  it("principais clientes: por valor, sem canceladas e sem outra moeda", () => {
+    const r = topClients([
+      mk({ id: "1", total: 500 }),
+      mk({ id: "2", total: 700 }),
+      mk({ id: "3", total: 900, clients: { razao_social: "Beta SA", nome_fantasia: null } }),
+      mk({ id: "4", total: 99999, status: "cancelled" }),
+      mk({ id: "5", total: 5000, currency: "EUR", clients: { razao_social: "Gamma", nome_fantasia: null } }),
+      mk({ id: "6", total: 10, clients: null }),
+    ]);
+    expect(r).toEqual([
+      { label: "Cliente A", propostas: 2, valorBRL: 1200 },
+      { label: "Beta SA", propostas: 1, valorBRL: 900 },
+      { label: "Sem cliente", propostas: 1, valorBRL: 10 },
+    ]);
+  });
+
+  it("principais clientes respeita o limite", () => {
+    const many = Array.from({ length: 12 }, (_, i) => mk({ id: String(i), total: 100 + i, clients: { razao_social: `C${i}`, nome_fantasia: null } }));
+    expect(topClients(many, 5)).toHaveLength(5);
+    expect(topClients(many, 5)[0].label).toBe("C11");
+  });
+
+  it("tempo até assinar: faixas de dias", () => {
+    const q = mk({
+      id: "1",
+      contracts: [
+        { id: "a", status: "signed", sent_at: "2026-11-01T12:00:00Z", signed_at: "2026-11-02T12:00:00Z", created_at: "2026-11-01T00:00:00Z" },   // 1 dia
+        { id: "b", status: "signed", sent_at: "2026-11-01T12:00:00Z", signed_at: "2026-11-04T12:00:00Z", created_at: "2026-11-01T00:00:00Z" },   // 3 dias
+        { id: "c", status: "signed", sent_at: "2026-11-01T12:00:00Z", signed_at: "2026-11-05T12:00:00Z", created_at: "2026-11-01T00:00:00Z" },   // 4 dias
+        { id: "d", status: "signed", sent_at: "2026-11-01T12:00:00Z", signed_at: "2026-11-09T12:00:00Z", created_at: "2026-11-01T00:00:00Z" },   // 8 dias
+        { id: "e", status: "signed", sent_at: "2026-11-01T12:00:00Z", signed_at: "2026-11-30T12:00:00Z", created_at: "2026-11-01T00:00:00Z" },   // 29 dias
+        { id: "f", status: "sent", sent_at: "2026-11-01T12:00:00Z", signed_at: null, created_at: "2026-11-01T00:00:00Z" },                      // sem assinatura: não conta
+      ] as any,
+    });
+    expect(signDaysBuckets(contractRows([q]))).toEqual([
+      { label: "Até 3 dias", value: 2 }, { label: "4 a 7 dias", value: 1 }, { label: "8 a 14 dias", value: 1 }, { label: "Mais de 14 dias", value: 1 },
+    ]);
+  });
+
+  it("contratos por situação, do mais comum ao menos", () => {
+    const q = mk({ id: "1", contracts: [{ id: "a", status: "signed" }, { id: "b", status: "sent" }, { id: "c", status: "signed" }] as any });
+    expect(contractStatusCounts(contractRows([q]))).toEqual([{ key: "signed", value: 2 }, { key: "sent", value: 1 }]);
+    expect(contractStatusCounts([])).toEqual([]);
+  });
+
+  it("fechamentos por mês: pela data do fechamento, só finalizadas", () => {
+    const r = closedByMonth([
+      mk({ id: "1", closed_at: "2026-11-05T15:00:00.000Z", total: 100 }),
+      mk({ id: "2", closed_at: "2026-10-20T15:00:00.000Z", total: 200 }),
+      mk({ id: "3", closed_at: null }),
+      mk({ id: "4", closed_at: "2026-11-06T15:00:00.000Z", status: "cancelled" }),
+      mk({ id: "5", closed_at: "2026-11-07T15:00:00.000Z", total: 50, currency: "EUR" }),
+    ], months);
+    expect(r.map((p) => [p.label, p.count, p.value])).toEqual([["set/26", 0, 0], ["out/26", 1, 200], ["nov/26", 2, 100]]);
+  });
+
+  it("resumo do fechamento", () => {
+    const r = closingStats([
+      mk({ id: "1", closed_at: "2026-11-05T15:00:00Z", total: 100 }),
+      mk({ id: "2", total: 300 }),
+      mk({ id: "3", status: "draft" }),
+      mk({ id: "4", closed_at: "2026-11-05T15:00:00Z", total: 300, currency: "USD", usd_brl_rate_used: null }),
+    ]);
+    expect(r).toEqual({ fechadas: 2, valorFechadoBRL: 100, taxa: 67 });
+    expect(closingStats([])).toEqual({ fechadas: 0, valorFechadoBRL: 0, taxa: null });
   });
 });

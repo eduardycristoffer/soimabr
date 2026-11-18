@@ -2,7 +2,53 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+
+export interface PipelineStageCount {
+  name: string;
+  count: number;
+  color: string;
+}
+
+/**
+ * Leads por etapa do funil, em barras horizontais: o nome da etapa fica à esquerda e a barra ocupa o resto,
+ * então funciona em qualquer largura (o gráfico de colunas com nomes inclinados não cabia no celular).
+ */
+export function PipelineChartView({ data }: { data?: PipelineStageCount[] }) {
+  const max = Math.max(1, ...(data || []).map((d) => d.count));
+  const empty = !data || data.every((d) => d.count === 0);
+  const total = (data || []).reduce((s, d) => s + d.count, 0);
+
+  return (
+    <Card className="min-w-0">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base sm:text-lg">Pipeline de vendas</CardTitle>
+        <CardDescription>{empty ? "Leads por etapa do funil" : `${total} lead${total === 1 ? "" : "s"} por etapa do funil`}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {empty ? (
+          <div className="flex items-center justify-center py-6">
+            <p className="text-center text-sm text-muted-foreground">Adicione leads ao pipeline para ver o gráfico</p>
+          </div>
+        ) : (
+          <ul className="space-y-3" aria-label="Leads por etapa do funil">
+            {data!.map((d) => (
+              <li key={d.name} className="grid grid-cols-[minmax(72px,34%)_1fr_auto] items-center gap-2 text-sm sm:gap-3">
+                <span className="truncate" title={d.name}>{d.name}</span>
+                <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${d.count === 0 ? 0 : Math.max((d.count / max) * 100, 4)}%`, background: d.color || "hsl(var(--primary))" }}
+                  />
+                </div>
+                <span className="min-w-[1.5rem] text-right font-medium tabular-nums">{d.count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function PipelineChart() {
   const { isAdmin, user } = useAuth();
@@ -28,40 +74,5 @@ export default function PipelineChart() {
     enabled: !!user,
   });
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pipeline de Vendas</CardTitle>
-        <CardDescription>Leads por etapa do funil</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!chartData || chartData.every((d) => d.count === 0) ? (
-          <div className="flex items-center justify-center py-6">
-            <p className="text-sm text-muted-foreground">
-              Adicione leads ao pipeline para ver o gráfico
-            </p>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData}>
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11 }}
-                angle={-20}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return <PipelineChartView data={chartData} />;
 }

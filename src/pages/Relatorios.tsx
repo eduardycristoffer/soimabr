@@ -4,23 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatMoney } from "@/lib/quoteMoney";
 import { QuoteAmount } from "@/components/quotes/QuoteAmount";
-import { ColumnChart, HBarList, StatTile } from "@/components/reports/charts";
+import { ColumnChart, DonutChart, HBarList, PALETTE, StackedColumnChart, StatTile, TrendChart } from "@/components/reports/charts";
+import { useQuoteClosingEnabled } from "@/hooks/useQuoteClosingEnabled";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   QUOTE_TYPE_LABEL,
   avgDaysToSign,
   byType,
   bySeller,
+  closedByMonth,
+  closingStats,
   computeStats,
   contractRows,
+  contractStatusCounts,
   downloadCsv,
   filterQuotes,
   lastMonthKeys,
   monthLabel,
+  monthlyByStatus,
   presetRange,
   quotesByMonth,
+  signDaysBuckets,
   signedByMonth,
+  statusCounts,
   toCsv,
   todayBR,
+  topClients,
   type PeriodPreset,
   type ReportFilters,
   type ReportQuote,
@@ -34,7 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowDown, ArrowUp, BarChart3, Download, FileSignature, FileText, FilterX, Minus, Percent, Receipt, Wallet,
+  ArrowDown, ArrowUp, BadgeCheck, BarChart3, ChevronDown, Download, FileSignature, FileText, FilterX, Minus, Percent, Receipt, Wallet,
 } from "lucide-react";
 
 const QUOTE_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -63,6 +72,28 @@ const brlCompact = (n: number) =>
 const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
 const numPt = (n: number) => n.toFixed(2).replace(".", ",");
 
+/** As listas detalhadas ficam recolhidas: o gráfico vem primeiro, a tabela é para quem quer conferir linha a linha. */
+function DetailsSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
+      <CollapsibleTrigger asChild>
+        <Button variant="outline" className="w-full justify-between rounded-xl sm:w-auto">
+          <span>{open ? "Esconder" : "Ver"} {title} ({count})</span>
+          <ChevronDown className={`ml-3 h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+// Contratos agrupados em 4 situações (poucas cores, fáceis de comparar)
+const CONTRACT_GROUP: Record<string, "signed" | "sent" | "preparing" | "cancelled"> = {
+  signed: "signed", sent: "sent", draft: "preparing", em_revisao: "preparing", aprovado: "preparing", cancelled: "cancelled",
+};
+const CONTRACT_GROUP_LABEL = { signed: "Assinados", sent: "Aguardando assinatura", preparing: "Em preparo", cancelled: "Cancelados" } as const;
+
 export default function Relatorios() {
   const { user, isAdmin } = useAuth();
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
@@ -80,14 +111,15 @@ export default function Relatorios() {
     },
   });
 
+  const closingEnabled = useQuoteClosingEnabled();
   const { data: quotes, isLoading } = useQuery({
-    queryKey: ["report-quotes", isAdmin, user?.user_id],
+    queryKey: ["report-quotes", isAdmin, user?.user_id, closingEnabled],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
         .select(
-          "id, quote_number, status, quote_type, total, currency, usd_brl_rate_used, created_at, created_by, clients(razao_social, nome_fantasia), contracts(id, contract_number, status, signed_at, sent_at, created_at)",
+          `id, quote_number, status, quote_type, total, currency, usd_brl_rate_used, created_at, created_by${closingEnabled ? ", closed_at" : ""}, clients(razao_social, nome_fantasia), contracts(id, contract_number, status, signed_at, sent_at, created_at)`,
         )
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -119,6 +151,37 @@ export default function Relatorios() {
   const sellerGroups = useMemo(() => bySeller(filtered, names), [filtered, names]);
   const contracts = useMemo(() => contractRows(filtered), [filtered]);
   const contractCount = (s: string) => contracts.filter((c) => c.status === s).length;
+
+  // Gráficos
+  const closing = useMemo(() => closingStats(filtered), [filtered]);
+  const closedSeries = useMemo(() => closedByMonth(seriesBase, months), [seriesBase, months]);
+  const statusSlices = useMemo(
+    () => statusCounts(filtered).map((s) => ({ ...s, color: PALETTE.status[s.key] })),
+    [filtered],
+  );
+  const typeSlices = useMemo(
+    () => typeGroups.map((g) => ({ key: g.key, label: g.label, value: g.propostas, color: (PALETTE.type as Record<string, string>)[g.key] || "#64748b" })),
+    [typeGroups],
+  );
+  const monthStatus = useMemo(() => monthlyByStatus(seriesBase, months), [seriesBase, months]);
+  const clientsTop = useMemo(() => topClients(filtered, 8), [filtered]);
+  const signBuckets = useMemo(() => signDaysBuckets(contracts), [contracts]);
+  const contractSlices = useMemo(() => {
+    const totals: Record<"signed" | "sent" | "preparing" | "cancelled", number> = { signed: 0, sent: 0, preparing: 0, cancelled: 0 };
+    for (const c of contractStatusCounts(contracts)) totals[CONTRACT_GROUP[c.key] || "preparing"] += c.value;
+    return (["signed", "sent", "preparing", "cancelled"] as const).map((k) => ({ key: k, label: CONTRACT_GROUP_LABEL[k], value: totals[k], color: PALETTE.contract[k] }));
+  }, [contracts]);
+  const trendData = months.map((_, i) => ({
+    label: valueSeries[i].label,
+    created: valueSeries[i].count,
+    signed: signedSeries[i].count,
+    ...(closingEnabled ? { closed: closedSeries[i].count } : {}),
+  }));
+  const trendSeries = [
+    { key: "created", label: "Propostas criadas", color: PALETTE.trend.created },
+    { key: "signed", label: "Contratos assinados", color: PALETTE.trend.signed },
+    ...(closingEnabled ? [{ key: "closed", label: "Fechamentos confirmados", color: PALETTE.trend.closed }] : []),
+  ];
 
   const sellerLabel = (id: string) => names.get(id) || "—";
   const hasFilters = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
@@ -168,6 +231,7 @@ export default function Relatorios() {
   const funnelItems = [
     { label: "Propostas criadas", value: stats.total },
     { label: "Propostas finalizadas", value: stats.finalizadas },
+    ...(closingEnabled ? [{ label: "Fechamento confirmado", value: closing.fechadas }] : []),
     { label: "Contrato gerado", value: stats.comContrato },
     { label: "Contrato assinado", value: stats.assinados },
   ].map((s) => ({ ...s, hint: stats.total ? `${Math.round((s.value / stats.total) * 100)}%` : undefined }));
@@ -271,7 +335,7 @@ export default function Relatorios() {
         <TabsContent value="geral" className="space-y-6">
           {/* Estrela-guia */}
           <Card>
-            <CardContent className="p-6 flex items-end justify-between gap-4 flex-wrap">
+            <CardContent className="flex flex-wrap items-end justify-between gap-4 p-5 sm:p-6">
               <div>
                 <p className="text-sm text-muted-foreground">
                   Contratos assinados em {monthLabel(months[months.length - 1])}
@@ -288,26 +352,35 @@ export default function Relatorios() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${closingEnabled ? "xl:grid-cols-5" : ""}`}>
             <StatTile label="Propostas" value={stats.total} icon={<FileText className="h-4 w-4" />}
               hint={`${stats.finalizadas} finalizadas · ${stats.canceladas} canceladas`} />
             <StatTile label="Valor em propostas" value={brl(stats.valorBRL)} icon={<Wallet className="h-4 w-4" />}
               hint={stats.outraMoeda > 0 ? `Exclui ${stats.outraMoeda} em outra moeda e as canceladas` : "Exclui as canceladas"} />
             <StatTile label="Ticket médio" value={stats.ticketMedio === null ? "—" : brl(stats.ticketMedio)} icon={<Receipt className="h-4 w-4" />}
               hint={`Sobre ${stats.qtdNaSoma} proposta${stats.qtdNaSoma === 1 ? "" : "s"}`} />
+            {closingEnabled && (
+              <StatTile label="Fechadas" value={closing.fechadas} icon={<BadgeCheck className="h-4 w-4" />}
+                hint={`${pct(closing.taxa)} das finalizadas · ${brl(closing.valorFechadoBRL)}`} />
+            )}
             <StatTile label="Conversão" value={pct(stats.conversao)} icon={<Percent className="h-4 w-4" />}
               hint={`${stats.assinados} assinada${stats.assinados === 1 ? "" : "s"} de ${stats.finalizadas} finalizada${stats.finalizadas === 1 ? "" : "s"}`} />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <ColumnChart
-              title="Contratos assinados por mês"
-              description="Últimos 12 meses, pela data da assinatura"
-              data={signedSeries.map((m) => ({ label: m.label, value: m.count }))}
-              format={(n) => String(n)}
-              valueHeader="Contratos assinados"
-              integer
-            />
+          <TrendChart
+            title="Evolução mês a mês"
+            description="Últimos 12 meses (vendedor e tipo escolhidos)"
+            data={trendData}
+            series={trendSeries}
+            summary={`Evolução mensal: ${trendSeries.map((s) => s.label).join(", ")}.`}
+          />
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <DonutChart title="Situação das propostas" description="Do período e filtros escolhidos" slices={statusSlices} centerLabel="propostas" />
+            <DonutChart title="Tipo de proposta" description="Quantidade no período" slices={typeSlices} centerLabel="propostas" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <ColumnChart
               title="Valor das propostas criadas por mês"
               description="Últimos 12 meses, em R$ (sem canceladas)"
@@ -315,20 +388,31 @@ export default function Relatorios() {
               format={brlCompact}
               valueHeader="Valor em R$"
             />
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <HBarList title="Funil" description="Do período e filtros escolhidos" items={funnelItems} ordinal />
-            <HBarList
-              title="Por tipo de proposta"
-              description="Valor em R$ no período"
-              items={typeGroups.map((g) => ({ label: g.label, value: g.valorBRL, display: brlCompact(g.valorBRL), hint: `${g.propostas} propostas` }))}
-            />
           </div>
         </TabsContent>
 
         {/* ───────── Propostas ───────── */}
-        <TabsContent value="propostas">
+        <TabsContent value="propostas" className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <StackedColumnChart
+              title="Propostas por mês"
+              description="Últimos 12 meses, pela situação de hoje"
+              data={monthStatus.map((m) => ({ label: m.label, draft: m.draft, finalized: m.finalized, cancelled: m.cancelled }))}
+              series={[
+                { key: "draft", label: "Rascunho", color: PALETTE.status.draft },
+                { key: "finalized", label: "Finalizada", color: PALETTE.status.finalized },
+                { key: "cancelled", label: "Cancelada", color: PALETTE.status.cancelled },
+              ]}
+              summary="Propostas criadas por mês, separadas por situação."
+            />
+            <HBarList
+              title="Principais clientes"
+              description="Valor em R$ no período (sem canceladas)"
+              items={clientsTop.map((c) => ({ label: c.label, value: c.valorBRL, display: brlCompact(c.valorBRL), hint: `${c.propostas} proposta${c.propostas === 1 ? "" : "s"}` }))}
+            />
+          </div>
+          <DetailsSection title="a lista de propostas" count={filtered.length}>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Propostas</CardTitle>
@@ -381,6 +465,7 @@ export default function Relatorios() {
               )}
             </CardContent>
           </Card>
+          </DetailsSection>
         </TabsContent>
 
         {/* ───────── Contratos ───────── */}
@@ -391,6 +476,24 @@ export default function Relatorios() {
             <StatTile label="Em preparo" value={contractCount("draft") + contractCount("em_revisao") + contractCount("aprovado")} hint="Rascunho, revisão ou aprovado" />
             <StatTile label="Tempo até assinar" value={avgDaysToSign(contracts) === null ? "—" : `${String(avgDaysToSign(contracts)).replace(".", ",")} dias`} hint="Do envio à assinatura (média)" />
           </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <DonutChart title="Situação dos contratos" description="Das propostas do período" slices={contractSlices} centerLabel="contratos" empty="Nenhum contrato neste filtro." />
+            <HBarList
+              title="Tempo até assinar"
+              description="Do envio à assinatura, só contratos já assinados"
+              items={signBuckets.map((b) => ({ label: b.label, value: b.value, display: String(b.value) }))}
+              empty="Ainda não há contratos assinados com data de envio."
+            />
+          </div>
+          <ColumnChart
+            title="Contratos assinados por mês"
+            description="Últimos 12 meses, pela data da assinatura"
+            data={signedSeries.map((m) => ({ label: m.label, value: m.count }))}
+            format={(n) => String(n)}
+            valueHeader="Contratos assinados"
+            integer
+          />
+          <DetailsSection title="a lista de contratos" count={contracts.length}>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Contratos</CardTitle>
@@ -436,11 +539,29 @@ export default function Relatorios() {
               )}
             </CardContent>
           </Card>
+          </DetailsSection>
         </TabsContent>
 
         {/* ───────── Vendedores (admin) ───────── */}
         {isAdmin && (
-          <TabsContent value="vendedores">
+          <TabsContent value="vendedores" className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <HBarList
+                title="Valor em propostas por vendedor"
+                description="Em R$, propostas não canceladas"
+                items={sellerGroups.map((g) => ({ label: g.label, value: g.valorBRL, display: brlCompact(g.valorBRL), hint: `${g.propostas} proposta${g.propostas === 1 ? "" : "s"}` }))}
+              />
+              <HBarList
+                title="Conversão por vendedor"
+                description="Contratos assinados ÷ propostas finalizadas"
+                items={[...sellerGroups]
+                  .filter((g) => g.conversao !== null)
+                  .sort((a, b) => (b.conversao ?? 0) - (a.conversao ?? 0))
+                  .map((g) => ({ label: g.label, value: g.conversao ?? 0, display: pct(g.conversao), hint: `${g.assinados} de ${g.finalizadas}` }))}
+                empty="Nenhum vendedor com proposta finalizada no período."
+              />
+            </div>
+            <DetailsSection title="a tabela de vendedores" count={sellerGroups.length}>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Vendedores</CardTitle>
@@ -478,6 +599,7 @@ export default function Relatorios() {
                 </div>
               </CardContent>
             </Card>
+            </DetailsSection>
           </TabsContent>
         )}
       </Tabs>

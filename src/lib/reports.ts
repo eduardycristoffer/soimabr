@@ -32,6 +32,8 @@ export interface ReportQuote {
   usd_brl_rate_used?: number | null;
   created_at: string;
   created_by: string;
+  /** só vem do banco depois do SQL de fechamento (supabase/manual/2026-11-20_proposal_closing.sql) */
+  closed_at?: string | null;
   clients: { razao_social: string | null; nome_fantasia: string | null } | null;
   contracts: ReportContract[];
 }
@@ -251,6 +253,94 @@ export function contractRows(quotes: ReportQuote[]): ContractRow[] {
 export function avgDaysToSign(rows: ContractRow[]): number | null {
   const v = rows.map((r) => r.daysToSign).filter((x): x is number => x !== null);
   return v.length ? Math.round((v.reduce((s, x) => s + x, 0) / v.length) * 10) / 10 : null;
+}
+
+// ───────────── para os gráficos ─────────────
+
+export const STATUS_LABEL: Record<QuoteStatus, string> = { draft: "Rascunho", finalized: "Finalizada", cancelled: "Cancelada" };
+const STATUS_ORDER: QuoteStatus[] = ["draft", "finalized", "cancelled"];
+
+/** Quantas propostas há em cada situação (sempre as três, na mesma ordem). */
+export function statusCounts(quotes: ReportQuote[]): Array<{ key: QuoteStatus; label: string; value: number }> {
+  return STATUS_ORDER.map((key) => ({ key, label: STATUS_LABEL[key], value: quotes.filter((q) => q.status === key).length }));
+}
+
+export interface MonthStatusPoint { key: string; label: string; draft: number; finalized: number; cancelled: number }
+
+/** Propostas criadas por mês, separadas pela situação de hoje (janela de meses fixa). */
+export function monthlyByStatus(quotes: ReportQuote[], months: string[]): MonthStatusPoint[] {
+  const base = new Map<string, MonthStatusPoint>(months.map((k) => [k, { key: k, label: monthLabel(k), draft: 0, finalized: 0, cancelled: 0 }]));
+  for (const q of quotes) {
+    const p = base.get(monthKeyBR(q.created_at));
+    if (p && STATUS_ORDER.includes(q.status)) p[q.status] += 1;
+  }
+  return months.map((k) => base.get(k)!);
+}
+
+export interface TopClient { label: string; propostas: number; valorBRL: number }
+
+/** Clientes que mais valem em propostas (não canceladas, só em R$). */
+export function topClients(quotes: ReportQuote[], n = 8): TopClient[] {
+  const map = new Map<string, TopClient>();
+  for (const q of quotes) {
+    if (q.status === "cancelled" || amountCurrency(q) !== "BRL") continue;
+    const label = q.clients?.nome_fantasia || q.clients?.razao_social || "Sem cliente";
+    const cur = map.get(label) || { label, propostas: 0, valorBRL: 0 };
+    cur.propostas += 1;
+    cur.valorBRL += Number(q.total) || 0;
+    map.set(label, cur);
+  }
+  return [...map.values()].sort((a, b) => b.valorBRL - a.valorBRL || b.propostas - a.propostas || a.label.localeCompare(b.label)).slice(0, n);
+}
+
+/** Em quanto tempo os contratos foram assinados (do envio à assinatura). */
+export function signDaysBuckets(rows: ContractRow[]): Array<{ label: string; value: number }> {
+  const days = rows.map((r) => r.daysToSign).filter((x): x is number => x !== null);
+  const within = (max: number, min = -Infinity) => days.filter((d) => d > min && d <= max).length;
+  return [
+    { label: "Até 3 dias", value: within(3) },
+    { label: "4 a 7 dias", value: within(7, 3) },
+    { label: "8 a 14 dias", value: within(14, 7) },
+    { label: "Mais de 14 dias", value: days.filter((d) => d > 14).length },
+  ];
+}
+
+/** Contratos por situação, do mais comum ao menos comum. */
+export function contractStatusCounts(rows: ContractRow[]): Array<{ key: string; value: number }> {
+  const map = new Map<string, number>();
+  for (const r of rows) map.set(r.status, (map.get(r.status) || 0) + 1);
+  return [...map.entries()].map(([key, value]) => ({ key, value })).sort((a, b) => b.value - a.value);
+}
+
+/** Fechamentos confirmados por mês (data do fechamento). Só conta proposta finalizada. */
+export function closedByMonth(quotes: ReportQuote[], months: string[]): MonthPoint[] {
+  const count = new Map(months.map((k) => [k, 0]));
+  const value = new Map(months.map((k) => [k, 0]));
+  for (const q of quotes) {
+    if (q.status !== "finalized" || !q.closed_at) continue;
+    const k = monthKeyBR(q.closed_at);
+    if (!count.has(k)) continue;
+    count.set(k, (count.get(k) || 0) + 1);
+    if (amountCurrency(q) === "BRL") value.set(k, (value.get(k) || 0) + (Number(q.total) || 0));
+  }
+  return months.map((k) => ({ key: k, label: monthLabel(k), count: count.get(k) || 0, value: value.get(k) || 0 }));
+}
+
+export interface ClosingStats {
+  fechadas: number;
+  valorFechadoBRL: number;
+  /** fechadas ÷ finalizadas (%); null quando não há finalizadas */
+  taxa: number | null;
+}
+
+export function closingStats(quotes: ReportQuote[]): ClosingStats {
+  const finalizadas = quotes.filter((q) => q.status === "finalized");
+  const fechadas = finalizadas.filter((q) => !!q.closed_at);
+  return {
+    fechadas: fechadas.length,
+    valorFechadoBRL: fechadas.filter((q) => amountCurrency(q) === "BRL").reduce((s, q) => s + (Number(q.total) || 0), 0),
+    taxa: finalizadas.length > 0 ? Math.round((fechadas.length / finalizadas.length) * 100) : null,
+  };
 }
 
 // ───────────── exportação ─────────────

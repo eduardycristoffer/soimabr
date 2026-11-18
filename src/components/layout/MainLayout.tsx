@@ -81,7 +81,7 @@ export function MainLayout() {
             <Menu className="h-5 w-5" />
           </Button>
         </div>
-        <div className="container mx-auto max-w-screen-2xl p-6 lg:p-8">
+        <div className="container mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>
