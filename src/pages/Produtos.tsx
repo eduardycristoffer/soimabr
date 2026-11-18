@@ -144,9 +144,9 @@ export default function Produtos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Catálogo de Produtos</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Catálogo de Produtos</h1>
           <p className="text-muted-foreground">
             Gerencie gruas, torres, tramos e acessórios
           </p>
@@ -158,7 +158,7 @@ export default function Produtos() {
               {needsReviewCount} sem preço
             </Badge>
           )}
-          <Button onClick={handleNew}>
+          <Button onClick={handleNew} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
             Novo Produto
           </Button>

@@ -68,7 +68,7 @@ export default function RegrasDesconto() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Regras de Desconto</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Regras de Desconto</h1>
         <p className="text-muted-foreground">Configuração de limites de desconto por perfil</p>
       </div>
 

@@ -1,3 +1,4 @@
+import { formatRate } from "@/lib/numberFormat";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -138,7 +139,7 @@ export default function ProductPicker({
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             Proposta internacional USD — usando preço internacional (BRL) como base.
-            {usdBrlRate && ` Cotação: 1 USD = R$ ${usdBrlRate.toFixed(4)}`}
+            {usdBrlRate && ` Cotação: 1 USD = R$ ${formatRate(usdBrlRate)}`}
           </span>
         </div>
       )}

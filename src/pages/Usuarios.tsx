@@ -121,12 +121,12 @@ export default function Usuarios() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Usuários</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Usuários</h1>
           <p className="text-muted-foreground">Gerencie os usuários e suas permissões</p>
         </div>
-        <Button onClick={() => setInviteOpen(true)}>
+        <Button onClick={() => setInviteOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Novo Usuário
         </Button>

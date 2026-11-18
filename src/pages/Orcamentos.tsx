@@ -415,7 +415,7 @@ export default function Orcamentos() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Propostas Comerciais</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Propostas Comerciais</h1>
           <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
         <Button onClick={handleNew} data-tour="nova-proposta" className="rounded-full self-start sm:self-auto">

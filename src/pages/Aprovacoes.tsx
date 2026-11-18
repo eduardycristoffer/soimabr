@@ -1,3 +1,4 @@
+import { formatDecimal } from "@/lib/numberFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -156,7 +157,7 @@ export default function Aprovacoes() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-destructive">{req.discount_percent}%</p>
+              <p className="text-2xl font-bold text-destructive">{formatDecimal(req.discount_percent)}%</p>
               <p className="text-xs text-muted-foreground">
                 -{req.quotes ? formatQuoteAmount(discountVal, req.quotes) : "-"}
               </p>
@@ -211,7 +212,7 @@ export default function Aprovacoes() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Aprovações de Desconto</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Aprovações de Desconto</h1>
         <p className="text-muted-foreground">Gerencie pedidos de desconto dos operadores</p>
       </div>
 

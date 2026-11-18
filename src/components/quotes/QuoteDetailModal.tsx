@@ -1,3 +1,4 @@
+import { formatDecimal, formatRate } from "@/lib/numberFormat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -333,7 +334,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                   {(quote as any).usd_brl_rate_used && (
                     <p className="pt-1 border-t mt-2">
                       <span className="text-muted-foreground">Cotação USD/BRL:</span>{" "}
-                      {Number((quote as any).usd_brl_rate_used).toFixed(4)}
+                      {formatRate(Number((quote as any).usd_brl_rate_used))}
                       {(quote as any).usd_brl_rate_updated_at && (
                         <span className="text-xs text-muted-foreground ml-1">
                           (em {formatDate((quote as any).usd_brl_rate_updated_at)})
@@ -449,13 +450,13 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                         </div>
                         {quote.discount_percent > 0 && (
                           <div className="flex justify-between text-destructive">
-                            <span>Desconto ({quote.discount_percent}%)</span>
+                            <span>Desconto ({formatDecimal(quote.discount_percent)}%)</span>
                             <span>-{formatCurrency(quote.discount_value, quote.currency)}</span>
                           </div>
                         )}
                         {(quote as any).rental_tax_percent > 0 && (
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Impostos ({(quote as any).rental_tax_percent}%)</span>
+                            <span className="text-muted-foreground">Impostos ({formatDecimal((quote as any).rental_tax_percent)}%)</span>
                             <span>{formatCurrency(quote.total - (quote.subtotal - quote.discount_value), quote.currency)}</span>
                           </div>
                         )}
@@ -488,7 +489,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                           </div>
                           {quote.discount_percent > 0 && (
                             <div className="flex justify-between text-destructive">
-                              <span>Desconto ({quote.discount_percent}%)</span>
+                              <span>Desconto ({formatDecimal(quote.discount_percent)}%)</span>
                               <span className="font-medium">-{formatCurrency(quote.discount_value, quote.currency)}</span>
                             </div>
                           )}

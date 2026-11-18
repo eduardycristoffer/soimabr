@@ -1,3 +1,4 @@
+import { formatDecimal } from "@/lib/numberFormat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   GROUP_TITLE, effectiveQty, lineValue, normalizeLines, rentalTotals, shownLines, type LineGroup,
@@ -78,10 +79,10 @@ export default function RentalItemsCard({ serviceData, months, discountPercent =
             <>
               <div className="flex justify-between"><span className="text-muted-foreground">Valor total estimado por equipamento</span><span className="font-medium">{formatMoney(totals.subtotal)}</span></div>
               {totals.discount > 0 && (
-                <div className="flex justify-between text-destructive"><span>Desconto ({discountPercent}%)</span><span>-{formatMoney(totals.discount)}</span></div>
+                <div className="flex justify-between text-destructive"><span>Desconto ({formatDecimal(discountPercent)}%)</span><span>-{formatMoney(totals.discount)}</span></div>
               )}
               {totals.tax > 0 && (
-                <div className="flex justify-between"><span className="text-muted-foreground">Impostos ({taxPercent}%)</span><span>{formatMoney(totals.tax)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Impostos ({formatDecimal(taxPercent)}%)</span><span>{formatMoney(totals.tax)}</span></div>
               )}
             </>
           )}

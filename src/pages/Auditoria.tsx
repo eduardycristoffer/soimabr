@@ -145,7 +145,7 @@ export default function Auditoria() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Auditoria</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Auditoria</h1>
         <p className="text-muted-foreground">Histórico de todas as ações realizadas no sistema</p>
       </div>
 

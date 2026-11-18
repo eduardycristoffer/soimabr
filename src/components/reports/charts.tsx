@@ -31,12 +31,14 @@ interface ColumnChartProps {
   format: (n: number) => string;
   /** Formata os números do eixo vertical (padrão: igual a `format`) */
   axisFormat?: (n: number) => string;
+  /** Valor exato ao passar o mouse (padrão: igual a `format`) */
+  tooltipFormat?: (n: number) => string;
   /** Título da coluna de valores na tabela */
   valueHeader: string;
   integer?: boolean;
 }
 
-export function ColumnChart({ title, description, data, format, axisFormat, valueHeader, integer }: ColumnChartProps) {
+export function ColumnChart({ title, description, data, format, axisFormat, tooltipFormat, valueHeader, integer }: ColumnChartProps) {
   const [asTable, setAsTable] = useState(false);
   const last = data.length - 1;
   const latest = data[last];
@@ -108,7 +110,7 @@ export function ColumnChart({ title, description, data, format, axisFormat, valu
                     active && payload?.length ? (
                       <div className="rounded-lg border bg-card px-3 py-2 text-xs shadow-sm">
                         <div className="text-muted-foreground">{payload[0].payload.label}</div>
-                        <div className="text-sm font-semibold text-foreground">{format(payload[0].value)}</div>
+                        <div className="text-sm font-semibold text-foreground">{(tooltipFormat || format)(payload[0].value)}</div>
                       </div>
                     ) : null
                   }
@@ -197,19 +199,25 @@ interface StatTileProps {
   value: ReactNode;
   hint?: ReactNode;
   icon?: ReactNode;
+  /** valor exato, mostrado ao passar o mouse (ou tocar) quando o número vem abreviado */
+  title?: string;
 }
 
-/** Cartão de um número só: rótulo, valor e uma nota curta. */
-export function StatTile({ label, value, hint, icon }: StatTileProps) {
+/**
+ * Cartão de um número só: rótulo, valor e uma nota curta.
+ * O valor nunca passa da largura do cartão: números grandes chegam abreviados (ver lib/numberFormat) e,
+ * se ainda assim não couberem, são cortados com "…" (o valor exato fica no title).
+ */
+export function StatTile({ label, value, hint, icon, title }: StatTileProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {icon && <span className="text-muted-foreground">{icon}</span>}
+          <p className="text-sm leading-snug text-muted-foreground">{label}</p>
+          {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}
         </div>
-        <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+        <p className="mt-1 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl" title={title}>{value}</p>
+        {hint && <p className="mt-1 text-xs leading-snug text-muted-foreground [overflow-wrap:anywhere]">{hint}</p>}
       </CardContent>
     </Card>
   );

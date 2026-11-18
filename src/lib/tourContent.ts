@@ -19,7 +19,7 @@ export const NOVIDADES_TOUR: Tour = {
       body:
         "Este tour leva cerca de 3 minutos e mostra o que mudou: propostas, contratos, assinatura digital, envio por e-mail, relatórios e o aplicativo para celular.\n\n" +
         "Use os botões ou as setas do teclado. A tecla Esc fecha o tour.",
-      tip: "Para refazer depois, use o botão “Tour guiado” no menu lateral.",
+      tip: "Para refazer depois, use o botão “Tour guiado” no menu (no celular, toque em “Mais”).",
     },
     {
       id: "propostas",
@@ -125,7 +125,7 @@ export const NOVIDADES_TOUR: Tour = {
       placement: "right",
       title: "Instale como aplicativo",
       body:
-        "No computador e no Android, use “Instalar app” no menu lateral. No iPhone, abra pelo Safari e toque em Compartilhar → Adicionar à Tela de Início.\n\n" +
+        "No computador e no Android, use “Instalar app” no menu (no celular, em “Mais”). No iPhone, abra pelo Safari e toque em Compartilhar → Adicionar à Tela de Início.\n\n" +
         "O app abre em tela cheia, avisa quando há versão nova e mostra um aviso se a internet cair.",
       tip: "Os dados continuam precisando de internet e nunca ficam guardados no aparelho.",
     },
@@ -133,7 +133,7 @@ export const NOVIDADES_TOUR: Tour = {
       id: "fim",
       title: "Pronto!",
       body:
-        "Para rever este tour, use “Tour guiado” no menu lateral.\n\n" +
+        "Para rever este tour, use “Tour guiado” no menu (no celular, em “Mais”).\n\n" +
         "Se algo não funcionar como descrito aqui, avise para ajustarmos.",
     },
   ],

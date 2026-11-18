@@ -1,3 +1,4 @@
+import { formatRate } from "@/lib/numberFormat";
 import {
   USD_ESTIMATE_NOTE,
   brlToUsdEstimate,
@@ -32,7 +33,7 @@ export function QuoteAmount({ value, quote, liveRate, className, showEstimate = 
   const rate = pickEstimateRate(quote, liveRate);
   const usd = brlToUsdEstimate(value, rate);
   const note = rate
-    ? `${USD_ESTIMATE_NOTE} (1 US$ = R$ ${rate.toFixed(4)})`
+    ? `${USD_ESTIMATE_NOTE} (1 US$ = R$ ${formatRate(rate)})`
     : USD_ESTIMATE_NOTE;
 
   return (

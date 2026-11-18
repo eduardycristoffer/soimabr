@@ -1,3 +1,4 @@
+import { formatDecimal, formatRate } from "@/lib/numberFormat";
 import { QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +89,7 @@ export default function StepReview({
         <div className="flex items-center gap-2 p-3 rounded-lg border border-blue-300 bg-blue-50 text-blue-800 text-sm">
           <RefreshCw className={`h-4 w-4 shrink-0 ${isRateStale ? "text-amber-600" : ""}`} />
           <div className="flex-1">
-            <span className="font-medium">Cotação USD/BRL: {usdBrlRate.toFixed(4)}</span>
+            <span className="font-medium">Cotação USD/BRL: {formatRate(usdBrlRate)}</span>
             {usdBrlLastUpdated && (
               <span className="text-xs ml-2">(atualizada em {usdBrlLastUpdated})</span>
             )}
@@ -260,7 +261,7 @@ export default function StepReview({
                         <span>
                           {data.hide_discount_value
                             ? "Desconto aplicado (oculto no PDF)"
-                            : `Desconto (${data.discount_percent}%)`}
+                            : `Desconto (${formatDecimal(data.discount_percent)}%)`}
                         </span>
                         <span className="font-medium">-{isInternationalUsd ? formatBrl(discountValue) : formatCurrency(discountValue)}</span>
                       </div>

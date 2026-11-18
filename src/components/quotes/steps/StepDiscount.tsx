@@ -1,3 +1,4 @@
+import { formatDecimal, formatRate } from "@/lib/numberFormat";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -152,7 +153,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
             </div>
             {data.discount_percent > 0 && (
               <div className="flex justify-between text-destructive">
-                <span>Desconto ({data.discount_percent}%)</span>
+                <span>Desconto ({formatDecimal(data.discount_percent)}%)</span>
                 <div className="text-right">
                   <span className="font-medium">-{formatBRL(discountValue)}</span>
                   {showDualCurrency && (
@@ -180,7 +181,7 @@ export default function StepDiscount({ data, updateData, subtotal, discountValue
             <div className="flex items-start gap-1.5 pt-2 border-t text-xs text-muted-foreground">
               <Info className="h-3 w-3 mt-0.5 shrink-0" />
               <span>
-                Valor em USD estimado com base na cotação do dia (1 USD = R$ {usdBrlRate.toFixed(4)}).
+                Valor em USD estimado com base na cotação do dia (1 USD = R$ {formatRate(usdBrlRate)}).
                 O valor final pode variar conforme a cotação no momento do pagamento.
               </span>
             </div>
