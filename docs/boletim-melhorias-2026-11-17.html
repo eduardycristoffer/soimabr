@@ -88,13 +88,13 @@
     <div class="kpi"><b>10</b><span>entregas prontas no código</span></div>
     <div class="kpi"><b>218</b><span>testes automáticos passando</span></div>
     <div class="kpi"><b>~90</b><span>arquivos novos ou alterados</span></div>
-    <div class="kpi"><b>0</b><span>mudanças na <span class="mono">main</span> ou em produção</span></div>
+    <div class="kpi"><b>main</b><span>código unido em 17/11; a produção só muda quando você clica em Publish</span></div>
   </div>
 </header>
 
 <div class="callout">
   <strong>Resumo</strong>
-  As 10 entregas desta lista estão feitas e testadas no código, guardadas em branches do Git; <strong>nada foi publicado</strong>.
+  As 10 entregas desta lista estão feitas e testadas no código e foram <strong>unidas na <span class="mono">main</span> em 17/11/2026</strong>. Ainda <strong>não estão em produção</strong>: isso só acontece quando você clica em <em>Publish</em> no Lovable.
   Para entrar no ar falta você aprovar, aplicar 4 arquivos de banco de dados, pedir 4 publicações de funções ao Lovable e conectar as contas de e-mail e do Autentique.
   O que ainda não foi iniciado está na seção 6.
 </div>
@@ -276,7 +276,7 @@
 <h2 id="no-ar"><span class="n">3</span>Como colocar no ar</h2>
 <p>O Lovable <strong>não</strong> publica funções nem roda SQL que chegam pelo Git. Por isso a ordem importa. O passo a passo completo, com as frases prontas para o chat do Lovable, está em <span class="mono">supabase/manual/LEIAME.md</span>.</p>
 <ol class="steps">
-  <li><strong>Aprovar e juntar na <span class="mono">main</span>.</strong> As branches estão empilhadas: a mais recente contém todas. Depois do merge, o Lovable sincroniza e você clica em <em>Publish</em>.</li>
+  <li><strong>Código na <span class="mono">main</span>: feito em 17/11/2026.</strong> O Lovable sincroniza sozinho. O passo que falta é clicar em <em>Publish</em>; as telas novas já convivem com o banco antigo, e a função que depende de uma coluna só aparece depois do SQL correspondente.</li>
   <li><strong>Publicar 4 funções pelo chat do Lovable</strong>, uma de cada vez e sem alterar nada: <span class="mono">generate-contract-pdf</span>, <span class="mono">contract-signature</span>, <span class="mono">proposal-email</span>, <span class="mono">generate-pdf</span>.</li>
   <li><strong>Rodar os 4 arquivos SQL</strong>, nesta ordem: serviços adicionais do contrato → Autentique → e-mail → proposta de serviço. São só colunas e tabelas novas; nada existente é alterado.</li>
   <li><strong>Autentique:</strong> criar os segredos no Lovable Cloud (a chave nunca vai no chat) e cadastrar o endereço do webhook.</li>
@@ -335,7 +335,7 @@
 <table>
   <thead><tr><th>Branch</th><th>Commit</th><th>Conteúdo</th></tr></thead>
   <tbody>
-    <tr><td><span class="mono">main</span></td><td><span class="mono">3f5d8ed</span></td><td>Sem alterações (sincroniza com o Lovable e a produção)</td></tr>
+    <tr><td><span class="mono">main</span></td><td>merge de 17/11</td><td>Contém todo o trabalho abaixo (antes estava em <span class="mono">3f5d8ed</span>) e também a restrição de leitura de modelos, cláusulas e configurações a usuários ativos, que o próprio Lovable colocou na <span class="mono">main</span> no mesmo dia</td></tr>
     <tr><td><span class="mono">feat/contratos-melhorias</span></td><td><span class="mono">a42d6f2</span></td><td>Contratos, valores em R$, locação, Autentique, e-mail, PDF, relatórios, PWA</td></tr>
     <tr><td><span class="mono">feat/proposta-servico</span></td><td><span class="mono">4c425ed</span></td><td>Proposta de serviço</td></tr>
     <tr><td><span class="mono">feat/tour-guiado</span></td><td>último da branch</td><td>Tour guiado e este boletim</td></tr>
