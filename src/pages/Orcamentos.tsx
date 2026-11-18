@@ -226,6 +226,12 @@ export default function Orcamentos() {
     }
   };
 
+  // Hooks precisam rodar antes do retorno antecipado do assistente.
+  // Propostas internacionais em USD são em R$: o dólar é só estimativa pela cotação de hoje.
+  // A cotação só é buscada quando há alguma proposta assim na lista.
+  const hasUsdEstimateQuotes = !!quotes?.some((q) => isUsdEstimateQuote(q as any));
+  const { rate: liveUsdRate } = useUsdBrlRate(hasUsdEstimateQuotes);
+
   if (wizardOpen) {
     if (wizardType === "locacao") {
       return <RentalWizard onClose={handleCloseWizard} editingQuoteId={editingQuoteId} duplicatingQuoteId={duplicatingQuoteId} />;
@@ -273,10 +279,6 @@ export default function Orcamentos() {
 
   const filteredQuotes = statusFilter === "all" ? quotes : quotes?.filter((q) => q.status === statusFilter);
 
-  // Propostas internacionais em USD são em R$: o dólar é só estimativa pela cotação de hoje.
-  // A cotação só é buscada quando há alguma proposta assim na lista.
-  const hasUsdEstimateQuotes = !!quotes?.some((q) => isUsdEstimateQuote(q as any));
-  const { rate: liveUsdRate } = useUsdBrlRate(hasUsdEstimateQuotes);
 
   const renderQuoteActions = (quote: any) => (
     <DropdownMenu>
