@@ -1,0 +1,2 @@
+REVOKE ALL ON public.fleet_units, public.fleet_rentals, public.fleet_costs FROM authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.fleet_units, public.fleet_rentals, public.fleet_costs TO authenticated;

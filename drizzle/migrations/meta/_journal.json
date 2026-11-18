@@ -71,6 +71,13 @@
       "when": 1794977620945,
       "tag": "0009_fleet_management_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794977699358,
+      "tag": "0010_tighten_fleet_table_grants",
+      "breakpoints": true
     }
   ]
 }
