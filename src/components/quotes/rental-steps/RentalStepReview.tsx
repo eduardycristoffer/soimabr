@@ -1,6 +1,6 @@
 import { RentalWizardData } from "@/hooks/useRentalWizard";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, CheckCircle } from "lucide-react";
+import { Loader2, Save, CheckCircle, Send } from "lucide-react";
 
 interface Props {
   data: RentalWizardData;
@@ -9,12 +9,15 @@ interface Props {
   onSaveDraft: () => void;
   onFinalize: () => void;
   onSaveChanges?: () => void;
+  /** Desconto acima do limite: não pode finalizar, só enviar para aprovação */
+  needsApproval?: boolean;
+  onRequestApproval?: () => void;
   isSaving: boolean;
 }
 
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-export default function RentalStepReview({ data, total, onPrev, onSaveDraft, onFinalize, onSaveChanges, isSaving }: Props) {
+export default function RentalStepReview({ data, total, onPrev, onSaveDraft, onFinalize, onSaveChanges, needsApproval = false, onRequestApproval, isSaving }: Props) {
   return (
     <div className="space-y-6">
       <div className="text-center py-6">
@@ -34,10 +37,17 @@ export default function RentalStepReview({ data, total, onPrev, onSaveDraft, onF
         </div>
       </div>
 
+      {needsApproval && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+          <Send className="h-4 w-4 shrink-0" />
+          <span>Esta proposta requer aprovação de desconto por um administrador antes de ser finalizada.</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
         <Button variant="outline" onClick={onPrev} disabled={isSaving}>Voltar</Button>
         <div className="flex flex-wrap gap-3 justify-end">
-          {onSaveChanges && (
+          {onSaveChanges && !needsApproval && (
             <Button variant="secondary" onClick={onSaveChanges} disabled={isSaving} title="Salva a correção mantendo a proposta finalizada e registra nova revisão">
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Salvar alteração (manter finalizada)
@@ -47,10 +57,17 @@ export default function RentalStepReview({ data, total, onPrev, onSaveDraft, onF
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             {onSaveChanges ? "Voltar para Rascunho" : "Salvar Rascunho"}
           </Button>
-          <Button onClick={onFinalize} disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            Finalizar Proposta
-          </Button>
+          {needsApproval ? (
+            <Button onClick={onRequestApproval} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Enviar para Aprovação
+            </Button>
+          ) : (
+            <Button onClick={onFinalize} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Finalizar Proposta
+            </Button>
+          )}
         </div>
       </div>
     </div>

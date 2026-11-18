@@ -71,3 +71,34 @@ export function formatPhone(value: string): string {
     .replace(/^(\d{2})(\d)/, "($1) $2")
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
+
+export function onlyDigits(value: string | null | undefined): string {
+  return (value || "").replace(/\D/g, "");
+}
+
+export function formatCEP(value: string): string {
+  const cleaned = onlyDigits(value).slice(0, 8);
+  return cleaned.replace(/^(\d{5})(\d)/, "$1-$2");
+}
+
+// Versões "tolerantes": só formatam quando o valor tem o tamanho esperado.
+// Servem para exibir/gravar dados já cadastrados sem estragar textos livres
+// (ex.: "62 3518-9754 / 62 99986-6916" continua como está).
+export function formatCpfIfPossible(value: string | null | undefined): string {
+  const v = (value || "").trim();
+  return onlyDigits(v).length === 11 && /^[\d.\-\s]+$/.test(v) ? formatCPF(v) : v;
+}
+
+export function formatCnpjIfPossible(value: string | null | undefined): string {
+  const v = (value || "").trim();
+  return onlyDigits(v).length === 14 && /^[\d.\-/\s]+$/.test(v) ? formatCNPJ(v) : v;
+}
+
+export function formatPhoneIfPossible(value: string | null | undefined): string {
+  const v = (value || "").trim();
+  const d = onlyDigits(v);
+  const looksLikeSinglePhone = /^[\d()\s\-+]+$/.test(v);
+  if (!looksLikeSinglePhone) return v;
+  if (d.length === 10 || d.length === 11) return formatPhone(v);
+  return v;
+}

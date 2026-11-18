@@ -2,79 +2,79 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatMoney } from "@/lib/quoteMoney";
+import { QuoteAmount } from "@/components/quotes/QuoteAmount";
+import { ColumnChart, HBarList, StatTile } from "@/components/reports/charts";
+import {
+  QUOTE_TYPE_LABEL,
+  avgDaysToSign,
+  byType,
+  bySeller,
+  computeStats,
+  contractRows,
+  downloadCsv,
+  filterQuotes,
+  lastMonthKeys,
+  monthLabel,
+  presetRange,
+  quotesByMonth,
+  signedByMonth,
+  toCsv,
+  todayBR,
+  type PeriodPreset,
+  type ReportFilters,
+  type ReportQuote,
+} from "@/lib/reports";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  FileText,
-  FileSignature,
-  CheckCircle2,
-  XCircle,
-  TrendingUp,
-  FilterX,
-  BarChart3,
+  ArrowDown, ArrowUp, BarChart3, Download, FileSignature, FileText, FilterX, Minus, Percent, Receipt, Wallet,
 } from "lucide-react";
 
-type QuoteStatus = "draft" | "finalized" | "cancelled";
-
-const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const QUOTE_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizada", variant: "default" },
   cancelled: { label: "Cancelada", variant: "destructive" },
 };
 
-const contractStatusLabel: Record<string, string> = {
-  draft: "Contrato em rascunho",
-  em_revisao: "Contrato em revisão",
-  aprovado: "Contrato aprovado",
-  sent: "Contrato enviado",
-  signed: "Contrato assinado",
-  cancelled: "Contrato cancelado",
+const CONTRACT_STATUS: Record<string, string> = {
+  draft: "Rascunho",
+  em_revisao: "Em revisão",
+  aprovado: "Aprovado",
+  sent: "Aguardando assinatura",
+  signed: "Assinado",
+  cancelled: "Cancelado",
 };
 
-interface QuoteRow {
-  id: string;
-  quote_number: string;
-  status: QuoteStatus;
-  total: number;
-  currency: string;
-  created_at: string;
-  created_by: string;
-  clients: { razao_social: string | null; nome_fantasia: string | null } | null;
-  contracts: { id: string; status: string }[];
-}
+const DEFAULT_FILTERS: ReportFilters = { status: "all", seller: "all", type: "all", start: "", end: "" };
+const PAGE = 25;
+
+const fmtDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+const brl = (n: number) => formatMoney(n, "BRL");
+const brlCompact = (n: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(n);
+const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
+const numPt = (n: number) => n.toFixed(2).replace(".", ",");
 
 export default function Relatorios() {
   const { user, isAdmin } = useAuth();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sellerFilter, setSellerFilter] = useState<string>("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
+  const [preset, setPreset] = useState<PeriodPreset | "custom">("all");
+  const [tab, setTab] = useState("geral");
+  const [quotesShown, setQuotesShown] = useState(PAGE);
+  const [contractsShown, setContractsShown] = useState(PAGE);
 
   const { data: sellers } = useQuery({
     queryKey: ["report-sellers"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles_directory")
-        .select("user_id, name")
-        .order("name");
+      const { data, error } = await supabase.from("profiles_directory").select("user_id, name").order("name");
       if (error) throw error;
       return data as { user_id: string; name: string }[];
     },
@@ -82,105 +82,154 @@ export default function Relatorios() {
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["report-quotes", isAdmin, user?.user_id],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, quote_number, status, total, currency, created_at, created_by, clients(razao_social, nome_fantasia), contracts(id, status)")
+        .select(
+          "id, quote_number, status, quote_type, total, currency, usd_brl_rate_used, created_at, created_by, clients(razao_social, nome_fantasia), contracts(id, contract_number, status, signed_at, sent_at, created_at)",
+        )
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as QuoteRow[];
+      return data as unknown as ReportQuote[];
     },
-    enabled: !!user,
   });
 
-  const sellerName = useMemo(() => {
-    const map = new Map<string, string>();
-    sellers?.forEach((s) => map.set(s.user_id, s.name));
-    return map;
-  }, [sellers]);
+  const names = useMemo(() => new Map((sellers || []).map((s) => [s.user_id, s.name])), [sellers]);
+  const all = quotes || [];
 
-  const filtered = useMemo(() => {
-    if (!quotes) return [];
-    return quotes.filter((q) => {
-      if (statusFilter !== "all" && q.status !== statusFilter) return false;
-      if (sellerFilter !== "all" && q.created_by !== sellerFilter) return false;
-      if (startDate && q.created_at < `${startDate}T00:00:00`) return false;
-      if (endDate && q.created_at > `${endDate}T23:59:59.999`) return false;
-      return true;
-    });
-  }, [quotes, statusFilter, sellerFilter, startDate, endDate]);
+  // Números do período/filtros escolhidos
+  const filtered = useMemo(() => filterQuotes(all, filters), [all, filters]);
+  const stats = useMemo(() => computeStats(filtered), [filtered]);
 
-  const stats = useMemo(() => {
-    const total = filtered.length;
-    const valorTotal = filtered
-      .filter((q) => q.status !== "cancelled")
-      .reduce((sum, q) => sum + (q.total || 0), 0);
-    const finalizadas = filtered.filter((q) => q.status === "finalized").length;
-    const canceladas = filtered.filter((q) => q.status === "cancelled").length;
-    const comContrato = filtered.filter((q) => q.contracts.length > 0).length;
-    const assinados = filtered.filter((q) =>
-      q.contracts.some((c) => c.status === "signed")
-    ).length;
-    const conversao = total > 0 ? Math.round((assinados / total) * 100) : 0;
-    return { total, valorTotal, finalizadas, canceladas, comContrato, assinados, conversao };
-  }, [filtered]);
+  // Séries mensais: janela fixa de 12 meses; respeitam vendedor e tipo, mas não o período
+  const months = useMemo(() => lastMonthKeys(12), []);
+  const seriesBase = useMemo(
+    () => filterQuotes(all, { ...filters, status: "all", start: "", end: "" }),
+    [all, filters.seller, filters.type], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const signedSeries = useMemo(() => signedByMonth(seriesBase, months), [seriesBase, months]);
+  const valueSeries = useMemo(() => quotesByMonth(seriesBase, months), [seriesBase, months]);
 
-  const funnel = useMemo(() => {
-    const steps = [
-      { label: "Propostas criadas", count: stats.total },
-      { label: "Propostas finalizadas", count: stats.finalizadas },
-      { label: "Contrato gerado", count: stats.comContrato },
-      { label: "Contrato assinado", count: stats.assinados },
-    ];
-    const max = Math.max(stats.total, 1);
-    return steps.map((s) => ({ ...s, pct: Math.round((s.count / max) * 100) }));
-  }, [stats]);
+  const currentSigned = signedSeries[signedSeries.length - 1]?.count ?? 0;
+  const previousSigned = signedSeries[signedSeries.length - 2]?.count ?? 0;
+  const delta = currentSigned - previousSigned;
 
-  const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  const typeGroups = useMemo(() => byType(filtered), [filtered]);
+  const sellerGroups = useMemo(() => bySeller(filtered, names), [filtered, names]);
+  const contracts = useMemo(() => contractRows(filtered), [filtered]);
+  const contractCount = (s: string) => contracts.filter((c) => c.status === s).length;
 
-  const formatDate = (date: string) =>
-    new Intl.DateTimeFormat("pt-BR").format(new Date(date));
+  const sellerLabel = (id: string) => names.get(id) || "—";
+  const hasFilters = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
 
-  const clearFilters = () => {
-    setStatusFilter("all");
-    setSellerFilter("all");
-    setStartDate("");
-    setEndDate("");
+  const applyPreset = (p: PeriodPreset | "custom") => {
+    setPreset(p);
+    if (p !== "custom") setFilters((f) => ({ ...f, ...presetRange(p) }));
+    setQuotesShown(PAGE);
+    setContractsShown(PAGE);
+  };
+  const setFilter = (patch: Partial<ReportFilters>) => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setQuotesShown(PAGE);
+    setContractsShown(PAGE);
+  };
+  const clearAll = () => { setFilters(DEFAULT_FILTERS); setPreset("all"); setQuotesShown(PAGE); setContractsShown(PAGE); };
+
+  const exportCsv = () => {
+    const stamp = todayBR();
+    if (tab === "contratos") {
+      downloadCsv(`relatorio-contratos-${stamp}.csv`, toCsv(
+        ["Contrato", "Proposta", "Cliente", "Status", "Enviado em", "Assinado em", "Dias até assinar"],
+        contracts.map((c) => [c.contract_number, c.quote_number, c.client, CONTRACT_STATUS[c.status] || c.status, fmtDate(c.sent_at), fmtDate(c.signed_at), c.daysToSign]),
+      ));
+    } else if (tab === "vendedores") {
+      downloadCsv(`relatorio-vendedores-${stamp}.csv`, toCsv(
+        ["Vendedor", "Propostas", "Finalizadas", "Contratos assinados", "Valor (R$)", "Conversão"],
+        sellerGroups.map((g) => [g.label, g.propostas, g.finalizadas, g.assinados, numPt(g.valorBRL), pct(g.conversao)]),
+      ));
+    } else {
+      downloadCsv(`relatorio-propostas-${stamp}.csv`, toCsv(
+        ["Número", "Cliente", "Tipo", "Vendedor", "Valor (R$)", "Status", "Contrato", "Criada em"],
+        filtered.map((q) => [
+          q.quote_number,
+          q.clients?.nome_fantasia || q.clients?.razao_social || "",
+          QUOTE_TYPE_LABEL[q.quote_type || "venda"] || q.quote_type,
+          sellerLabel(q.created_by),
+          numPt(Number(q.total) || 0),
+          QUOTE_STATUS[q.status]?.label || q.status,
+          q.contracts.some((c) => c.status === "signed") ? "Assinado" : q.contracts.length ? "Em andamento" : "",
+          fmtDate(q.created_at),
+        ]),
+      ));
+    }
   };
 
-  const hasFilters =
-    statusFilter !== "all" || sellerFilter !== "all" || startDate !== "" || endDate !== "";
-
-  const quoteContractStatus = (q: QuoteRow) => {
-    if (q.contracts.length === 0) return null;
-    if (q.contracts.some((c) => c.status === "signed")) return "signed";
-    const active = q.contracts.find((c) => c.status !== "cancelled");
-    return active?.status ?? "cancelled";
-  };
+  const funnelItems = [
+    { label: "Propostas criadas", value: stats.total },
+    { label: "Propostas finalizadas", value: stats.finalizadas },
+    { label: "Contrato gerado", value: stats.comContrato },
+    { label: "Contrato assinado", value: stats.assinados },
+  ].map((s) => ({ ...s, hint: stats.total ? `${Math.round((s.value / stats.total) * 100)}%` : undefined }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Relatórios</h1>
-        <p className="text-muted-foreground">
-          Acompanhe o total de propostas e o avanço do fluxo até o contrato.
-        </p>
+      {/* Cabeçalho */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <BarChart3 className="h-7 w-7" /> Relatórios
+          </h1>
+          <p className="text-muted-foreground">
+            {isAdmin ? "Propostas, contratos e vendedores da empresa" : "Suas propostas e contratos"}
+          </p>
+        </div>
+        <Button variant="outline" onClick={exportCsv} disabled={isLoading}>
+          <Download className="h-4 w-4 mr-2" /> Exportar CSV
+        </Button>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros: uma única linha acima de tudo que ela controla */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+            <div className="space-y-1">
+              <Label className="text-xs">Período</Label>
+              <Select value={preset} onValueChange={(v) => applyPreset(v as PeriodPreset | "custom")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tudo</SelectItem>
+                  <SelectItem value="month">Este mês</SelectItem>
+                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  <SelectItem value="year">Este ano</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">De</Label>
+              <Input type="date" value={filters.start} onChange={(e) => { setPreset("custom"); setFilter({ start: e.target.value }); }} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Até</Label>
+              <Input type="date" value={filters.end} onChange={(e) => { setPreset("custom"); setFilter({ end: e.target.value }); }} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo</Label>
+              <Select value={filters.type} onValueChange={(v) => setFilter({ type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="venda">Venda</SelectItem>
+                  <SelectItem value="locacao">Locação</SelectItem>
+                  <SelectItem value="servico">Serviço</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Status da proposta</Label>
+              <Select value={filters.status} onValueChange={(v) => setFilter({ status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="draft">Rascunho</SelectItem>
@@ -189,221 +238,249 @@ export default function Relatorios() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Vendedor</Label>
-              <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {sellers?.map((s) => (
-                    <SelectItem key={s.user_id} value={s.user_id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Data inicial</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Data final</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                disabled={!hasFilters}
-                className="w-full"
-              >
-                <FilterX className="mr-2 h-4 w-4" />
-                Limpar filtros
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="space-y-1">
+                <Label className="text-xs">Vendedor</Label>
+                <Select value={filters.seller} onValueChange={(v) => setFilter({ seller: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {sellers?.map((s) => <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de propostas</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-              <FileText className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(stats.valorTotal)} em valor (exceto canceladas)
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Finalizadas</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{stats.finalizadas}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.canceladas} cancelada{stats.canceladas === 1 ? "" : "s"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Com contrato</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-              <FileSignature className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{stats.comContrato}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.assinados} assinado{stats.assinados === 1 ? "" : "s"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="transition-shadow hover:shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Conversão</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight">{stats.conversao}%</div>
-            <p className="text-xs text-muted-foreground">
-              propostas até contrato assinado
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Funil */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Avanço do fluxo até o contrato
-          </CardTitle>
-          <CardDescription>
-            Da criação da proposta até a assinatura do contrato
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {funnel.map((step) => (
-            <div key={step.label} className="space-y-1.5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{step.label}</span>
-                <span className="text-muted-foreground">
-                  {step.count} ({step.pct}%)
-                </span>
-              </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
-                  style={{ width: `${step.pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Tabela */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Propostas</CardTitle>
-          <CardDescription>
-            {filtered.length} proposta{filtered.length === 1 ? "" : "s"} no período/filtro
-            selecionado
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Carregando...</p>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <FileText className="h-8 w-8 text-muted-foreground/50" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Nenhuma proposta encontrada com os filtros selecionados
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Contrato</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((q) => {
-                    const cStatus = quoteContractStatus(q);
-                    return (
-                      <TableRow key={q.id}>
-                        <TableCell className="font-mono text-sm">
-                          {q.quote_number}
-                        </TableCell>
-                        <TableCell>
-                          {q.clients?.nome_fantasia || q.clients?.razao_social || "-"}
-                        </TableCell>
-                        <TableCell>{sellerName.get(q.created_by) || "-"}</TableCell>
-                        <TableCell>{formatDate(q.created_at)}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusConfig[q.status]?.variant} className={`status-badge-${q.status}`}>
-                            {statusConfig[q.status]?.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {cStatus ? (
-                            <Badge
-                              variant={cStatus === "signed" ? "default" : "outline"}
-                              className={`whitespace-nowrap status-badge-${cStatus}`}
-                            >
-                              {contractStatusLabel[cStatus] || cStatus}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Sem contrato
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(q.total, q.currency)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+          {hasFilters && (
+            <div className="mt-3 flex justify-end">
+              <Button variant="ghost" size="sm" onClick={clearAll}><FilterX className="h-4 w-4 mr-1" /> Limpar filtros</Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="geral">Visão geral</TabsTrigger>
+          <TabsTrigger value="propostas">Propostas</TabsTrigger>
+          <TabsTrigger value="contratos">Contratos</TabsTrigger>
+          {isAdmin && <TabsTrigger value="vendedores">Vendedores</TabsTrigger>}
+        </TabsList>
+
+        {/* ───────── Visão geral ───────── */}
+        <TabsContent value="geral" className="space-y-6">
+          {/* Estrela-guia */}
+          <Card>
+            <CardContent className="p-6 flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Contratos assinados em {monthLabel(months[months.length - 1])}
+                </p>
+                <p className="text-5xl font-semibold tracking-tight">{isLoading ? "…" : currentSigned}</p>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {delta > 0 ? <ArrowUp className="h-4 w-4" /> : delta < 0 ? <ArrowDown className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+                <span>
+                  {delta === 0 ? "Igual a" : `${delta > 0 ? "+" : "−"}${Math.abs(delta)} em relação a`}{" "}
+                  {monthLabel(months[months.length - 2])} ({previousSigned})
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatTile label="Propostas" value={stats.total} icon={<FileText className="h-4 w-4" />}
+              hint={`${stats.finalizadas} finalizadas · ${stats.canceladas} canceladas`} />
+            <StatTile label="Valor em propostas" value={brl(stats.valorBRL)} icon={<Wallet className="h-4 w-4" />}
+              hint={stats.outraMoeda > 0 ? `Exclui ${stats.outraMoeda} em outra moeda e as canceladas` : "Exclui as canceladas"} />
+            <StatTile label="Ticket médio" value={stats.ticketMedio === null ? "—" : brl(stats.ticketMedio)} icon={<Receipt className="h-4 w-4" />}
+              hint={`Sobre ${stats.qtdNaSoma} proposta${stats.qtdNaSoma === 1 ? "" : "s"}`} />
+            <StatTile label="Conversão" value={pct(stats.conversao)} icon={<Percent className="h-4 w-4" />}
+              hint={`${stats.assinados} assinada${stats.assinados === 1 ? "" : "s"} de ${stats.finalizadas} finalizada${stats.finalizadas === 1 ? "" : "s"}`} />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <ColumnChart
+              title="Contratos assinados por mês"
+              description="Últimos 12 meses, pela data da assinatura"
+              data={signedSeries.map((m) => ({ label: m.label, value: m.count }))}
+              format={(n) => String(n)}
+              valueHeader="Contratos assinados"
+              integer
+            />
+            <ColumnChart
+              title="Valor das propostas criadas por mês"
+              description="Últimos 12 meses, em R$ (sem canceladas)"
+              data={valueSeries.map((m) => ({ label: m.label, value: m.value }))}
+              format={brlCompact}
+              valueHeader="Valor em R$"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <HBarList title="Funil" description="Do período e filtros escolhidos" items={funnelItems} ordinal />
+            <HBarList
+              title="Por tipo de proposta"
+              description="Valor em R$ no período"
+              items={typeGroups.map((g) => ({ label: g.label, value: g.valorBRL, display: brlCompact(g.valorBRL), hint: `${g.propostas} propostas` }))}
+            />
+          </div>
+        </TabsContent>
+
+        {/* ───────── Propostas ───────── */}
+        <TabsContent value="propostas">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Propostas</CardTitle>
+              <CardDescription>{filtered.length} no período e filtros escolhidos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      {isAdmin && <TableHead>Vendedor</TableHead>}
+                      <TableHead>Status</TableHead>
+                      <TableHead>Contrato</TableHead>
+                      <TableHead>Criada em</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.slice(0, quotesShown).map((q) => {
+                      const signed = q.contracts.some((c) => c.status === "signed");
+                      return (
+                        <TableRow key={q.id}>
+                          <TableCell className="font-mono font-medium">{q.quote_number}</TableCell>
+                          <TableCell>{q.clients?.nome_fantasia || q.clients?.razao_social || "—"}</TableCell>
+                          <TableCell>{QUOTE_TYPE_LABEL[q.quote_type || "venda"] || q.quote_type}</TableCell>
+                          {isAdmin && <TableCell>{sellerLabel(q.created_by)}</TableCell>}
+                          <TableCell><Badge variant={QUOTE_STATUS[q.status]?.variant}>{QUOTE_STATUS[q.status]?.label}</Badge></TableCell>
+                          <TableCell>
+                            {signed ? <Badge variant="outline">Assinado</Badge> : q.contracts.length ? <Badge variant="outline">Em andamento</Badge> : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>{fmtDate(q.created_at)}</TableCell>
+                          <TableCell className="text-right font-medium"><QuoteAmount value={q.total} quote={q} /></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!isLoading && filtered.length === 0 && (
+                      <TableRow><TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">Nenhuma proposta neste filtro.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {filtered.length > quotesShown && (
+                <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+                  <span>Mostrando {quotesShown} de {filtered.length}</span>
+                  <Button variant="outline" size="sm" onClick={() => setQuotesShown((n) => n + PAGE)}>Mostrar mais</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ───────── Contratos ───────── */}
+        <TabsContent value="contratos" className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatTile label="Assinados" value={contractCount("signed")} icon={<FileSignature className="h-4 w-4" />} hint="Das propostas do período" />
+            <StatTile label="Aguardando assinatura" value={contractCount("sent")} hint="Enviados e ainda não assinados" />
+            <StatTile label="Em preparo" value={contractCount("draft") + contractCount("em_revisao") + contractCount("aprovado")} hint="Rascunho, revisão ou aprovado" />
+            <StatTile label="Tempo até assinar" value={avgDaysToSign(contracts) === null ? "—" : `${String(avgDaysToSign(contracts)).replace(".", ",")} dias`} hint="Do envio à assinatura (média)" />
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Contratos</CardTitle>
+              <CardDescription>{contracts.length} contrato{contracts.length === 1 ? "" : "s"} das propostas do período</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Contrato</TableHead>
+                      <TableHead>Proposta</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Enviado em</TableHead>
+                      <TableHead>Assinado em</TableHead>
+                      <TableHead className="text-right">Dias até assinar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contracts.slice(0, contractsShown).map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-mono font-medium">{c.contract_number}</TableCell>
+                        <TableCell className="font-mono">{c.quote_number}</TableCell>
+                        <TableCell>{c.client}</TableCell>
+                        <TableCell><Badge variant={c.status === "signed" ? "default" : "outline"}>{CONTRACT_STATUS[c.status] || c.status}</Badge></TableCell>
+                        <TableCell>{fmtDate(c.sent_at)}</TableCell>
+                        <TableCell>{fmtDate(c.signed_at)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.daysToSign === null ? "—" : String(c.daysToSign).replace(".", ",")}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!isLoading && contracts.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum contrato neste filtro.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {contracts.length > contractsShown && (
+                <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
+                  <span>Mostrando {contractsShown} de {contracts.length}</span>
+                  <Button variant="outline" size="sm" onClick={() => setContractsShown((n) => n + PAGE)}>Mostrar mais</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ───────── Vendedores (admin) ───────── */}
+        {isAdmin && (
+          <TabsContent value="vendedores">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Vendedores</CardTitle>
+                <CardDescription>Ordenado pelo valor em R$ (propostas não canceladas)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead className="text-right">Propostas</TableHead>
+                        <TableHead className="text-right">Finalizadas</TableHead>
+                        <TableHead className="text-right">Assinadas</TableHead>
+                        <TableHead className="text-right">Conversão</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sellerGroups.map((g) => (
+                        <TableRow key={g.key}>
+                          <TableCell className="font-medium">{g.label}</TableCell>
+                          <TableCell className="text-right tabular-nums">{g.propostas}</TableCell>
+                          <TableCell className="text-right tabular-nums">{g.finalizadas}</TableCell>
+                          <TableCell className="text-right tabular-nums">{g.assinados}</TableCell>
+                          <TableCell className="text-right tabular-nums">{pct(g.conversao)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{brl(g.valorBRL)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {!isLoading && sellerGroups.length === 0 && (
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma proposta neste filtro.</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

@@ -432,7 +432,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { quoteId } = await req.json();
+    const { quoteId, format } = await req.json();
     if (!quoteId) {
       return new Response(JSON.stringify({ error: "quoteId obrigatório" }), {
         status: 400,
@@ -537,6 +537,50 @@ Deno.serve(async (req) => {
     const html = isRental
       ? generateRentalHTML(quote, items || [], creator, company, productsMap, t, lang)
       : generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
+
+    // format: "pdf" → devolve o arquivo PDF pronto (download e anexo de e-mail).
+    // Sem "format", mantém o comportamento de sempre: devolve o HTML para o app imprimir.
+    if (format === "pdf") {
+      const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
+      if (!pdfshiftKey) {
+        return new Response(JSON.stringify({ error: "PDFSHIFT_API_KEY não configurada" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const pdfRes = await fetch("https://api.pdfshift.io/v3/convert/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Basic " + btoa("api:" + pdfshiftKey),
+        },
+        // O HTML foi feito para impressão (@page A4 sem margem, páginas de 210x297mm,
+        // barra de impressão escondida em @media print): por isso use_print e margem zero.
+        body: JSON.stringify({ source: html, format: "A4", margin: "0mm", use_print: true, sandbox: false }),
+      });
+      if (!pdfRes.ok) {
+        const errText = await pdfRes.text();
+        console.error("PDFShift error:", pdfRes.status, errText);
+        return new Response(JSON.stringify({ error: "Falha na geração do PDF", details: errText }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const bytes = new Uint8Array(await pdfRes.arrayBuffer());
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      return new Response(JSON.stringify({
+        pdf_base64: btoa(binary),
+        quote_number: quote.quote_number,
+        file_name: `Proposta ${quote.quote_number}.pdf`,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
@@ -757,7 +801,10 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const companyCrea = co.crea_registration || "";
 
   // Status translation
-  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
+  // Proposta ainda não finalizada: o PDF mostra só "Rev. N" (sem a palavra "Rascunho").
+  const statusLabel = quote.status === "draft"
+    ? `Rev. ${quote.__revision_number ?? 0}`
+    : (quote.status === "finalized" ? t.status_finalized : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   // International disclaimer
   const disclaimerHTML = isInternationalUsd ? `
@@ -1070,7 +1117,7 @@ function buildPageHeader(quote: any, companyName: string, companySubtitle: strin
       <div class="quote-meta">
         ${t.date}: ${formatDateSimple(quote.created_at)}<br>
         ${t.validity}: ${formatDateSimple(validityDate.toISOString())}<br>
-        Status: ${statusLabel}
+        ${quote.status === "draft" ? "" : "Status: "}${statusLabel}
       </div>
     </div>
   </div>`;
@@ -1409,7 +1456,10 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} • ${client.estado}` : (client?.cidade || client?.estado || "");
   const coverDate = formatDate(quote.created_at);
   const htmlLang = lang === "en" ? "en" : "pt-BR";
-  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
+  // Proposta ainda não finalizada: o PDF mostra só "Rev. N" (sem a palavra "Rascunho").
+  const statusLabel = quote.status === "draft"
+    ? `Rev. ${quote.__revision_number ?? 0}`
+    : (quote.status === "finalized" ? t.status_finalized : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));

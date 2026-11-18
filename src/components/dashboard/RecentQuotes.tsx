@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 import { QuoteStatus } from "@/types";
+import { formatQuoteAmount } from "@/lib/quoteMoney";
 
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
@@ -30,9 +31,6 @@ export default function RecentQuotes() {
     },
     enabled: !!user,
   });
-
-  const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
@@ -68,7 +66,7 @@ export default function RecentQuotes() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium">
-                    {formatCurrency(quote.total, quote.currency)}
+                    {formatQuoteAmount(quote.total, quote as any)}
                   </span>
                   <Badge variant={statusConfig[quote.status as QuoteStatus]?.variant} className={`status-badge-${quote.status}`}>
                     {statusConfig[quote.status as QuoteStatus]?.label}

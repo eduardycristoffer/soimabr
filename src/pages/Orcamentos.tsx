@@ -25,6 +25,13 @@ import RentalWizard from "@/components/quotes/RentalWizard";
 import QuoteTypeSelector from "@/components/quotes/QuoteTypeSelector";
 import QuoteDetailModal from "@/components/quotes/QuoteDetailModal";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
+import { QuoteAmount } from "@/components/quotes/QuoteAmount";
+import { isUsdEstimateQuote } from "@/lib/quoteMoney";
+import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
+import SendProposalEmailDialog from "@/components/quotes/SendProposalEmailDialog";
+import { useEmailIntegration } from "@/hooks/useEmailIntegration";
+import { downloadQuotePdf } from "@/lib/quotePdf";
+import { Mail, FileDown } from "lucide-react";
 const statusConfig: Record<QuoteStatus, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
   finalized: { label: "Finalizado", variant: "default" },
@@ -45,6 +52,23 @@ export default function Orcamentos() {
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [contractQuoteId, setContractQuoteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [emailQuoteId, setEmailQuoteId] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const emailIntegration = useEmailIntegration();
+  const emailAvailable = emailIntegration.dbReady && emailIntegration.deployed;
+
+  // Baixa o arquivo PDF da proposta (o "Gerar PDF" abaixo só abre a página para imprimir)
+  const handleDownloadPdf = async (quoteId: string) => {
+    setDownloadingPdf(quoteId);
+    try {
+      const name = await downloadQuotePdf(quoteId);
+      toast({ title: "PDF baixado", description: name });
+    } catch (error: any) {
+      toast({ title: "Erro ao baixar o PDF", description: error.message || "Tente novamente", variant: "destructive" });
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
 
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["quotes", search],
@@ -108,9 +132,6 @@ export default function Orcamentos() {
     const req = approvalRequests?.find((r) => r.quote_id === quoteId);
     return req?.status || null;
   };
-
-  const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
@@ -243,6 +264,11 @@ export default function Orcamentos() {
 
   const filteredQuotes = statusFilter === "all" ? quotes : quotes?.filter((q) => q.status === statusFilter);
 
+  // Propostas internacionais em USD são em R$: o dólar é só estimativa pela cotação de hoje.
+  // A cotação só é buscada quando há alguma proposta assim na lista.
+  const hasUsdEstimateQuotes = !!quotes?.some((q) => isUsdEstimateQuote(q as any));
+  const { rate: liveUsdRate } = useUsdBrlRate(hasUsdEstimateQuotes);
+
   const renderQuoteActions = (quote: any) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -278,6 +304,24 @@ export default function Orcamentos() {
               <Download className="mr-2 h-4 w-4" />
             )}
             Gerar PDF
+          </DropdownMenuItem>
+        )}
+        {(quote.status === "finalized" || quote.status === "draft") && (
+          <DropdownMenuItem
+            onClick={() => handleDownloadPdf(quote.id)}
+            disabled={downloadingPdf === quote.id}
+          >
+            {downloadingPdf === quote.id ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Baixar PDF
+          </DropdownMenuItem>
+        )}
+        {quote.status === "finalized" && emailAvailable && (
+          <DropdownMenuItem onClick={() => setEmailQuoteId(quote.id)}>
+            <Mail className="mr-2 h-4 w-4" /> Enviar ao cliente
           </DropdownMenuItem>
         )}
         {quote.status === "draft" && (
@@ -383,7 +427,7 @@ export default function Orcamentos() {
                         <TableCell className="font-mono font-medium">{quote.quote_number}</TableCell>
                         <TableCell>{quote.clients?.nome_fantasia || quote.clients?.razao_social || "-"}</TableCell>
                         <TableCell>{quote.project_name || "-"}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(quote.total, quote.currency)}</TableCell>
+                        <TableCell className="font-medium"><QuoteAmount value={quote.total} quote={quote as any} liveRate={liveUsdRate} /></TableCell>
                         <TableCell>{renderQuoteBadges(quote)}</TableCell>
                         <TableCell>{formatDate(quote.created_at)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -409,7 +453,7 @@ export default function Orcamentos() {
                     </div>
                     <div className="mt-3">{renderQuoteBadges(quote)}</div>
                     <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className="font-medium">{formatCurrency(quote.total, quote.currency)}</span>
+                      <QuoteAmount className="font-medium" value={quote.total} quote={quote as any} liveRate={liveUsdRate} />
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime((quote as any).updated_at || quote.created_at)}
                       </span>
@@ -433,6 +477,14 @@ export default function Orcamentos() {
           quoteId={contractQuoteId}
           open={!!contractQuoteId}
           onClose={() => setContractQuoteId(null)}
+        />
+      )}
+
+      {emailQuoteId && (
+        <SendProposalEmailDialog
+          quoteId={emailQuoteId}
+          open={!!emailQuoteId}
+          onClose={() => setEmailQuoteId(null)}
         />
       )}
 
