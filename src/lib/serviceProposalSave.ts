@@ -2,6 +2,19 @@ import { buildServiceQuotePayload, toQuoteItemRows, type ServiceQuoteInput } fro
 
 export type SaveMode = "draft" | "finalized" | "keep";
 
+export interface SaveQuoteArgs {
+  mode: SaveMode;
+  /** proposta que está sendo editada (vazio ao criar ou duplicar) */
+  editingQuoteId?: string | null;
+  /** status da proposta editada (para "manter finalizada") */
+  originalStatus?: string | null;
+  userId: string;
+  /** colunas de `quotes` (sem status e datas, que dependem do botão usado) */
+  payload: Record<string, any>;
+  /** linhas de `quote_items` para o id da proposta (lista vazia = nenhuma linha) */
+  rowsFor: (quoteId: string) => Array<Record<string, any>>;
+}
+
 export interface SaveServiceArgs {
   mode: SaveMode;
   /** proposta que está sendo editada (vazio ao criar ou duplicar) */
@@ -21,7 +34,7 @@ export interface SaveServiceResult {
 type Db = { from: (table: string) => any };
 
 /**
- * Grava a proposta de serviço (quotes + quote_items).
+ * Grava uma proposta com suas linhas de preço (quotes + quote_items). Serve à proposta de serviço e à de locação.
  *
  * Cuidado com a ordem: o banco não tem transação aqui, então cada passo é feito de modo que uma
  * falha no meio não deixe a proposta SEM itens nem com itens duplicados:
@@ -29,13 +42,12 @@ type Db = { from: (table: string) => any };
  *  - editar: guarda o histórico, grava os itens NOVOS, atualiza a proposta e só então apaga os
  *    itens ANTIGOS; se a atualização falhar, os itens novos são desfeitos e os antigos continuam.
  */
-export async function saveServiceProposal(db: Db, a: SaveServiceArgs): Promise<SaveServiceResult> {
-  const { mode, editingQuoteId, originalStatus, userId, input } = a;
+export async function saveQuoteWithItems(db: Db, a: SaveQuoteArgs): Promise<SaveServiceResult> {
+  const { mode, editingQuoteId, originalStatus, userId, rowsFor } = a;
 
   const finalStatus =
     mode === "keep" ? (originalStatus === "finalized" ? "finalized" : "draft") : mode === "finalized" ? "finalized" : "draft";
-  const payload: Record<string, any> = { ...buildServiceQuotePayload(input), status: finalStatus };
-  const rowsFor = (quoteId: string) => toQuoteItemRows(quoteId, input.items);
+  const payload: Record<string, any> = { ...a.payload, status: finalStatus };
 
   if (editingQuoteId) {
     const { data: current, error: readErr } = await db
@@ -57,8 +69,9 @@ export async function saveServiceProposal(db: Db, a: SaveServiceArgs): Promise<S
 
     const oldIds: string[] = (current.quote_items || []).map((r: any) => r.id);
     let newIds: string[] = [];
-    if (input.items.length > 0) {
-      const { data: inserted, error: insErr } = await db.from("quote_items").insert(rowsFor(editingQuoteId)).select("id");
+    const newRows = rowsFor(editingQuoteId);
+    if (newRows.length > 0) {
+      const { data: inserted, error: insErr } = await db.from("quote_items").insert(newRows).select("id");
       if (insErr) throw insErr;
       newIds = (inserted || []).map((r: any) => r.id);
     }
@@ -94,12 +107,23 @@ export async function saveServiceProposal(db: Db, a: SaveServiceArgs): Promise<S
     .single();
   if (quoteErr || !quote) throw quoteErr || new Error("Não foi possível criar a proposta.");
 
-  if (input.items.length > 0) {
-    const { error: itemsErr } = await db.from("quote_items").insert(rowsFor(quote.id));
+  const rows = rowsFor(quote.id);
+  if (rows.length > 0) {
+    const { error: itemsErr } = await db.from("quote_items").insert(rows);
     if (itemsErr) {
       await db.from("quotes").delete().eq("id", quote.id); // não deixa proposta sem itens para trás
       throw itemsErr;
     }
   }
   return { quoteId: quote.id, quoteNumber: quote.quote_number };
+}
+
+/** Grava a proposta de serviço (quotes + quote_items). */
+export function saveServiceProposal(db: Db, a: SaveServiceArgs): Promise<SaveServiceResult> {
+  const { input, ...rest } = a;
+  return saveQuoteWithItems(db, {
+    ...rest,
+    payload: buildServiceQuotePayload(input),
+    rowsFor: (quoteId) => toQuoteItemRows(quoteId, input.items),
+  });
 }

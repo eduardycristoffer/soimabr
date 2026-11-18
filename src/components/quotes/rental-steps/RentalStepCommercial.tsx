@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { Separator } from "@/components/ui/separator";
@@ -167,19 +166,6 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
           placeholder="Observações adicionais..."
           rows={3}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Idioma da Proposta</Label>
-          <Select value={data.language} onValueChange={(v) => updateData({ language: v as any })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pt-BR">Português</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       <div className="flex items-start space-x-3 pt-2">

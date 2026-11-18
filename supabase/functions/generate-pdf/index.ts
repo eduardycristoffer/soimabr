@@ -494,10 +494,11 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    // Proposta de serviço: sai pela empresa escolhida na proposta (padrão: Dacrom).
-    // Venda e locação continuam usando a empresa de sempre.
+    // Proposta de serviço e proposta de locação detalhada (quadro de preços): saem pela empresa escolhida
+    // na proposta (padrão: Dacrom). Venda e locação antiga continuam usando a empresa de sempre.
     const isService = quote.quote_type === "servico";
-    if (isService) {
+    const isRentalDetailed = quote.quote_type === "locacao" && (quote as any).service_data?.kind === "locacao";
+    if (isService || isRentalDetailed) {
       const issuerSlug = (quote as any).service_data?.company_slug || "dacrom";
       const { data: issuer } = await supabase
         .from("company_settings")
@@ -549,6 +550,8 @@ Deno.serve(async (req) => {
     const isRental = quote.quote_type === "locacao";
     const html = isService
       ? generateServiceHTML(quote, items || [], creator, company, { forPdf: format === "pdf" })
+      : isRentalDetailed
+      ? generateRentalProposalHTML(quote, items || [], creator, company, { forPdf: format === "pdf" })
       : isRental
       ? generateRentalHTML(quote, items || [], creator, company, productsMap, t, lang)
       : generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
@@ -572,7 +575,7 @@ Deno.serve(async (req) => {
         // O HTML foi feito para impressão (@page A4 sem margem, páginas de 210x297mm,
         // barra de impressão escondida em @media print): por isso use_print e margem zero.
         body: JSON.stringify(
-          isService
+          isService || isRentalDetailed
             ? {
                 source: html, format: "A4", margin: "18mm 15mm 22mm 15mm", use_print: true, sandbox: false,
                 footer: { source: serviceFooterHtml(company), spacing: "6mm" },
@@ -1887,6 +1890,61 @@ function serviceFooterHtml(company: any): string {
   return `<div style="width:100%;font-size:7.5pt;color:#777;text-align:center;font-family:Helvetica,Arial,sans-serif;padding:0 15mm;">${svcEsc(svcContactLine(company))}<br>Página {{page}} de {{total}}</div>`;
 }
 
+/** Estilo comum das propostas em formato carta (serviço e locação). */
+const SVC_BASE_CSS = `
+  @page { size: A4; margin: 18mm 15mm 22mm 15mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.5; }
+  @media screen { body { padding: 64px 15mm 24px; max-width: 210mm; margin: 0 auto; } }
+  .print-toolbar { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #0047AB; color: #fff; padding: 12px 24px;
+    display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .print-toolbar button { background: #fff; color: #0047AB; border: none; padding: 8px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .print-toolbar p { margin: 0; opacity: .85; font-size: 12px; }
+  @media print { .print-toolbar { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 3px solid #0047AB; padding-bottom: 10px; margin-bottom: 14px; }
+  .letterhead img { height: 46px; width: auto; margin-bottom: 4px; }
+  .co-name { font-size: 17pt; font-weight: 700; color: #0047AB; letter-spacing: .5px; line-height: 1.15; }
+  .co-sub { font-size: 8.5pt; color: #666; }
+  .doc-id { text-align: right; font-size: 9pt; color: #555; }
+  .doc-id strong { display: block; font-size: 13pt; color: #0047AB; }
+
+  .place { margin: 12px 0; }
+  .addressee { margin: 8px 0 12px; line-height: 1.45; }
+  .addressee .client { font-weight: 700; text-transform: uppercase; }
+  .subject { margin: 10px 0; padding: 8px 10px; background: #f0f4fa; border-left: 3px solid #0047AB; }
+
+  h2 { font-size: 11pt; color: #0047AB; text-transform: uppercase; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #d5dce8; page-break-after: avoid; }
+  h3 { font-size: 10pt; margin: 10px 0 4px; page-break-after: avoid; }
+  p { margin: 4px 0; text-align: justify; }
+  p.small { font-size: 8.5pt; color: #555; }
+  ul { margin: 4px 0 4px 18px; padding: 0; }
+  li { margin: 3px 0; text-align: justify; }
+
+  table { border-collapse: collapse; width: 100%; }
+  table.kv { margin: 6px 0; font-size: 9.5pt; }
+  table.kv td { padding: 2px 8px 2px 0; vertical-align: top; }
+  table.kv td:first-child { width: 36%; color: #555; font-weight: 600; }
+  table.items { margin: 8px 0; font-size: 9pt; }
+  table.items thead { display: table-header-group; }
+  table.items th { background: #0047AB; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 8.5pt; }
+  table.items td { padding: 6px 8px; border-bottom: 1px solid #dde3ee; vertical-align: top; }
+  table.items tr { page-break-inside: avoid; }
+  table.items .num { text-align: right; white-space: nowrap; }
+  table.items .note { color: #555; font-size: 8pt; font-style: italic; margin-top: 2px; }
+  table.items .opt { font-size: 7.5pt; font-weight: 700; color: #0047AB; white-space: nowrap; }
+  table.items tr.total-row td { background: #e8eef7; font-weight: 700; border-bottom: none; }
+
+  .closing { margin-top: 18px; }
+  .sig { margin-top: 26px; page-break-inside: avoid; }
+  .sig .name { font-weight: 700; }
+  .accept { margin-top: 26px; border: 1px solid #0047AB; padding: 12px 14px; page-break-inside: avoid; }
+  .accept h2 { margin-top: 0; }
+  .accept .line { border-top: 1px solid #333; width: 62%; margin-top: 38px; padding-top: 4px; font-weight: 600; }
+  .accept .fill { margin-top: 8px; color: #333; }
+  .endcontact { margin-top: 18px; padding-top: 6px; border-top: 1px solid #ccc; font-size: 7.5pt; color: #777; text-align: center; }
+`;
+
 function generateServiceHTML(quote: any, items: any[], creator: any, company: any, opts: { forPdf: boolean }): string {
   const sd = quote.service_data || {};
   const co = company || {};
@@ -1980,57 +2038,7 @@ function generateServiceHTML(quote: any, items: any[], creator: any, company: an
 <meta charset="UTF-8">
 <title>Proposta ${svcEsc(quote.quote_number)}</title>
 <style>
-  @page { size: A4; margin: 18mm 15mm 22mm 15mm; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.5; }
-  @media screen { body { padding: 64px 15mm 24px; max-width: 210mm; margin: 0 auto; } }
-  .print-toolbar { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #0047AB; color: #fff; padding: 12px 24px;
-    display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
-  .print-toolbar button { background: #fff; color: #0047AB; border: none; padding: 8px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
-  .print-toolbar p { margin: 0; opacity: .85; font-size: 12px; }
-  @media print { .print-toolbar { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-
-  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 3px solid #0047AB; padding-bottom: 10px; margin-bottom: 14px; }
-  .letterhead img { height: 46px; width: auto; margin-bottom: 4px; }
-  .co-name { font-size: 17pt; font-weight: 700; color: #0047AB; letter-spacing: .5px; line-height: 1.15; }
-  .co-sub { font-size: 8.5pt; color: #666; }
-  .doc-id { text-align: right; font-size: 9pt; color: #555; }
-  .doc-id strong { display: block; font-size: 13pt; color: #0047AB; }
-
-  .place { margin: 12px 0; }
-  .addressee { margin: 8px 0 12px; line-height: 1.45; }
-  .addressee .client { font-weight: 700; text-transform: uppercase; }
-  .subject { margin: 10px 0; padding: 8px 10px; background: #f0f4fa; border-left: 3px solid #0047AB; }
-
-  h2 { font-size: 11pt; color: #0047AB; text-transform: uppercase; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #d5dce8; page-break-after: avoid; }
-  h3 { font-size: 10pt; margin: 10px 0 4px; page-break-after: avoid; }
-  p { margin: 4px 0; text-align: justify; }
-  p.small { font-size: 8.5pt; color: #555; }
-  ul { margin: 4px 0 4px 18px; padding: 0; }
-  li { margin: 3px 0; text-align: justify; }
-
-  table { border-collapse: collapse; width: 100%; }
-  table.kv { margin: 6px 0; font-size: 9.5pt; }
-  table.kv td { padding: 2px 8px 2px 0; vertical-align: top; }
-  table.kv td:first-child { width: 36%; color: #555; font-weight: 600; }
-  table.items { margin: 8px 0; font-size: 9pt; }
-  table.items thead { display: table-header-group; }
-  table.items th { background: #0047AB; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 8.5pt; }
-  table.items td { padding: 6px 8px; border-bottom: 1px solid #dde3ee; vertical-align: top; }
-  table.items tr { page-break-inside: avoid; }
-  table.items .num { text-align: right; white-space: nowrap; }
-  table.items .note { color: #555; font-size: 8pt; font-style: italic; margin-top: 2px; }
-  table.items .opt { font-size: 7.5pt; font-weight: 700; color: #0047AB; white-space: nowrap; }
-  table.items tr.total-row td { background: #e8eef7; font-weight: 700; border-bottom: none; }
-
-  .closing { margin-top: 18px; }
-  .sig { margin-top: 26px; page-break-inside: avoid; }
-  .sig .name { font-weight: 700; }
-  .accept { margin-top: 26px; border: 1px solid #0047AB; padding: 12px 14px; page-break-inside: avoid; }
-  .accept h2 { margin-top: 0; }
-  .accept .line { border-top: 1px solid #333; width: 62%; margin-top: 38px; padding-top: 4px; font-weight: 600; }
-  .accept .fill { margin-top: 8px; color: #333; }
-  .endcontact { margin-top: 18px; padding-top: 6px; border-top: 1px solid #ccc; font-size: 7.5pt; color: #777; text-align: center; }
+${SVC_BASE_CSS}
 </style>
 </head>
 <body>
@@ -2063,6 +2071,251 @@ function generateServiceHTML(quote: any, items: any[], creator: any, company: an
   ${body}
 
   <div class="closing">${svcParas(sd.closing_text)}</div>
+
+  <div class="sig">
+    <p>Atenciosamente,</p>
+    <p style="margin-top:26px"><span class="name">${svcEsc(signerName)}</span><br>
+    ${signerRole ? `${svcEsc(signerRole)}<br>` : ""}${svcEsc(co.razao_social || companyName)}</p>
+  </div>
+
+  <div class="accept">
+    <h2>ACEITE DA PROPOSTA</h2>
+    ${svcParas(sd.acceptance_text)}
+    <div class="line">Pela ${svcEsc(clientName)}</div>
+    <div class="fill">Nome:</div>
+    <div class="fill">Cargo:</div>
+    <div class="fill">Data: ____/____/________</div>
+  </div>
+
+  ${opts.forPdf ? "" : `<div class="endcontact">${svcEsc(svcContactLine(co))}</div>`}
+</body>
+</html>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PROPOSTA DE LOCAÇÃO DETALHADA (quote_type = 'locacao' e service_data.kind = 'locacao')
+// Formato carta, com o quadro de preços por equipamento: locação de bens móveis e serviços de
+// mão-de-obra em linhas separadas. Linha sem valor NÃO aparece. Os textos vêm de quotes.service_data.
+// A conta repete a de src/lib/rentalProposal.ts (a função de borda não importa código do app);
+// um teste compara as duas.
+// ════════════════════════════════════════════════════════════════════════════
+const rpR2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const rpShown = (l: any): boolean => !!l && !!l.enabled && Number(l.unit_price) > 0;
+const rpQty = (l: any, months: number): number => {
+  const q = l?.follows_months ? Number(months) : Number(l?.quantity);
+  return q > 0 ? q : 0;
+};
+const rpValue = (l: any, months: number): number => (rpShown(l) ? rpR2(rpQty(l, months) * Number(l.unit_price)) : 0);
+const rpGroup = (sd: any, group: string): any[] =>
+  (Array.isArray(sd?.lines) ? sd.lines : []).filter((l: any) => l && l.group === group && rpShown(l));
+const rpGroupTotal = (lines: any[], months: number): number => rpR2(lines.reduce((s, l) => s + rpValue(l, months), 0));
+
+/** Data "AAAA-MM-DD" (sem horário) → dd/mm/aaaa, sem passar pelo fuso horário. */
+function rpDateOnly(s: unknown): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? ""));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
+const rpNum = (n: unknown) => Number(n).toLocaleString("pt-BR");
+
+function generateRentalProposalHTML(quote: any, items: any[], creator: any, company: any, opts: { forPdf: boolean }): string {
+  const sd = quote.service_data || {};
+  const co = company || {};
+  const client = quote.clients || {};
+  const hidePrices = !!quote.hide_unit_prices;
+  const companyName = co.company_name || co.razao_social || "";
+  const clientName = client.razao_social || client.nome_fantasia || "-";
+  const revision = quote.__revision_number ?? 0;
+  const statusLabel = quote.status === "cancelled" ? `Cancelada · Rev. ${revision}` : `Rev. ${revision}`;
+  const issuedAt = quote.created_at;
+  const validityDays = Number(quote.validity_days) || 30;
+  const months = Number(quote.rental_duration_months) || 0;
+
+  // ── quadro de preços ────────────────────────────────────────────────────
+  const ebl = rpGroup(sd, "ebl");
+  const cmo = rpGroup(sd, "cmo");
+  const eblTotal = rpGroupTotal(ebl, months);
+  const cmoTotal = rpGroupTotal(cmo, months);
+  const subtotal = rpR2(eblTotal + cmoTotal);
+  const discountPercent = Number(quote.discount_percent) || 0;
+  const discount = rpR2(subtotal * (discountPercent / 100));
+  const afterDiscount = rpR2(subtotal - discount);
+  const taxPercent = Number(quote.rental_tax_percent) || 0;
+  const tax = rpR2(afterDiscount * (taxPercent / 100));
+  const total = rpR2(afterDiscount + tax);
+
+  let n = 0;
+  const sec = (title: string, body: string) => (body ? `<h2>${++n}. ${svcEsc(title)}</h2>${body}` : "");
+  const olist = (list: unknown) => {
+    const arr = (Array.isArray(list) ? list : []).map((x) => String(x ?? "").trim()).filter(Boolean);
+    return arr.length ? `<ol>${arr.map((x) => `<li>${svcEsc(x).replace(/\n/g, "<br>")}</li>`).join("")}</ol>` : "";
+  };
+
+  const gruaItem = (items || []).find((i: any) => i.product_category === "grua");
+  const craneName = gruaItem?.product_name || "";
+
+  // 1. Equipamento
+  const kv = (rows: Array<[string, string]>) => {
+    const arr = rows.filter(([l, v]) => String(l).trim() && String(v ?? "").trim());
+    return arr.length ? `<table class="kv">${arr.map(([l, v]) => `<tr><td>${svcEsc(l)}</td><td>${svcEsc(v)}</td></tr>`).join("")}</table>` : "";
+  };
+  const g = (v: unknown, unit: string) => (Number(v) > 0 ? `${rpNum(v)} ${unit}` : "");
+  const equipmentRows: Array<[string, string]> = [
+    ["Equipamento", craneName],
+    ["Período da locação", months > 0 ? `${months} ${months === 1 ? "mês" : "meses"}` : ""],
+    ["Início previsto", rpDateOnly(quote.rental_start_date)],
+    ["Comprimento da lança", g(quote.grua_lanca_m, "m")],
+    ["Altura da torre", g(quote.grua_altura_torre_m, "m")],
+    ["Altura de trabalho", g(quote.grua_altura_trabalho_m, "m")],
+    ["Capacidade máxima de carga", g(quote.grua_carga_maxima_kg, "kg")],
+    ["Carga na ponta da lança", g(quote.grua_carga_ponta_kg, "kg")],
+    ...((Array.isArray(sd.equipment) ? sd.equipment : []) as any[])
+      .filter((x) => x && (String(x.label || "").trim() && String(x.value || "").trim()))
+      .map((x): [string, string] => [String(x.label), String(x.value)]),
+  ];
+  const safety = svcBullets(sd.safety_devices);
+  const equipmentBody = `${kv(equipmentRows)}${safety ? `<h3>Dispositivos de segurança</h3>${safety}` : ""}`;
+
+  // 2. Quadro resumo de preços (a numeração da seção é a dos itens: 2.1, 2.2...)
+  const priceSectionNumber = n + (equipmentBody ? 2 : 1);
+  let itemNo = 0;
+  const priceRows = (lines: any[]) => lines.map((l) => {
+    const qty = rpQty(l, months);
+    const price = Number(l.unit_price) || 0;
+    itemNo += 1;
+    const desc = `${svcEsc(l.description)}${l.note ? `<div class="note">${svcEsc(l.note).replace(/\n/g, "<br>")}</div>` : ""}`;
+    return `<tr>
+      <td>${priceSectionNumber}.${itemNo}</td>
+      <td class="num">${qty > 0 ? rpNum(qty) : ""}</td>
+      <td>${svcEsc(l.unit || "Vb")}</td>
+      <td>${desc}</td>
+      ${hidePrices ? "" : `<td class="num">${svcMoney(price)}</td><td class="num">${qty > 0 ? svcMoney(rpValue(l, months)) : ""}</td>`}
+    </tr>`;
+  }).join("");
+
+  const groupTable = (title: string, lines: any[], groupTotal: number) => {
+    if (!lines.length) return "";
+    return `
+    <table class="items">
+      <thead><tr>
+        <th>Item</th><th class="num">Quant.</th><th>Unid.</th><th>${svcEsc(title)}</th>
+        ${hidePrices ? "" : `<th class="num">Valor unitário</th><th class="num">Valor total</th>`}
+      </tr></thead>
+      <tbody>
+        ${priceRows(lines)}
+        ${hidePrices ? "" : `<tr class="total-row"><td colspan="5">Total — ${svcEsc(title.toLowerCase())}</td><td class="num">${svcMoney(groupTotal)}</td></tr>`}
+      </tbody>
+    </table>`;
+  };
+
+  const totalsRows = (() => {
+    const out: string[] = [];
+    if (!hidePrices && (ebl.length || cmo.length)) {
+      out.push(`<tr><td>Valor total estimado por equipamento</td><td class="num">${svcMoney(subtotal)}</td></tr>`);
+      if (discountPercent > 0) {
+        out.push(quote.hide_discount_value
+          ? `<tr><td>Desconto aplicado</td><td class="num"></td></tr>`
+          : `<tr><td>Desconto (${rpNum(discountPercent)}%)</td><td class="num">- ${svcMoney(discount)}</td></tr>`);
+      }
+      if (taxPercent > 0) out.push(`<tr><td>Impostos (${rpNum(taxPercent)}%)</td><td class="num">+ ${svcMoney(tax)}</td></tr>`);
+    }
+    if (ebl.length || cmo.length) out.push(`<tr class="grand"><td>VALOR TOTAL DA PROPOSTA</td><td class="num">${svcMoney(total)}</td></tr>`);
+    return out.length ? `<table class="totals">${out.join("")}</table>` : "";
+  })();
+
+  const priceBody = `${groupTable("Locação de bens móveis", ebl, eblTotal)}${groupTable("Serviços de mão-de-obra", cmo, cmoTotal)}${totalsRows}${
+    sd.freight_note ? `<p class="small">${svcEsc(sd.freight_note)}</p>` : ""}`;
+
+  // Pagamento (da etapa Comercial)
+  const paymentItems = (Array.isArray(quote.payment_terms_items) ? quote.payment_terms_items : [])
+    .map((x: any) => String(x?.text ?? "").trim()).filter(Boolean);
+  const paymentBody = `${paymentItems.length ? olist(paymentItems) : ""}${
+    quote.payment_terms && !paymentItems.length ? svcParas(quote.payment_terms) : ""}${
+    quote.freight_terms ? `<h3>Frete</h3>${svcParas(quote.freight_terms)}` : ""}`;
+
+  // Manutenção corretiva fora do horário comercial: tabelas de valor por hora, com campo de adesão
+  const nightTable = (group: string, title: string) => {
+    const lines = rpGroup(sd, group);
+    if (!lines.length) return "";
+    const box = `<span class="box"></span>`;
+    return `<h3>${svcEsc(title)}</h3>
+    <table class="items night">
+      <thead><tr><th>Descrição</th>${hidePrices ? "" : `<th class="num">Valor por hora</th>`}<th class="adh">Adesão</th></tr></thead>
+      <tbody>${lines.map((l) => `<tr><td>${svcEsc(l.description)}</td>${hidePrices ? "" : `<td class="num">${svcMoney(Number(l.unit_price))}</td>`}<td class="adh">${box} Sim &nbsp; ${box} Não</td></tr>`).join("")}</tbody>
+    </table>`;
+  };
+  const night17 = nightTable("night17", "Manutenção corretiva após as 17:00 e até as 22:00");
+  const night22 = nightTable("night22", "Manutenção corretiva após as 22:00 e até as 6:00");
+  const hasCorrective = !!(night17 || night22) || cmo.some((l) => /^(maintenance_monthly|corrective_)/.test(String(l.key || "")));
+  const correctiveBody = night17 || night22 || hasCorrective
+    ? `${night17}${night22}${hasCorrective ? svcBullets(sd.corrective_notes) : ""}`
+    : "";
+
+  const sections = (Array.isArray(sd.sections) ? sd.sections : [])
+    .filter((s: any) => s && Array.isArray(s.items) && s.items.some((x: any) => String(x ?? "").trim()));
+
+  const body = [
+    sec("EQUIPAMENTO", equipmentBody),
+    sec("QUADRO RESUMO DE PREÇOS", priceBody),
+    sec("CONDIÇÕES DE PAGAMENTO", paymentBody),
+    sec("SEGURO", svcBullets(sd.insurance)),
+    sec("NÃO INCLUSO", svcBullets(sd.not_included)),
+    sec("INCLUSO", svcBullets(sd.included)),
+    sec("MANUTENÇÃO CORRETIVA", correctiveBody),
+    sec("OBSERVAÇÕES DO QUADRO DE PREÇOS", `${olist(sd.observations)}${quote.notes ? `<h3>Observações adicionais</h3>${svcParas(quote.notes)}` : ""}`),
+    ...sections.map((s: any) => sec(String(s.title || "").trim().toUpperCase() || "CONDIÇÕES", olist(s.items))),
+    sec("VALIDADE",
+      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar da data de emissão (${svcShortDate(issuedAt)}), até <strong>${svcAddDaysShort(issuedAt, validityDays)}</strong>, ou de acordo com a disponibilidade do equipamento.</p>`),
+  ].join("");
+
+  const signerName = sd.signer_name || co.representante_nome || creator?.name || "";
+  const signerRole = sd.signer_role || co.representante_cargo || "";
+  const issueCity = sd.issue_city || "";
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Proposta ${svcEsc(quote.quote_number)}</title>
+<style>
+${SVC_BASE_CSS}
+  ol { margin: 4px 0 4px 20px; padding: 0; }
+  table.totals { margin: 6px 0 4px auto; width: 62%; font-size: 9.5pt; }
+  table.totals td { padding: 4px 8px; border-bottom: 1px solid #dde3ee; }
+  table.totals td.num { text-align: right; white-space: nowrap; }
+  table.totals tr.grand td { background: #0047AB; color: #fff; font-weight: 700; border-bottom: none; font-size: 10.5pt; }
+  table.items.night td.adh, table.items.night th.adh { text-align: center; white-space: nowrap; width: 26%; }
+  .box { display: inline-block; width: 9px; height: 9px; border: 1px solid #333; vertical-align: -1px; margin-right: 3px; }
+</style>
+</head>
+<body>
+  ${opts.forPdf ? "" : `<div class="print-toolbar"><button onclick="window.print()">📄 Salvar como PDF</button><p>Clique no botão e escolha "Salvar como PDF" como destino da impressora</p></div>`}
+
+  <div class="letterhead">
+    <div>
+      ${co.logo_url ? `<img src="${svcEsc(co.logo_url)}" alt="">` : ""}
+      <div class="co-name">${svcEsc(companyName)}</div>
+      ${co.razao_social && co.razao_social !== companyName ? `<div class="co-sub">${svcEsc(co.razao_social)}</div>` : ""}
+      ${co.crea_registration ? `<div class="co-sub">${svcEsc(co.crea_registration)}</div>` : ""}
+    </div>
+    <div class="doc-id"><strong>Proposta ${svcEsc(quote.quote_number)}</strong>${svcEsc(statusLabel)}</div>
+  </div>
+
+  <div class="place">${issueCity ? `${svcEsc(issueCity)}, ` : ""}${svcLongDate(issuedAt)}</div>
+
+  <div class="addressee">
+    À<br>
+    <span class="client">${svcEsc(clientName)}</span><br>
+    ${quote.project_name ? `${svcEsc(quote.project_name)}${quote.project_location ? `, ${svcEsc(quote.project_location)}` : ""}<br>` : ""}
+    ${sd.attention ? `Att. ${svcEsc(sd.attention)}<br>` : ""}
+  </div>
+
+  <div class="subject"><strong>ASSUNTO:</strong> Proposta ${svcEsc(quote.quote_number)}${sd.subject ? ` — ${svcEsc(sd.subject)}` : ""}.</div>
+
+  <p>Prezados,</p>
+  ${svcParas(sd.intro)}
+
+  ${body}
 
   <div class="sig">
     <p>Atenciosamente,</p>

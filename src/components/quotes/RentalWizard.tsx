@@ -1,14 +1,22 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { hasColumn } from "@/lib/dbFeatures";
 import { useRentalWizard, RENTAL_WIZARD_STEPS } from "@/hooks/useRentalWizard";
+import {
+  DEFAULT_COMPANY_SLUG, cityFromAddress, defaultRentalData, linesFromLegacy, normalizeRentalData, rentalProblems,
+} from "@/lib/rentalProposal";
+import { buildRentalQuotePayload, buildRentalRows } from "@/lib/rentalProposalSave";
+import { saveQuoteWithItems } from "@/lib/serviceProposalSave";
 import WizardHeader from "./WizardHeader";
 
 import StepClient from "./steps/StepClient";
 import RentalStepWork from "./rental-steps/RentalStepWork";
 import RentalStepCrane from "./rental-steps/RentalStepCrane";
-import RentalStepConfig from "./rental-steps/RentalStepConfig";
+import RentalStepPrices from "./rental-steps/RentalStepPrices";
+import RentalStepTerms, { RentalIssuerCompany } from "./rental-steps/RentalStepTerms";
 import RentalStepCommercial from "./rental-steps/RentalStepCommercial";
 import RentalStepSummary from "./rental-steps/RentalStepSummary";
 import RentalStepReview from "./rental-steps/RentalStepReview";
@@ -19,90 +27,135 @@ interface Props {
   duplicatingQuoteId?: string | null;
 }
 
+/** As colunas das propostas detalhadas (service_data, unit, is_optional) já existem no banco? */
+async function detailedColumnsExist(): Promise<boolean> {
+  const [a, b, c] = await Promise.all([
+    hasColumn("quotes", "service_data"),
+    hasColumn("quote_items", "unit"),
+    hasColumn("quote_items", "is_optional"),
+  ]);
+  return a && b && c;
+}
+
 export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuoteId }: Props) {
   const queryClient = useQueryClient();
   const wizard = useRentalWizard();
 
   const sourceQuoteId = editingQuoteId || duplicatingQuoteId;
 
-  // Load existing quote for editing/duplicating
+  // Empresas que podem emitir a proposta (mesma lista da proposta de serviço)
+  const { data: companies } = useQuery({
+    queryKey: ["service-issuer-companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_settings")
+        .select("id, slug, company_name, razao_social, address, representante_nome, representante_cargo")
+        .order("company_name");
+      if (error) throw error;
+      return (data || []) as RentalIssuerCompany[];
+    },
+    staleTime: 5 * 60_000,
+  });
+  const companyBySlug = (slug: string) => (companies || []).find((c) => c.slug === slug);
+
+  // Proposta nova: preenche cidade e assinante com os dados da empresa emitente (uma vez)
+  const defaultsApplied = useRef(false);
+  useEffect(() => {
+    if (defaultsApplied.current || sourceQuoteId || !companies) return;
+    defaultsApplied.current = true;
+    const c = companyBySlug(wizard.data.rental.company_slug);
+    if (c) {
+      wizard.updateRental({
+        issue_city: cityFromAddress(c.address),
+        signer_name: c.representante_nome || "",
+        signer_role: c.representante_cargo || "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companies, sourceQuoteId]);
+
+  const onCompanyChange = (slug: string) => {
+    const c = companyBySlug(slug);
+    wizard.updateRental({
+      company_slug: slug,
+      issue_city: cityFromAddress(c?.address),
+      signer_name: c?.representante_nome || "",
+      signer_role: c?.representante_cargo || "",
+    });
+  };
+
+  // Editar / duplicar: carrega a proposta existente UMA vez (não sobrescreve o que o usuário digitou
+  // se a janela perder e recuperar o foco)
+  const loaded = useRef(false);
   const { isLoading: isLoadingQuote, data: sourceQuote } = useQuery({
     queryKey: ["rental-quote-source", sourceQuoteId],
     queryFn: async () => {
-      if (!sourceQuoteId) return null;
       const { data: quote, error } = await supabase
         .from("quotes")
-        .select("*, clients(razao_social, nome_fantasia, client_type)")
-        .eq("id", sourceQuoteId)
+        .select("*, clients(razao_social, nome_fantasia, client_type), quote_items(*)")
+        .eq("id", sourceQuoteId!)
         .single();
       if (error) throw error;
-      const q = quote as any;
-      wizard.updateData({
-        client_id: quote.client_id,
-        client_name: quote.clients?.nome_fantasia || quote.clients?.razao_social || "",
-        client_type: quote.clients?.client_type || "nacional",
-        project_name: quote.project_name || "",
-        project_location: quote.project_location || "",
-        rental_work_type: q.rental_work_type || "",
-        rental_height_needed: q.rental_height_needed ?? null,
-        rental_jib_needed: q.rental_jib_needed ?? null,
-        rental_max_weight: q.rental_max_weight ?? null,
-        rental_duration_months: q.rental_duration_months ?? null,
-        rental_start_date: q.rental_start_date || "",
-        rental_terrain_condition: q.rental_terrain_condition || "",
-        rental_special_foundation: q.rental_special_foundation ?? false,
-        rental_monthly_value: q.rental_monthly_value ?? null,
-        rental_mobilization: q.rental_mobilization ?? 0,
-        rental_demobilization: q.rental_demobilization ?? 0,
-        rental_freight: q.rental_freight ?? 0,
-        rental_assembly: q.rental_assembly ?? 0,
-        rental_disassembly: q.rental_disassembly ?? 0,
-        rental_operator_included: q.rental_operator_included ?? false,
-        rental_maintenance_included: q.rental_maintenance_included ?? false,
-        rental_insurance_included: q.rental_insurance_included ?? false,
-        rental_technical_assistance: q.rental_technical_assistance ?? false,
-        discount_percent: quote.discount_percent,
-        rental_tax_percent: q.rental_tax_percent ?? 0,
-        payment_terms: quote.payment_terms || "",
-        payment_terms_items: q.payment_terms_items || [],
-        freight_terms: quote.freight_terms || "",
-        validity_days: quote.validity_days,
-        notes: quote.notes || "",
-        language: q.language || "pt-BR",
-        hide_discount_value: q.hide_discount_value ?? false,
-        hide_unit_prices: q.hide_unit_prices ?? false,
-        // Crane data from quote
-        grua_lanca_m: quote.grua_lanca_m ?? null,
-        grua_altura_torre_m: quote.grua_altura_torre_m ?? null,
-        grua_carga_maxima_kg: quote.grua_carga_maxima_kg ?? null,
-        grua_carga_ponta_kg: quote.grua_carga_ponta_kg ?? null,
-        grua_altura_trabalho_m: quote.grua_altura_trabalho_m ?? null,
-      });
-
-      // Try to find selected crane from items
-      const { data: items } = await supabase
-        .from("quote_items")
-        .select("*")
-        .eq("quote_id", sourceQuoteId)
-        .eq("product_category", "grua")
-        .limit(1);
-
-      if (items && items.length > 0) {
-        const crane = items[0];
-        wizard.updateData({
-          selected_crane_id: crane.product_id || "",
-          selected_crane_name: crane.product_name,
-          selected_crane_code: crane.product_code,
-        });
-      }
-
-      return quote;
+      return quote as any;
     },
     enabled: !!sourceQuoteId,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    if (!sourceQuote || loaded.current) return;
+    loaded.current = true;
+    const q = sourceQuote;
+    // Proposta feita no quadro de preços novo (service_data) ou antiga (só colunas rental_*)
+    const isDetailed = q.service_data?.kind === "locacao";
+    const rental = isDetailed
+      ? normalizeRentalData(q.service_data, companyBySlug(q.service_data?.company_slug) || undefined)
+      : { ...defaultRentalData(companyBySlug(DEFAULT_COMPANY_SLUG) || undefined), lines: linesFromLegacy(q) };
+    const crane = (q.quote_items || []).find((i: any) => i.product_category === "grua");
+
+    wizard.updateData({
+      client_id: q.client_id,
+      client_name: q.clients?.nome_fantasia || q.clients?.razao_social || "",
+      client_type: q.clients?.client_type || "nacional",
+      project_name: q.project_name || "",
+      project_location: q.project_location || "",
+      rental_work_type: q.rental_work_type || "",
+      rental_height_needed: q.rental_height_needed ?? null,
+      rental_jib_needed: q.rental_jib_needed ?? null,
+      rental_max_weight: q.rental_max_weight ?? null,
+      rental_duration_months: q.rental_duration_months ?? null,
+      rental_start_date: q.rental_start_date || "",
+      rental_terrain_condition: q.rental_terrain_condition || "",
+      rental_special_foundation: q.rental_special_foundation ?? false,
+      lines: rental.lines,
+      rental,
+      discount_percent: q.discount_percent || 0,
+      rental_tax_percent: q.rental_tax_percent ?? 0,
+      payment_terms: q.payment_terms || "",
+      payment_terms_items: q.payment_terms_items || [],
+      freight_terms: q.freight_terms || "",
+      validity_days: q.validity_days,
+      notes: q.notes || "",
+      language: q.language || "pt-BR",
+      hide_discount_value: q.hide_discount_value ?? false,
+      hide_unit_prices: q.hide_unit_prices ?? false,
+      grua_lanca_m: q.grua_lanca_m ?? null,
+      grua_altura_torre_m: q.grua_altura_torre_m ?? null,
+      grua_carga_maxima_kg: q.grua_carga_maxima_kg ?? null,
+      grua_carga_ponta_kg: q.grua_carga_ponta_kg ?? null,
+      grua_altura_trabalho_m: q.grua_altura_trabalho_m ?? null,
+      selected_crane_id: crane?.product_id || "",
+      selected_crane_name: crane?.product_name || "",
+      selected_crane_code: crane?.product_code || "",
+      // uma proposta antiga não tem os textos novos: eles precisam ser revisados; a nova já passou por isso
+      texts_reviewed: isDetailed,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceQuote]);
+
   // Status of the quote being edited (null when creating/duplicating)
-  const originalStatus: string | null = editingQuoteId ? ((sourceQuote as any)?.status ?? null) : null;
+  const originalStatus: string | null = editingQuoteId ? (sourceQuote?.status ?? null) : null;
 
   // Limite de desconto do operador — mesma regra da proposta de venda.
   // Antes, a locação gravava "desconto aprovado" sempre, sem checar o limite.
@@ -127,141 +180,42 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
 
   const saveMutation = useMutation({
     mutationFn: async (mode: "draft" | "finalized" | "keep" | "request_approval") => {
+      const d = wizard.data;
+      const months = d.rental_duration_months || 0;
+
       // Trava de segurança: acima do limite, só vai adiante como pedido de aprovação ou rascunho
       if (needsApproval && (mode === "finalized" || mode === "keep")) {
         throw new Error(`Desconto acima do limite (${maxDiscount}%). Envie para aprovação de um administrador.`);
       }
-      if (mode === "request_approval" && !wizard.data.discount_justification.trim()) {
+      if (mode === "request_approval" && !d.discount_justification.trim()) {
         throw new Error("Informe a justificativa do desconto para enviar para aprovação.");
       }
+      if (!d.client_id) throw new Error("Escolha o cliente antes de salvar.");
+      if (mode === "finalized" || mode === "keep") {
+        const problems = rentalProblems({ client_id: d.client_id, months, lines: d.lines, data: d.rental, validity_days: d.validity_days });
+        if (problems.length) throw new Error(problems[0]);
+      }
+
       await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
       const userId = userData.user.id;
-      const session = { session: { user: userData.user } };
-      const finalStatus = mode === "keep" ? (originalStatus === "finalized" ? "finalized" : "draft") : mode === "finalized" ? "finalized" : "draft";
+
+      // Banco sem as colunas das propostas detalhadas: grava no formato simples de antes (nada se perde, só os textos novos)
+      const detailed = await detailedColumnsExist();
       const discountApproved = mode === "finalized" || mode === "keep" || (mode === "draft" && !needsApproval);
+      const payload = buildRentalQuotePayload({ data: d, detailed, discountApproved });
+      const rowsFor = (quoteId: string) => buildRentalRows(quoteId, { data: d, detailed });
 
-      const quotePayload: Record<string, any> = {
-        client_id: wizard.data.client_id,
-        quote_type: "locacao",
-        project_name: wizard.data.project_name || null,
-        project_location: wizard.data.project_location || null,
-        grua_lanca_m: wizard.data.grua_lanca_m ?? null,
-        grua_altura_torre_m: wizard.data.grua_altura_torre_m ?? null,
-        grua_carga_maxima_kg: wizard.data.grua_carga_maxima_kg ?? null,
-        grua_carga_ponta_kg: wizard.data.grua_carga_ponta_kg ?? null,
-        grua_altura_trabalho_m: wizard.data.grua_altura_trabalho_m ?? null,
-        currency: wizard.data.currency,
-        payment_terms: wizard.data.payment_terms || null,
-        payment_terms_items: wizard.data.payment_terms_items,
-        freight_terms: wizard.data.freight_terms || null,
-        validity_days: wizard.data.validity_days,
-        notes: wizard.data.notes || null,
-        language: wizard.data.language,
-        discount_percent: wizard.data.discount_percent,
-        discount_value: wizard.discountValue,
-        discount_approved: discountApproved,
-        subtotal: wizard.subtotal,
-        total: wizard.total,
-        status: finalStatus as "draft" | "finalized",
-        hide_discount_value: wizard.data.hide_discount_value,
-        hide_unit_prices: wizard.data.hide_unit_prices,
-        // Rental fields
-        rental_duration_months: wizard.data.rental_duration_months,
-        rental_monthly_value: wizard.data.rental_monthly_value,
-        rental_mobilization: wizard.data.rental_mobilization,
-        rental_demobilization: wizard.data.rental_demobilization,
-        rental_freight: wizard.data.rental_freight,
-        rental_assembly: wizard.data.rental_assembly,
-        rental_disassembly: wizard.data.rental_disassembly,
-        rental_operator_included: wizard.data.rental_operator_included,
-        rental_maintenance_included: wizard.data.rental_maintenance_included,
-        rental_insurance_included: wizard.data.rental_insurance_included,
-        rental_technical_assistance: wizard.data.rental_technical_assistance,
-        rental_start_date: wizard.data.rental_start_date || null,
-        rental_terrain_condition: wizard.data.rental_terrain_condition || null,
-        rental_special_foundation: wizard.data.rental_special_foundation,
-        rental_work_type: wizard.data.rental_work_type || null,
-        rental_height_needed: wizard.data.rental_height_needed,
-        rental_jib_needed: wizard.data.rental_jib_needed,
-        rental_max_weight: wizard.data.rental_max_weight,
-        rental_tax_percent: wizard.data.rental_tax_percent,
-      };
-
-      let quoteId: string;
-      let quoteNumber: string;
-
-      if (editingQuoteId) {
-        const { data: currentQuote } = await supabase
-          .from("quotes")
-          .select("*, quote_items(*)")
-          .eq("id", editingQuoteId)
-          .single();
-
-        if (currentQuote) {
-          const { count } = await supabase
-            .from("quote_versions")
-            .select("id", { count: "exact", head: true })
-            .eq("quote_id", editingQuoteId);
-          const userId2 = session.session!.user.id;
-          await supabase.from("quote_versions").insert({
-            quote_id: editingQuoteId,
-            version_number: (count || 0) + 1,
-            snapshot: currentQuote as any,
-            edited_by: userId2,
-          });
-        }
-
-        const { error: updateError } = await supabase
-          .from("quotes")
-          .update({
-            ...quotePayload,
-            finalized_at: finalStatus === "finalized"
-              ? (mode === "keep" && (currentQuote as any)?.finalized_at ? (currentQuote as any).finalized_at : new Date().toISOString())
-              : null,
-          } as any)
-          .eq("id", editingQuoteId);
-        if (updateError) throw updateError;
-
-        await supabase.from("quote_items").delete().eq("quote_id", editingQuoteId);
-        quoteId = editingQuoteId;
-        quoteNumber = currentQuote?.quote_number || "";
-      } else {
-        const { data: quote, error: quoteError } = await supabase
-          .from("quotes")
-          .insert({
-            ...quotePayload,
-            quote_number: "",
-            created_by: userId,
-            finalized_at: finalStatus === "finalized" ? new Date().toISOString() : null,
-          } as any)
-          .select("id, quote_number")
-          .single();
-        if (quoteError) throw quoteError;
-        quoteId = quote.id;
-        quoteNumber = quote.quote_number;
-      }
-
-      // Insert crane as a quote_item for reference
-      if (wizard.data.selected_crane_id) {
-        await supabase.from("quote_items").insert({
-          quote_id: quoteId,
-          product_id: wizard.data.selected_crane_id,
-          product_code: wizard.data.selected_crane_code,
-          product_name: wizard.data.selected_crane_name,
-          product_category: "grua",
-          unit_price: wizard.data.rental_monthly_value || 0,
-          quantity: 1,
-          total_price: wizard.data.rental_monthly_value || 0,
-          order_index: 0,
-          grua_lanca_m: wizard.data.grua_lanca_m,
-          grua_altura_torre_m: wizard.data.grua_altura_torre_m,
-          grua_carga_maxima_kg: wizard.data.grua_carga_maxima_kg,
-          grua_carga_ponta_kg: wizard.data.grua_carga_ponta_kg,
-          grua_altura_trabalho_m: wizard.data.grua_altura_trabalho_m,
-        } as any);
-      }
+      // "Enviar para aprovação" grava como rascunho e cria o pedido para um administrador
+      const { quoteId, quoteNumber } = await saveQuoteWithItems(supabase, {
+        mode: mode === "request_approval" ? "draft" : mode,
+        editingQuoteId,
+        originalStatus,
+        userId,
+        payload,
+        rowsFor,
+      });
 
       // Desconto acima do limite: cria o pedido de aprovação para um administrador (igual à venda)
       if (mode === "request_approval") {
@@ -270,15 +224,15 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
           .insert({
             quote_id: quoteId,
             requested_by: userId,
-            discount_percent: wizard.data.discount_percent,
-            justification: wizard.data.discount_justification,
+            discount_percent: d.discount_percent,
+            justification: d.discount_justification,
           });
         if (approvalError) throw approvalError;
       }
 
-      return { quoteNumber, mode };
+      return { quoteNumber, mode, detailed };
     },
-    onSuccess: ({ quoteNumber, mode }) => {
+    onSuccess: ({ quoteNumber, mode, detailed }) => {
       const isEdit = !!editingQuoteId;
       toast({
         title: mode === "request_approval"
@@ -290,17 +244,19 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
           : (isEdit ? "Proposta de locação atualizada!" : "Rascunho de locação salvo!"),
         description: mode === "request_approval"
           ? `Proposta ${quoteNumber} aguardando aprovação de desconto.`
-          : `Número: ${quoteNumber}`,
+          : detailed
+          ? `Número: ${quoteNumber}`
+          : `Número: ${quoteNumber}. Salva no formato simples: o banco ainda não recebeu a atualização das propostas detalhadas.`,
       });
       queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       wizard.reset();
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao salvar proposta de locação",
-        description: error.message,
+        description: error?.message || "Tente novamente",
         variant: "destructive",
       });
     },
@@ -340,15 +296,33 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
           />
         )}
         {wizard.step === 2 && (
-          <RentalStepWork data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <RentalStepWork data={wizard.data} updateData={wizard.updateData} updateRental={wizard.updateRental} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
         )}
         {wizard.step === 3 && (
           <RentalStepCrane data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
         )}
         {wizard.step === 4 && (
-          <RentalStepConfig data={wizard.data} updateData={wizard.updateData} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+          <RentalStepPrices
+            data={wizard.data}
+            months={wizard.months}
+            totals={wizard.totals}
+            updateData={wizard.updateData}
+            updateLines={wizard.updateLines}
+            onNext={wizard.nextStep}
+            onPrev={wizard.prevStep}
+          />
         )}
         {wizard.step === 5 && (
+          <RentalStepTerms
+            data={wizard.data}
+            updateRental={wizard.updateRental}
+            companies={companies || []}
+            onCompanyChange={onCompanyChange}
+            onNext={wizard.nextStep}
+            onPrev={wizard.prevStep}
+          />
+        )}
+        {wizard.step === 6 && (
           <RentalStepCommercial
             data={wizard.data}
             updateData={wizard.updateData}
@@ -362,23 +336,14 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
             onPrev={wizard.prevStep}
           />
         )}
-        {wizard.step === 6 && (
-          <RentalStepSummary
-            data={wizard.data}
-            rentalSubtotal={wizard.rentalSubtotal}
-            additionalCosts={wizard.additionalCosts}
-            subtotal={wizard.subtotal}
-            discountValue={wizard.discountValue}
-            taxValue={wizard.taxValue}
-            total={wizard.total}
-            onNext={wizard.nextStep}
-            onPrev={wizard.prevStep}
-          />
-        )}
         {wizard.step === 7 && (
+          <RentalStepSummary data={wizard.data} months={wizard.months} totals={wizard.totals} onNext={wizard.nextStep} onPrev={wizard.prevStep} />
+        )}
+        {wizard.step === 8 && (
           <RentalStepReview
             data={wizard.data}
             total={wizard.total}
+            updateData={wizard.updateData}
             onPrev={wizard.prevStep}
             onSaveDraft={() => saveMutation.mutate("draft")}
             onFinalize={() => saveMutation.mutate("finalized")}
