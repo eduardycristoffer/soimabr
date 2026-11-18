@@ -50,6 +50,13 @@
       "when": 1794969107538,
       "tag": "0006_service_proposal_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794969161340,
+      "tag": "0007_tighten_signature_and_email_table_grants",
+      "breakpoints": true
     }
   ]
 }
