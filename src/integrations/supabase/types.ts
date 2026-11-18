@@ -1874,6 +1874,9 @@ export type Database = {
         Row: {
           cancelled_at: string | null
           client_id: string
+          closed_at: string | null
+          closed_by: string | null
+          closing_note: string | null
           created_at: string
           created_by: string
           currency: Database["public"]["Enums"]["currency"]
@@ -1955,6 +1958,9 @@ export type Database = {
         Insert: {
           cancelled_at?: string | null
           client_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_note?: string | null
           created_at?: string
           created_by?: string
           currency?: Database["public"]["Enums"]["currency"]
@@ -2036,6 +2042,9 @@ export type Database = {
         Update: {
           cancelled_at?: string | null
           client_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_note?: string | null
           created_at?: string
           created_by?: string
           currency?: Database["public"]["Enums"]["currency"]
