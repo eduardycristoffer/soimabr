@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Trash2, ShieldCheck, Send } from "lucide-react";
 
 interface Props {
   data: RentalWizardData;
@@ -16,11 +17,17 @@ interface Props {
   discountValue: number;
   taxValue: number;
   total: number;
+  /** Limite de desconto sem aprovação para este usuário (100 para admin) */
+  maxDiscount?: number;
+  isAdmin?: boolean;
   onNext: () => void;
   onPrev: () => void;
 }
 
-export default function RentalStepCommercial({ data, updateData, subtotal, discountValue, taxValue, total, onNext, onPrev }: Props) {
+export default function RentalStepCommercial({ data, updateData, subtotal, discountValue, taxValue, total, maxDiscount = 100, isAdmin = false, onNext, onPrev }: Props) {
+  const exceedsMax = !isAdmin && data.discount_percent > maxDiscount;
+  const needsJustification = exceedsMax && !data.discount_justification.trim();
+
   const addPaymentItem = () => {
     updateData({ payment_terms_items: [...data.payment_terms_items, { text: "" }] });
   };
@@ -58,9 +65,71 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
         </div>
       </div>
 
+      {/* Desconto — mesma regra da proposta de venda */}
+      <div className="space-y-3">
+        <div className="max-w-xs space-y-2">
+          <Label>Desconto (%)</Label>
+          <Input
+            type="number" min="0" max="100" step="0.5"
+            value={data.discount_percent}
+            onChange={(e) => updateData({ discount_percent: Math.max(0, parseFloat(e.target.value) || 0) })}
+          />
+        </div>
+
+        {exceedsMax && (
+          <>
+            <Alert className="border-amber-300 bg-amber-50 text-amber-800">
+              <Send className="h-4 w-4" />
+              <AlertDescription>
+                Desconto acima do limite ({maxDiscount}%). Será necessária aprovação de um administrador.
+              </AlertDescription>
+            </Alert>
+            <div className="space-y-2">
+              <Label>Justificativa (obrigatório)</Label>
+              <Textarea
+                placeholder="Explique o motivo do desconto acima do limite..."
+                value={data.discount_justification}
+                onChange={(e) => updateData({ discount_justification: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </>
+        )}
+
+        {!exceedsMax && data.discount_percent > 0 && (
+          <Alert>
+            <ShieldCheck className="h-4 w-4" />
+            <AlertDescription>
+              {isAdmin ? "Admin: desconto livre, sem restrições." : `Desconto dentro do limite (${maxDiscount}%).`}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {data.discount_percent > 0 && (
+          <div className="flex items-start space-x-3 pt-1">
+            <Checkbox
+              id="rental_hide_discount_value"
+              checked={data.hide_discount_value}
+              onCheckedChange={(checked) => updateData({ hide_discount_value: !!checked })}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <label htmlFor="rental_hide_discount_value" className="text-sm font-medium leading-none cursor-pointer">
+                Esconder valor do desconto no PDF
+              </label>
+              <p className="text-xs text-muted-foreground">
+                O PDF mostrará apenas "Desconto aplicado" sem exibir o percentual ou valor
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Preview totals */}
       <div className="bg-accent/30 rounded-lg p-4 space-y-1 text-sm">
         <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
+        {data.discount_percent > 0 && (
+          <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-R$ {discountValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
+        )}
         {data.rental_tax_percent > 0 && (
           <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+R$ {taxValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         )}
@@ -133,7 +202,9 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onPrev}>Voltar</Button>
-        <Button onClick={onNext}>Próximo</Button>
+        <Button onClick={onNext} disabled={needsJustification} title={needsJustification ? "Informe a justificativa do desconto" : undefined}>
+          Próximo
+        </Button>
       </div>
     </div>
   );

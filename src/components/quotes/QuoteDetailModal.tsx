@@ -7,11 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Download, FileSignature } from "lucide-react";
+import { Loader2, Download, FileSignature, FileDown, Mail } from "lucide-react";
+import SendProposalEmailDialog from "@/components/quotes/SendProposalEmailDialog";
+import { useEmailIntegration } from "@/hooks/useEmailIntegration";
+import { downloadQuotePdf } from "@/lib/quotePdf";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import QuoteShareCard from "./QuoteShareCard";
+import ServiceItemsCard from "./ServiceItemsCard";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
+import { QuoteAmount } from "@/components/quotes/QuoteAmount";
+import { formatMoney, isUsdEstimateQuote } from "@/lib/quoteMoney";
+import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
 
 const categoryLabels: Record<string, string> = {
   grua: "🏗️ Grua",
@@ -37,6 +44,10 @@ interface Props {
 export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const emailIntegration = useEmailIntegration();
+  const emailAvailable = emailIntegration.dbReady && emailIntegration.deployed;
 
   const { data: quote, isLoading } = useQuery({
     queryKey: ["quote-detail", quoteId],
@@ -93,8 +104,12 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
     enabled: !!quoteId && open,
   });
 
+  // Propostas internacionais em USD têm os valores gravados em R$ (o dólar é só estimativa):
+  // formatar com "US$" mostrava o número em reais com o símbolo errado.
+  const isUsdEstimate = isUsdEstimateQuote(quote as any);
+  const { rate: liveUsdRate } = useUsdBrlRate(isUsdEstimate);
   const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+    formatMoney(value, isUsdEstimate ? "BRL" : currency);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
@@ -124,11 +139,26 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
     }
   };
 
+  // Baixa o arquivo PDF (o botão "Gerar PDF" só abre a página para imprimir)
+  const handleDownloadPdf = async () => {
+    if (!quoteId) return;
+    setDownloadingPdf(true);
+    try {
+      const name = await downloadQuotePdf(quoteId);
+      toast({ title: "PDF baixado", description: name });
+    } catch (error: any) {
+      toast({ title: "Erro ao baixar o PDF", description: error.message || "Tente novamente", variant: "destructive" });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const equipmentItems = items?.filter((i) => i.product_category === "grua") || [];
   const componentItems = items?.filter((i) => ["configuracao", "torre", "tramo", "chassis"].includes(i.product_category)) || [];
   const accessoryItems = items?.filter((i) => i.product_category === "acessorio") || [];
 
   const isRental = (quote as any)?.quote_type === "locacao";
+  const isService = (quote as any)?.quote_type === "servico";
   const hideUnitPrices = !!(quote as any)?.hide_unit_prices;
   const rentalServices: string[] = [];
   if (isRental && quote) {
@@ -345,7 +375,9 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
 
             {/* Right column */}
             <div className="space-y-4">
-              {isRental ? (
+              {isService ? (
+                <ServiceItemsCard rows={(items as any[]) || []} hidePrices={hideUnitPrices} />
+              ) : isRental ? (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Detalhamento de Custos</CardTitle>
@@ -426,7 +458,7 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
                       )}
                       <div className="flex justify-between border-t pt-2 text-lg">
                         <span className="font-bold">Total</span>
-                        <span className="font-bold">{formatCurrency(quote.total, quote.currency)}</span>
+                        <QuoteAmount className="font-bold text-right" value={quote.total} quote={quote as any} liveRate={liveUsdRate} />
                       </div>
                     </div>
                   </CardContent>
@@ -448,6 +480,17 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
               Gerar PDF
             </Button>
           )}
+          {quote && (quote.status === "finalized" || quote.status === "draft") && (
+            <Button variant="outline" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+              Baixar PDF
+            </Button>
+          )}
+          {quote && quote.status === "finalized" && emailAvailable && (
+            <Button variant="default" onClick={() => setEmailDialogOpen(true)}>
+              <Mail className="mr-2 h-4 w-4" /> Enviar ao cliente
+            </Button>
+          )}
           <Button onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
@@ -456,6 +499,13 @@ export default function QuoteDetailModal({ quoteId, open, onClose }: Props) {
           quoteId={quoteId}
           open={contractDialogOpen}
           onClose={() => setContractDialogOpen(false)}
+        />
+      )}
+      {quoteId && emailDialogOpen && (
+        <SendProposalEmailDialog
+          quoteId={quoteId}
+          open={emailDialogOpen}
+          onClose={() => setEmailDialogOpen(false)}
         />
       )}
     </Dialog>

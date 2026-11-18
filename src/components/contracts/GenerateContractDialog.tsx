@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { hasColumn } from "@/lib/dbFeatures";
 import { Loader2, Plus, Trash2, Sparkles, Check } from "lucide-react";
 import {
   buildPlaceholderMap,
@@ -19,7 +20,13 @@ import {
   type PaymentScheduleItem,
   type ContractGenerationInputs,
 } from "@/lib/contractPlaceholders";
-import { isValidCPF } from "@/lib/validators";
+import {
+  isValidCPF,
+  formatCPF,
+  formatPhone,
+  formatCpfIfPossible,
+  formatPhoneIfPossible,
+} from "@/lib/validators";
 import { AlertTriangle } from "lucide-react";
 
 const FAKE_NAME_RX = /^(teste|test|xxx|fulano|beltrano|ciclano|nome do)/i;
@@ -227,7 +234,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     if (co && sellerSigs.length === 0) {
       setSellerSigs([{
         name: co.representante_nome || "",
-        cpf: co.representante_cpf || "",
+        cpf: formatCpfIfPossible(co.representante_cpf),
         rg: co.representante_rg || "",
         cargo: co.representante_cargo || "",
       }]);
@@ -239,7 +246,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
     const client = (quote as any).clients;
     if (client) {
       setBuyerMgrName(client.contato_nome || "");
-      setBuyerMgrPhone(client.contato_telefone || client.telefone || "");
+      setBuyerMgrPhone(formatPhoneIfPossible(client.contato_telefone || client.telefone || ""));
       setBuyerMgrEmail(client.contato_email || client.email || "");
     }
     if (myProfile) {
@@ -326,6 +333,9 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
       const firstBuyer = buyerSigs[0];
 
       const inputsBase: ContractGenerationInputs = {
+        // Todos os representantes entram na qualificação das partes (não só o primeiro)
+        seller_reps: sellerSigs.filter((s) => s.name && s.cpf),
+        buyer_reps: buyerSigs.filter((s) => s.name && s.cpf),
         seller_rep_name: firstSeller.name,
         seller_rep_cpf: firstSeller.cpf,
         seller_rep_rg: firstSeller.rg,
@@ -346,6 +356,9 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
         delivery_days: deliveryDays ? Number(deliveryDays) : undefined,
         extra_services: extraServices.map((s) => s.trim()).filter(Boolean),
       };
+
+      // Serviços adicionais só são gravados no contrato se a coluna já existir no banco
+      const withExtraServices = await hasColumn("contracts", "extra_services");
 
       // Helper: create one contract for a given template
       const createOne = async (template: any) => {
@@ -376,7 +389,8 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
             payment_schedule: schedule as any,
             delivery_days: deliveryDays ? Number(deliveryDays) : null,
             generated_at: new Date().toISOString(),
-          })
+            ...(withExtraServices ? { extra_services: inputsBase.extra_services || [] } : {}),
+          } as any)
           .select("*")
           .single();
         if (cErr) throw cErr;
@@ -564,7 +578,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
             {sellerSigs.map((s, idx) => (
               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
                 <div><Label className="text-xs">Nome</Label><Input value={s.name} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "name", e.target.value)} /></div>
-                <div><Label className="text-xs">CPF</Label><Input value={s.cpf} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF</Label><Input inputMode="numeric" placeholder="000.000.000-00" value={s.cpf} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "cpf", formatCPF(e.target.value))} /></div>
                 <div><Label className="text-xs">RG</Label><Input value={s.rg || ""} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "rg", e.target.value)} /></div>
                 <div><Label className="text-xs">Cargo</Label><Input value={s.cargo || ""} onChange={(e) => updateSig(sellerSigs, setSellerSigs, idx, "cargo", e.target.value)} /></div>
                 <Button variant="ghost" size="icon" onClick={() => setSellerSigs(sellerSigs.filter((_, i) => i !== idx))}>
@@ -587,7 +601,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
             {buyerSigs.map((s, idx) => (
               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
                 <div><Label className="text-xs">Nome *</Label><Input value={s.name} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "name", e.target.value)} /></div>
-                <div><Label className="text-xs">CPF *</Label><Input value={s.cpf} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF *</Label><Input inputMode="numeric" placeholder="000.000.000-00" value={s.cpf} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "cpf", formatCPF(e.target.value))} /></div>
                 <div><Label className="text-xs">RG</Label><Input value={s.rg || ""} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "rg", e.target.value)} /></div>
                 <div><Label className="text-xs">Cargo</Label><Input value={s.cargo || ""} onChange={(e) => updateSig(buyerSigs, setBuyerSigs, idx, "cargo", e.target.value)} /></div>
                 <Button variant="ghost" size="icon" onClick={() => setBuyerSigs(buyerSigs.filter((_, i) => i !== idx))} disabled={buyerSigs.length === 1}>
@@ -613,7 +627,7 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
             {witnesses.map((w, idx) => (
               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
                 <div><Label className="text-xs">Nome</Label><Input value={w.name} onChange={(e) => updateWit(idx, "name", e.target.value)} /></div>
-                <div><Label className="text-xs">CPF</Label><Input value={w.cpf} onChange={(e) => updateWit(idx, "cpf", e.target.value)} /></div>
+                <div><Label className="text-xs">CPF</Label><Input inputMode="numeric" placeholder="000.000.000-00" value={w.cpf} onChange={(e) => updateWit(idx, "cpf", formatCPF(e.target.value))} /></div>
                 <div><Label className="text-xs">E-mail</Label><Input value={w.email || ""} onChange={(e) => updateWit(idx, "email", e.target.value)} /></div>
                 <Button variant="ghost" size="icon" onClick={() => setWitnesses(witnesses.filter((_, i) => i !== idx))}>
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -629,13 +643,13 @@ export default function GenerateContractDialog({ quoteId, open, onClose }: Props
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 text-xs font-medium text-muted-foreground">Vendedora</div>
               <div><Label>Nome</Label><Input value={sellerMgrName} onChange={(e) => setSellerMgrName(e.target.value)} /></div>
-              <div><Label>CPF</Label><Input value={sellerMgrCpf} onChange={(e) => setSellerMgrCpf(e.target.value)} /></div>
-              <div><Label>Telefone</Label><Input value={sellerMgrPhone} onChange={(e) => setSellerMgrPhone(e.target.value)} /></div>
+              <div><Label>CPF</Label><Input inputMode="numeric" placeholder="000.000.000-00" value={sellerMgrCpf} onChange={(e) => setSellerMgrCpf(formatCPF(e.target.value))} /></div>
+              <div><Label>Telefone</Label><Input inputMode="tel" placeholder="(00) 00000-0000" value={sellerMgrPhone} onChange={(e) => setSellerMgrPhone(formatPhone(e.target.value))} /></div>
               <div><Label>E-mail</Label><Input value={sellerMgrEmail} onChange={(e) => setSellerMgrEmail(e.target.value)} /></div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground mt-2">Compradora</div>
               <div><Label>Nome</Label><Input value={buyerMgrName} onChange={(e) => setBuyerMgrName(e.target.value)} /></div>
-              <div><Label>CPF</Label><Input value={buyerMgrCpf} onChange={(e) => setBuyerMgrCpf(e.target.value)} /></div>
-              <div><Label>Telefone</Label><Input value={buyerMgrPhone} onChange={(e) => setBuyerMgrPhone(e.target.value)} /></div>
+              <div><Label>CPF</Label><Input inputMode="numeric" placeholder="000.000.000-00" value={buyerMgrCpf} onChange={(e) => setBuyerMgrCpf(formatCPF(e.target.value))} /></div>
+              <div><Label>Telefone</Label><Input inputMode="tel" placeholder="(00) 00000-0000" value={buyerMgrPhone} onChange={(e) => setBuyerMgrPhone(formatPhone(e.target.value))} /></div>
               <div><Label>E-mail</Label><Input value={buyerMgrEmail} onChange={(e) => setBuyerMgrEmail(e.target.value)} /></div>
             </div>
           </section>

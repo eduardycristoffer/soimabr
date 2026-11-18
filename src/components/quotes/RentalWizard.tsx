@@ -106,14 +106,43 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
   // Status of the quote being edited (null when creating/duplicating)
   const originalStatus: string | null = editingQuoteId ? ((sourceQuote as any)?.status ?? null) : null;
 
+  // Limite de desconto do operador — mesma regra da proposta de venda.
+  // Antes, a locação gravava "desconto aprovado" sempre, sem checar o limite.
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
+  const { data: operatorRule } = useQuery({
+    queryKey: ["discount-rules", "operator"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("discount_rules")
+        .select("*")
+        .eq("role", "operator")
+        .eq("requires_approval", false)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !isAdmin,
+  });
+  const maxDiscount = isAdmin ? 100 : (operatorRule?.max_discount_percent || 0);
+  const needsApproval = !isAdmin && wizard.data.discount_percent > maxDiscount;
+
   const saveMutation = useMutation({
-    mutationFn: async (mode: "draft" | "finalized" | "keep") => {
+    mutationFn: async (mode: "draft" | "finalized" | "keep" | "request_approval") => {
+      // Trava de segurança: acima do limite, só vai adiante como pedido de aprovação ou rascunho
+      if (needsApproval && (mode === "finalized" || mode === "keep")) {
+        throw new Error(`Desconto acima do limite (${maxDiscount}%). Envie para aprovação de um administrador.`);
+      }
+      if (mode === "request_approval" && !wizard.data.discount_justification.trim()) {
+        throw new Error("Informe a justificativa do desconto para enviar para aprovação.");
+      }
       await supabase.auth.refreshSession();
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData.user) throw new Error("Sessão expirada. Faça login novamente para salvar a proposta.");
       const userId = userData.user.id;
       const session = { session: { user: userData.user } };
       const finalStatus = mode === "keep" ? (originalStatus === "finalized" ? "finalized" : "draft") : mode === "finalized" ? "finalized" : "draft";
+      const discountApproved = mode === "finalized" || mode === "keep" || (mode === "draft" && !needsApproval);
 
       const quotePayload: Record<string, any> = {
         client_id: wizard.data.client_id,
@@ -134,7 +163,7 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
         language: wizard.data.language,
         discount_percent: wizard.data.discount_percent,
         discount_value: wizard.discountValue,
-        discount_approved: true,
+        discount_approved: discountApproved,
         subtotal: wizard.subtotal,
         total: wizard.total,
         status: finalStatus as "draft" | "finalized",
@@ -236,18 +265,36 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
         } as any);
       }
 
+      // Desconto acima do limite: cria o pedido de aprovação para um administrador (igual à venda)
+      if (mode === "request_approval") {
+        const { error: approvalError } = await supabase
+          .from("discount_approval_requests")
+          .insert({
+            quote_id: quoteId,
+            requested_by: userId,
+            discount_percent: wizard.data.discount_percent,
+            justification: wizard.data.discount_justification,
+          });
+        if (approvalError) throw approvalError;
+      }
+
       return { quoteNumber, mode };
     },
     onSuccess: ({ quoteNumber, mode }) => {
       const isEdit = !!editingQuoteId;
       toast({
-        title: mode === "keep"
+        title: mode === "request_approval"
+          ? "Enviado para aprovação!"
+          : mode === "keep"
           ? `Alteração salva (mantida como ${originalStatus === "finalized" ? "Finalizada" : "Rascunho"})`
           : mode === "finalized"
           ? (isEdit ? "Proposta de locação atualizada e finalizada!" : "Proposta de locação finalizada!")
           : (isEdit ? "Proposta de locação atualizada!" : "Rascunho de locação salvo!"),
-        description: `Número: ${quoteNumber}`,
+        description: mode === "request_approval"
+          ? `Proposta ${quoteNumber} aguardando aprovação de desconto.`
+          : `Número: ${quoteNumber}`,
       });
+      queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       wizard.reset();
       onClose();
@@ -337,6 +384,8 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
             discountValue={wizard.discountValue}
             taxValue={wizard.taxValue}
             total={wizard.total}
+            maxDiscount={maxDiscount}
+            isAdmin={isAdmin}
             onNext={wizard.nextStep}
             onPrev={wizard.prevStep}
           />
@@ -362,6 +411,8 @@ export default function RentalWizard({ onClose, editingQuoteId, duplicatingQuote
             onSaveDraft={() => saveMutation.mutate("draft")}
             onFinalize={() => saveMutation.mutate("finalized")}
             onSaveChanges={originalStatus === "finalized" ? () => saveMutation.mutate("keep") : undefined}
+            needsApproval={needsApproval}
+            onRequestApproval={() => saveMutation.mutate("request_approval")}
             isSaving={saveMutation.isPending}
           />
         )}

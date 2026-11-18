@@ -1,13 +1,35 @@
 // Placeholder resolver for contract clauses
 // Substitutes {{campo}} tokens using data from quote, client, company_settings, and dialog inputs.
 
+import {
+  formatCEP,
+  formatCnpjIfPossible,
+  formatCpfIfPossible,
+  formatPhoneIfPossible,
+  onlyDigits,
+} from "@/lib/validators";
+
 export interface PaymentScheduleItem {
   label: string;
   value: number;
   due: string; // free text (data ou marco)
 }
 
+/** Representante legal / signatário de uma das partes. */
+export interface ContractRep {
+  name: string;
+  cpf: string;
+  rg?: string | null;
+  cargo?: string | null;
+}
+
 export interface ContractGenerationInputs {
+  // Lista completa de representantes (quando houver mais de um por parte).
+  // Se ausente, usa-se apenas o representante "principal" abaixo.
+  seller_reps?: ContractRep[];
+  buyer_reps?: ContractRep[];
+  // Data do contrato (para regerar cláusulas sem mudar a data original)
+  contract_date?: string | Date;
   // buyer legal representative (mandatory)
   buyer_rep_name: string;
   buyer_rep_cpf: string;
@@ -323,6 +345,69 @@ function clientDoc(client: any): string {
   return client?.cnpj || client?.cpf || "";
 }
 
+const TZ_BR = "America/Sao_Paulo";
+
+/** Formata CNPJ (14 dígitos) ou CPF (11 dígitos); outros valores ficam como estão. */
+export function formatDocIfPossible(value: string | null | undefined): string {
+  const d = onlyDigits(value);
+  if (d.length === 14) return formatCnpjIfPossible(value);
+  if (d.length === 11) return formatCpfIfPossible(value);
+  return (value || "").trim();
+}
+
+function formatCepIfPossible(value: string | null | undefined): string {
+  const v = (value || "").trim();
+  return onlyDigits(v).length === 8 ? formatCEP(v) : v;
+}
+
+/**
+ * Datas "puras" (YYYY-MM-DD) não podem passar por `new Date()`: o JS as lê como
+ * meia-noite UTC e, no Brasil (UTC-3), a data aparece um dia antes.
+ */
+export function formatDateOnlyBR(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  if (typeof value === "string") {
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR", { timeZone: TZ_BR });
+}
+
+function fmtContractDateLong(value?: string | Date): string {
+  const d = value ? new Date(value) : new Date();
+  return (isNaN(d.getTime()) ? new Date() : d).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: TZ_BR,
+  });
+}
+
+function repQualificacao(r: ContractRep): string {
+  const rg = (r.rg || "").trim() || "—";
+  const cargo = (r.cargo || "").trim() || "—";
+  return `${(r.name || "").trim()}, portador(a) do CPF nº ${formatCpfIfPossible(r.cpf) || "—"} e RG nº ${rg}, cargo ${cargo}`;
+}
+
+/**
+ * Texto de qualificação de 1..N representantes legais de uma parte.
+ * 1 representante: "A, portador(a) do CPF nº ..., cargo ..."
+ * 2+: "A, portador(a) ...; e B, portador(a) ..."
+ */
+export function qualificacaoRepresentantes(reps: ContractRep[]): string {
+  const list = (reps || []).filter((r) => (r.name || "").trim());
+  if (list.length === 0) return "";
+  const parts = list.map(repQualificacao);
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join("; ")}; e ${parts[parts.length - 1]}`;
+}
+
+// Frase de qualificação usada pelos modelos padrão (venda e locação), com UM representante.
+// Quando há mais de um, ela é trocada pelo texto de qualificação completo.
+const REP_SENTENCE_RX =
+  /neste ato representad[ao] por \{\{\s*(vendedora|compradora)_representante_nome\s*\}\},\s*portador\(a\) do CPF nº \{\{\s*\1_representante_cpf\s*\}\}\s*e RG nº \{\{\s*\1_representante_rg\s*\}\},\s*cargo \{\{\s*\1_representante_cargo\s*\}\}/gi;
+
 export function buildPlaceholderMap(params: {
   quote: any;
   client: any;
@@ -336,29 +421,60 @@ export function buildPlaceholderMap(params: {
   const total = Number(quote.total || 0);
   const isRental = quote.quote_type === "locacao";
 
+  // E-mails: o cadastro do cliente muitas vezes só tem o e-mail do contato
+  // (contato_email) ou o e-mail financeiro informado no contrato (gestor).
+  const buyerMgrEmail = (inputs.buyer_manager_email || "").trim();
+  const clientEmail = (client?.email || "").trim();
+  const clientContactEmail = (client?.contato_email || "").trim();
+  const compradoraEmail = clientEmail || clientContactEmail || buyerMgrEmail;
+  // Destino da nota fiscal: o gestor da compradora recebe NF e boletos (cláusula de gestores)
+  const nfEmail = buyerMgrEmail || clientEmail || clientContactEmail;
+
+  const sellerReps: ContractRep[] =
+    inputs.seller_reps && inputs.seller_reps.length
+      ? inputs.seller_reps
+      : [{
+          name: inputs.seller_rep_name || company?.representante_nome || "",
+          cpf: inputs.seller_rep_cpf || company?.representante_cpf || "",
+          rg: inputs.seller_rep_rg || company?.representante_rg || "",
+          cargo: inputs.seller_rep_cargo || company?.representante_cargo || "",
+        }];
+  const buyerReps: ContractRep[] =
+    inputs.buyer_reps && inputs.buyer_reps.length
+      ? inputs.buyer_reps
+      : [{
+          name: inputs.buyer_rep_name || "",
+          cpf: inputs.buyer_rep_cpf || "",
+          rg: inputs.buyer_rep_rg || "",
+          cargo: inputs.buyer_rep_cargo || "",
+        }];
+
   return {
     // vendedora
     vendedora_razao_social: company?.razao_social || "",
-    vendedora_cnpj: company?.cnpj || "",
+    vendedora_cnpj: formatDocIfPossible(company?.cnpj),
     vendedora_ie: company?.inscricao_estadual || "—",
     vendedora_endereco: company?.address || "",
     vendedora_email: company?.email || "",
     vendedora_representante_nome: inputs.seller_rep_name || company?.representante_nome || "",
-    vendedora_representante_cpf: inputs.seller_rep_cpf || company?.representante_cpf || "",
+    vendedora_representante_cpf: formatCpfIfPossible(inputs.seller_rep_cpf || company?.representante_cpf || ""),
     vendedora_representante_rg: inputs.seller_rep_rg || company?.representante_rg || "",
     vendedora_representante_cargo: inputs.seller_rep_cargo || company?.representante_cargo || "",
+    vendedora_representantes_qualificacao: qualificacaoRepresentantes(sellerReps),
     // compradora
     compradora_razao_social: clientRazao(client),
-    compradora_cnpj_cpf: clientDoc(client),
+    compradora_cnpj_cpf: formatDocIfPossible(clientDoc(client)),
     compradora_endereco: client?.endereco || client?.address || "",
     compradora_cidade: client?.cidade || "",
     compradora_estado: client?.estado || client?.uf || "",
-    compradora_cep: client?.cep || "",
-    compradora_email: client?.email || "",
+    compradora_cep: formatCepIfPossible(client?.cep),
+    compradora_email: compradoraEmail,
+    nf_email: nfEmail,
     compradora_representante_nome: inputs.buyer_rep_name || "",
-    compradora_representante_cpf: inputs.buyer_rep_cpf || "",
+    compradora_representante_cpf: formatCpfIfPossible(inputs.buyer_rep_cpf || ""),
     compradora_representante_rg: inputs.buyer_rep_rg || "—",
     compradora_representante_cargo: inputs.buyer_rep_cargo || "—",
+    compradora_representantes_qualificacao: qualificacaoRepresentantes(buyerReps),
     // equipamento
     equipamento_tipo: isRental ? "grua torre" : "grua torre",
     equipamento_marca: "SOÍMA BRASIL",
@@ -381,16 +497,16 @@ export function buildPlaceholderMap(params: {
     garantia_eletrica_anos: String(quote.warranty_components_years ?? "—"),
     // gestores
     gestor_vendedora_nome: inputs.seller_manager_name || "",
-    gestor_vendedora_cpf: inputs.seller_manager_cpf || "",
-    gestor_vendedora_telefone: inputs.seller_manager_phone || "",
+    gestor_vendedora_cpf: formatCpfIfPossible(inputs.seller_manager_cpf || ""),
+    gestor_vendedora_telefone: formatPhoneIfPossible(inputs.seller_manager_phone || ""),
     gestor_vendedora_email: inputs.seller_manager_email || "",
     gestor_compradora_nome: inputs.buyer_manager_name || "",
-    gestor_compradora_cpf: inputs.buyer_manager_cpf || "",
-    gestor_compradora_telefone: inputs.buyer_manager_phone || "",
+    gestor_compradora_cpf: formatCpfIfPossible(inputs.buyer_manager_cpf || ""),
+    gestor_compradora_telefone: formatPhoneIfPossible(inputs.buyer_manager_phone || ""),
     gestor_compradora_email: inputs.buyer_manager_email || "",
     // meta
     foro_cidade: "Anápolis-GO",
-    data_contrato: new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }),
+    data_contrato: fmtContractDateLong(inputs.contract_date),
     numero_contrato: contract_number,
     // rental-specific
     rental_duration_months: String(quote.rental_duration_months ?? "—"),
@@ -404,9 +520,7 @@ export function buildPlaceholderMap(params: {
     rental_maintenance_included: quote.rental_maintenance_included ? "Sim" : "Não",
     rental_insurance_included: quote.rental_insurance_included ? "Sim" : "Não",
     rental_technical_assistance: quote.rental_technical_assistance ? "Sim" : "Não",
-    rental_start_date: quote.rental_start_date
-      ? new Date(quote.rental_start_date).toLocaleDateString("pt-BR")
-      : "—",
+    rental_start_date: formatDateOnlyBR(quote.rental_start_date),
     rental_terrain_condition: quote.rental_terrain_condition || "—",
     rental_special_foundation: quote.rental_special_foundation ? "Sim" : "Não",
     rental_work_type: quote.rental_work_type || "—",
@@ -418,7 +532,13 @@ export function buildPlaceholderMap(params: {
 }
 
 export function resolvePlaceholders(body: string, map: Record<string, string>): string {
-  return body.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, key) => {
+  // 1) Frase padrão de qualificação do representante → lista completa de representantes
+  const withReps = (body || "").replace(REP_SENTENCE_RX, (match, side: string) => {
+    const full = map[`${side.toLowerCase()}_representantes_qualificacao`];
+    return full ? `neste ato representada por ${full}` : match;
+  });
+  // 2) Demais {{campos}}
+  return withReps.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, key) => {
     const v = map[key];
     return v == null || v === "" ? "—" : v;
   });

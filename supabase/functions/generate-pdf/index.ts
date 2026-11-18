@@ -432,7 +432,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { quoteId } = await req.json();
+    const { quoteId, format } = await req.json();
     if (!quoteId) {
       return new Response(JSON.stringify({ error: "quoteId obrigatório" }), {
         status: 400,
@@ -488,11 +488,24 @@ Deno.serve(async (req) => {
       .single();
 
     // Fetch company settings
-    const { data: company } = await supabase
+    let { data: company } = await supabase
       .from("company_settings")
       .select("*")
       .limit(1)
       .single();
+
+    // Proposta de serviço: sai pela empresa escolhida na proposta (padrão: Dacrom).
+    // Venda e locação continuam usando a empresa de sempre.
+    const isService = quote.quote_type === "servico";
+    if (isService) {
+      const issuerSlug = (quote as any).service_data?.company_slug || "dacrom";
+      const { data: issuer } = await supabase
+        .from("company_settings")
+        .select("*")
+        .eq("slug", issuerSlug)
+        .maybeSingle();
+      if (issuer) company = issuer;
+    }
 
     // Fetch products for tech descriptions (full data for defaults)
     const productIds = (items || []).map((i: any) => i.product_id).filter(Boolean);
@@ -534,9 +547,62 @@ Deno.serve(async (req) => {
 
     // Generate HTML for the PDF — branch by quote type
     const isRental = quote.quote_type === "locacao";
-    const html = isRental
+    const html = isService
+      ? generateServiceHTML(quote, items || [], creator, company, { forPdf: format === "pdf" })
+      : isRental
       ? generateRentalHTML(quote, items || [], creator, company, productsMap, t, lang)
       : generateQuoteHTML(quote, items || [], creator, company, productsMap, t, lang, quotePanelItems || [], defaultPanelItems);
+
+    // format: "pdf" → devolve o arquivo PDF pronto (download e anexo de e-mail).
+    // Sem "format", mantém o comportamento de sempre: devolve o HTML para o app imprimir.
+    if (format === "pdf") {
+      const pdfshiftKey = Deno.env.get("PDFSHIFT_API_KEY");
+      if (!pdfshiftKey) {
+        return new Response(JSON.stringify({ error: "PDFSHIFT_API_KEY não configurada" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const pdfRes = await fetch("https://api.pdfshift.io/v3/convert/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Basic " + btoa("api:" + pdfshiftKey),
+        },
+        // O HTML foi feito para impressão (@page A4 sem margem, páginas de 210x297mm,
+        // barra de impressão escondida em @media print): por isso use_print e margem zero.
+        body: JSON.stringify(
+          isService
+            ? {
+                source: html, format: "A4", margin: "18mm 15mm 22mm 15mm", use_print: true, sandbox: false,
+                footer: { source: serviceFooterHtml(company), spacing: "6mm" },
+              }
+            : { source: html, format: "A4", margin: "0mm", use_print: true, sandbox: false },
+        ),
+      });
+      if (!pdfRes.ok) {
+        const errText = await pdfRes.text();
+        console.error("PDFShift error:", pdfRes.status, errText);
+        return new Response(JSON.stringify({ error: "Falha na geração do PDF", details: errText }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const bytes = new Uint8Array(await pdfRes.arrayBuffer());
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      return new Response(JSON.stringify({
+        pdf_base64: btoa(binary),
+        quote_number: quote.quote_number,
+        file_name: `Proposta ${quote.quote_number}.pdf`,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ html, quote_number: quote.quote_number }), {
       status: 200,
@@ -757,7 +823,10 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
   const companyCrea = co.crea_registration || "";
 
   // Status translation
-  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
+  // Proposta ainda não finalizada: o PDF mostra só "Rev. N" (sem a palavra "Rascunho").
+  const statusLabel = quote.status === "draft"
+    ? `Rev. ${quote.__revision_number ?? 0}`
+    : (quote.status === "finalized" ? t.status_finalized : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   // International disclaimer
   const disclaimerHTML = isInternationalUsd ? `
@@ -1070,7 +1139,7 @@ function buildPageHeader(quote: any, companyName: string, companySubtitle: strin
       <div class="quote-meta">
         ${t.date}: ${formatDateSimple(quote.created_at)}<br>
         ${t.validity}: ${formatDateSimple(validityDate.toISOString())}<br>
-        Status: ${statusLabel}
+        ${quote.status === "draft" ? "" : "Status: "}${statusLabel}
       </div>
     </div>
   </div>`;
@@ -1409,7 +1478,10 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   const clientCityUf = client?.cidade && client?.estado ? `${client.cidade} • ${client.estado}` : (client?.cidade || client?.estado || "");
   const coverDate = formatDate(quote.created_at);
   const htmlLang = lang === "en" ? "en" : "pt-BR";
-  const statusLabel = (quote.status === "finalized" ? t.status_finalized : quote.status === "draft" ? t.status_draft : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
+  // Proposta ainda não finalizada: o PDF mostra só "Rev. N" (sem a palavra "Rascunho").
+  const statusLabel = quote.status === "draft"
+    ? `Rev. ${quote.__revision_number ?? 0}`
+    : (quote.status === "finalized" ? t.status_finalized : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
   const validityDate = new Date(quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
@@ -1754,6 +1826,260 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
   <div class="backcover-page" style="page-break-before: always;">
     <img src="${PDF_BACKCOVER_URL}" class="cover-bg-img" alt="Contracapa" />
   </div>
+</body>
+</html>`;
+}
+// ════════════════════════════════════════════════════════════════════════════
+// PROPOSTA DE SERVIÇO (quote_type = 'servico') — modelo TECSU, formato carta.
+// Os textos vêm de quotes.service_data; as linhas de preço, de quote_items.
+// Tudo que o usuário digita passa por svcEsc (nada vira HTML solto).
+// ════════════════════════════════════════════════════════════════════════════
+const SVC_TZ = "America/Sao_Paulo";
+const SVC_MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function svcEsc(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** Texto livre → parágrafos (linha em branco) e <br> (quebra simples). */
+function svcParas(text: unknown): string {
+  return String(text ?? "")
+    .split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p>${svcEsc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+function svcBullets(list: unknown): string {
+  const arr = (Array.isArray(list) ? list : []).map((x) => String(x ?? "").trim()).filter(Boolean);
+  return arr.length ? `<ul>${arr.map((x) => `<li>${svcEsc(x)}</li>`).join("")}</ul>` : "";
+}
+
+/** Dia/mês/ano no fuso de Brasília (datas não podem "andar" um dia por causa do UTC). */
+function svcYmd(iso: string): { y: number; m: number; d: number } {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: SVC_TZ, year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date(iso)).split("-").map(Number);
+  return { y, m, d };
+}
+const svcPad = (n: number) => String(n).padStart(2, "0");
+const svcLongDate = (iso: string) => { const { y, m, d } = svcYmd(iso); return `${d} de ${SVC_MONTHS[m - 1]} de ${y}`; };
+const svcShortDate = (iso: string) => { const { y, m, d } = svcYmd(iso); return `${svcPad(d)}/${svcPad(m)}/${y}`; };
+function svcAddDaysShort(iso: string, days: number): string {
+  const { y, m, d } = svcYmd(iso);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return `${svcPad(t.getUTCDate())}/${svcPad(t.getUTCMonth() + 1)}/${t.getUTCFullYear()}`;
+}
+const svcMoney = (v: number) => "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function svcContactLine(co: any): string {
+  return [
+    co?.razao_social || co?.company_name,
+    co?.cnpj ? `CNPJ ${co.cnpj}` : "",
+    co?.address,
+    co?.phone ? `Tel. ${co.phone}` : "",
+    co?.email,
+  ].filter(Boolean).join(" · ");
+}
+
+/** Rodapé que o PDFShift repete em todas as páginas (com numeração). */
+function serviceFooterHtml(company: any): string {
+  return `<div style="width:100%;font-size:7.5pt;color:#777;text-align:center;font-family:Helvetica,Arial,sans-serif;padding:0 15mm;">${svcEsc(svcContactLine(company))}<br>Página {{page}} de {{total}}</div>`;
+}
+
+function generateServiceHTML(quote: any, items: any[], creator: any, company: any, opts: { forPdf: boolean }): string {
+  const sd = quote.service_data || {};
+  const co = company || {};
+  const client = quote.clients || {};
+  const hidePrices = !!quote.hide_unit_prices;
+  const companyName = co.company_name || co.razao_social || "";
+  const clientName = client.razao_social || client.nome_fantasia || "-";
+  const revision = quote.__revision_number ?? 0;
+  const statusLabel = quote.status === "cancelled" ? `Cancelada · Rev. ${revision}` : `Rev. ${revision}`;
+  const issueCity = sd.issue_city || "";
+  const issuedAt = quote.created_at;
+  const validityDays = Number(quote.validity_days) || 30;
+
+  // ── tabela de preços ────────────────────────────────────────────────────
+  let fixedTotal = 0;
+  let hasMeasured = false;
+  const rows = (items || []).map((it: any, i: number) => {
+    const optional = !!it.is_optional;
+    const qty = Number(it.quantity) || 0;
+    const price = Number(it.unit_price) || 0;
+    const line = qty > 0 ? Math.round(qty * price * 100) / 100 : 0;
+    if (!optional && qty > 0) fixedTotal += line;
+    if (!optional && qty <= 0) hasMeasured = true;
+    const desc = `${svcEsc(it.product_name)}${optional ? ` <span class="opt">(OPCIONAL)</span>` : ""}${it.notes ? `<div class="note">${svcEsc(it.notes).replace(/\n/g, "<br>")}</div>` : ""}`;
+    return `<tr>
+      <td>2.${i + 1}</td>
+      <td class="num">${qty > 0 ? svcPad(qty) : ""}</td>
+      <td>${svcEsc(it.unit || "Vb")}</td>
+      <td>${desc}</td>
+      ${hidePrices ? "" : `<td class="num">${svcMoney(price)}</td><td class="num">${qty > 0 ? svcMoney(line) : ""}</td>`}
+    </tr>`;
+  }).join("");
+  fixedTotal = Math.round(fixedTotal * 100) / 100;
+
+  const priceTable = `
+    <table class="items">
+      <thead><tr>
+        <th>Item</th><th class="num">Quant.</th><th>Unid.</th><th>Descrição do serviço</th>
+        ${hidePrices ? "" : `<th class="num">Preço unitário</th><th class="num">Valor do item</th>`}
+      </tr></thead>
+      <tbody>
+        ${rows}
+        ${!hidePrices && fixedTotal > 0 ? `<tr class="total-row"><td colspan="5">Total dos itens com quantidade definida</td><td class="num">${svcMoney(fixedTotal)}</td></tr>` : ""}
+      </tbody>
+    </table>
+    ${hasMeasured ? `<p class="small">Os itens sem quantidade são cobrados sob medição, conforme a execução, pelo preço unitário indicado.</p>` : ""}`;
+
+  const kvTable = (list: any) => {
+    const arr = (Array.isArray(list) ? list : []).filter((x: any) => x && (String(x.label || "").trim() || String(x.value || "").trim()));
+    return arr.length
+      ? `<table class="kv">${arr.map((x: any) => `<tr><td>${svcEsc(x.label)}</td><td>${svcEsc(x.value)}</td></tr>`).join("")}</table>`
+      : "";
+  };
+
+  const finalSections = (Array.isArray(sd.final_sections) ? sd.final_sections : [])
+    .filter((s: any) => s && (String(s.title || "").trim() || String(s.text || "").trim()))
+    .map((s: any, i: number) => `<h3>6.${i + 1}. ${svcEsc(s.title)}</h3>${svcParas(s.text)}`)
+    .join("");
+
+  const inclusions = svcBullets(sd.inclusions);
+  const clientResp = svcBullets(sd.client_responsibilities);
+  const companyResp = svcBullets(sd.company_responsibilities);
+  const payment = svcParas(sd.payment_text);
+
+  // Seções numeradas só aparecem se tiverem conteúdo; a numeração acompanha o que aparece
+  let n = 0;
+  const sec = (title: string, body: string) => (body ? `<h2>${++n}. ${title}</h2>${body}` : "");
+
+  const objectBody = `${svcParas(sd.object_text)}${kvTable(sd.equipment)}${
+    kvTable(sd.site_features) ? `<h3>Características da obra</h3>${kvTable(sd.site_features)}` : ""}`;
+
+  const body = [
+    sec("OBJETO", objectBody),
+    sec("CONDIÇÕES COMERCIAIS",
+      `${priceTable}${inclusions ? `<h3>Inclusos nas condições comerciais</h3>${inclusions}` : ""}${
+        quote.notes ? `<h3>Observações</h3>${svcParas(quote.notes)}` : ""}`),
+    sec("CONDIÇÕES DE PAGAMENTO", payment),
+    sec("RESPONSABILIDADES DA CONTRATANTE", clientResp),
+    sec("RESPONSABILIDADES DA CONTRATADA", companyResp),
+    sec("CONSIDERAÇÕES FINAIS", finalSections),
+    sec("VALIDADE",
+      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar da data de emissão (${svcShortDate(issuedAt)}), até <strong>${svcAddDaysShort(issuedAt, validityDays)}</strong>.</p>`),
+  ].join("");
+
+  const signerName = sd.signer_name || co.representante_nome || creator?.name || "";
+  const signerRole = sd.signer_role || co.representante_cargo || "";
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Proposta ${svcEsc(quote.quote_number)}</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm 22mm 15mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.5; }
+  @media screen { body { padding: 64px 15mm 24px; max-width: 210mm; margin: 0 auto; } }
+  .print-toolbar { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #0047AB; color: #fff; padding: 12px 24px;
+    display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .print-toolbar button { background: #fff; color: #0047AB; border: none; padding: 8px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .print-toolbar p { margin: 0; opacity: .85; font-size: 12px; }
+  @media print { .print-toolbar { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 3px solid #0047AB; padding-bottom: 10px; margin-bottom: 14px; }
+  .letterhead img { height: 46px; width: auto; margin-bottom: 4px; }
+  .co-name { font-size: 17pt; font-weight: 700; color: #0047AB; letter-spacing: .5px; line-height: 1.15; }
+  .co-sub { font-size: 8.5pt; color: #666; }
+  .doc-id { text-align: right; font-size: 9pt; color: #555; }
+  .doc-id strong { display: block; font-size: 13pt; color: #0047AB; }
+
+  .place { margin: 12px 0; }
+  .addressee { margin: 8px 0 12px; line-height: 1.45; }
+  .addressee .client { font-weight: 700; text-transform: uppercase; }
+  .subject { margin: 10px 0; padding: 8px 10px; background: #f0f4fa; border-left: 3px solid #0047AB; }
+
+  h2 { font-size: 11pt; color: #0047AB; text-transform: uppercase; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #d5dce8; page-break-after: avoid; }
+  h3 { font-size: 10pt; margin: 10px 0 4px; page-break-after: avoid; }
+  p { margin: 4px 0; text-align: justify; }
+  p.small { font-size: 8.5pt; color: #555; }
+  ul { margin: 4px 0 4px 18px; padding: 0; }
+  li { margin: 3px 0; text-align: justify; }
+
+  table { border-collapse: collapse; width: 100%; }
+  table.kv { margin: 6px 0; font-size: 9.5pt; }
+  table.kv td { padding: 2px 8px 2px 0; vertical-align: top; }
+  table.kv td:first-child { width: 36%; color: #555; font-weight: 600; }
+  table.items { margin: 8px 0; font-size: 9pt; }
+  table.items thead { display: table-header-group; }
+  table.items th { background: #0047AB; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 8.5pt; }
+  table.items td { padding: 6px 8px; border-bottom: 1px solid #dde3ee; vertical-align: top; }
+  table.items tr { page-break-inside: avoid; }
+  table.items .num { text-align: right; white-space: nowrap; }
+  table.items .note { color: #555; font-size: 8pt; font-style: italic; margin-top: 2px; }
+  table.items .opt { font-size: 7.5pt; font-weight: 700; color: #0047AB; white-space: nowrap; }
+  table.items tr.total-row td { background: #e8eef7; font-weight: 700; border-bottom: none; }
+
+  .closing { margin-top: 18px; }
+  .sig { margin-top: 26px; page-break-inside: avoid; }
+  .sig .name { font-weight: 700; }
+  .accept { margin-top: 26px; border: 1px solid #0047AB; padding: 12px 14px; page-break-inside: avoid; }
+  .accept h2 { margin-top: 0; }
+  .accept .line { border-top: 1px solid #333; width: 62%; margin-top: 38px; padding-top: 4px; font-weight: 600; }
+  .accept .fill { margin-top: 8px; color: #333; }
+  .endcontact { margin-top: 18px; padding-top: 6px; border-top: 1px solid #ccc; font-size: 7.5pt; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+  ${opts.forPdf ? "" : `<div class="print-toolbar"><button onclick="window.print()">📄 Salvar como PDF</button><p>Clique no botão e escolha "Salvar como PDF" como destino da impressora</p></div>`}
+
+  <div class="letterhead">
+    <div>
+      ${co.logo_url ? `<img src="${svcEsc(co.logo_url)}" alt="">` : ""}
+      <div class="co-name">${svcEsc(companyName)}</div>
+      ${co.razao_social && co.razao_social !== companyName ? `<div class="co-sub">${svcEsc(co.razao_social)}</div>` : ""}
+      ${co.crea_registration ? `<div class="co-sub">${svcEsc(co.crea_registration)}</div>` : ""}
+    </div>
+    <div class="doc-id"><strong>Proposta ${svcEsc(quote.quote_number)}</strong>${svcEsc(statusLabel)}</div>
+  </div>
+
+  <div class="place">${issueCity ? `${svcEsc(issueCity)}, ` : ""}${svcLongDate(issuedAt)}</div>
+
+  <div class="addressee">
+    À<br>
+    <span class="client">${svcEsc(clientName)}</span><br>
+    ${quote.project_name ? `${svcEsc(quote.project_name)}${quote.project_location ? `, ${svcEsc(quote.project_location)}` : ""}<br>` : ""}
+    ${sd.attention ? `Att. ${svcEsc(sd.attention)}<br>` : ""}
+  </div>
+
+  <div class="subject"><strong>ASSUNTO:</strong> Proposta ${svcEsc(quote.quote_number)}${sd.subject ? ` — ${svcEsc(sd.subject)}` : ""}.</div>
+
+  <p>Prezados,</p>
+  ${svcParas(sd.intro)}
+
+  ${body}
+
+  <div class="closing">${svcParas(sd.closing_text)}</div>
+
+  <div class="sig">
+    <p>Atenciosamente,</p>
+    <p style="margin-top:26px"><span class="name">${svcEsc(signerName)}</span><br>
+    ${signerRole ? `${svcEsc(signerRole)}<br>` : ""}${svcEsc(co.razao_social || companyName)}</p>
+  </div>
+
+  <div class="accept">
+    <h2>ACEITE DA PROPOSTA</h2>
+    ${svcParas(sd.acceptance_text)}
+    <div class="line">Pela ${svcEsc(clientName)}</div>
+    <div class="fill">Nome:</div>
+    <div class="fill">Cargo:</div>
+    <div class="fill">Data: ____/____/________</div>
+  </div>
+
+  ${opts.forPdf ? "" : `<div class="endcontact">${svcEsc(svcContactLine(co))}</div>`}
 </body>
 </html>`;
 }

@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "SOIMA BR — Gestão Comercial",
+  "short_name": "SOIMA",
+  "description": "Propostas, contratos e clientes da SOIMA BR.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fcfcfd",
+  "theme_color": "#3E74B6",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Propostas", "short_name": "Propostas", "url": "/orcamentos?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Contratos", "short_name": "Contratos", "url": "/contratos?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Clientes", "short_name": "Clientes", "url": "/clientes?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Relatórios", "short_name": "Relatórios", "url": "/relatorios?source=pwa", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}

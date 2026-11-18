@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatQuoteAmount } from "@/lib/quoteMoney";
+import EmailDispatchApprovals from "@/components/quotes/EmailDispatchApprovals";
 import { Navigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -28,6 +30,7 @@ interface ApprovalRequest {
     quote_number: string;
     subtotal: number;
     currency: string;
+    usd_brl_rate_used?: number | null;
     project_name: string | null;
     clients: { razao_social: string; nome_fantasia: string | null } | null;
   } | null;
@@ -47,7 +50,7 @@ export default function Aprovacoes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("discount_approval_requests")
-        .select("*, quotes(quote_number, subtotal, currency, project_name, clients(razao_social, nome_fantasia))")
+        .select("*, quotes(quote_number, subtotal, currency, usd_brl_rate_used, project_name, clients(razao_social, nome_fantasia))")
         .order("requested_at", { ascending: false });
       if (error) throw error;
 
@@ -117,9 +120,6 @@ export default function Aprovacoes() {
     },
   });
 
-  const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
-
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 
@@ -158,7 +158,7 @@ export default function Aprovacoes() {
             <div className="text-right">
               <p className="text-2xl font-bold text-destructive">{req.discount_percent}%</p>
               <p className="text-xs text-muted-foreground">
-                -{req.quotes ? formatCurrency(discountVal, req.quotes.currency) : "-"}
+                -{req.quotes ? formatQuoteAmount(discountVal, req.quotes) : "-"}
               </p>
             </div>
           </div>
@@ -214,6 +214,9 @@ export default function Aprovacoes() {
         <h1 className="text-3xl font-bold tracking-tight">Aprovações de Desconto</h1>
         <p className="text-muted-foreground">Gerencie pedidos de desconto dos operadores</p>
       </div>
+
+      {/* Envios de proposta por e-mail aguardando autorização (só aparece se houver pendências) */}
+      <EmailDispatchApprovals />
 
       {isLoading ? (
         <div className="flex justify-center py-12">

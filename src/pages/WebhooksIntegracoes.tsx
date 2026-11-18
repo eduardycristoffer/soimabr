@@ -6,6 +6,7 @@ import OutboundWebhookList from "@/components/webhooks/OutboundWebhookList";
 import WebhookLogs from "@/components/webhooks/WebhookLogs";
 import GoogleSheetsConfig from "@/components/webhooks/GoogleSheetsConfig";
 import CnpjLookupConfig from "@/components/webhooks/CnpjLookupConfig";
+import EmailIntegrationConfig from "@/components/webhooks/EmailIntegrationConfig";
 
 export default function WebhooksIntegracoes() {
   const { isAdmin, isLoading } = useAuth();
@@ -27,6 +28,7 @@ export default function WebhooksIntegracoes() {
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="sheets">Google Sheets</TabsTrigger>
           <TabsTrigger value="cnpj">Consulta CNPJ</TabsTrigger>
+          <TabsTrigger value="email" data-tour="aba-email">E-mail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="inbound">
@@ -43,6 +45,9 @@ export default function WebhooksIntegracoes() {
         </TabsContent>
         <TabsContent value="cnpj">
           <CnpjLookupConfig />
+        </TabsContent>
+        <TabsContent value="email">
+          <EmailIntegrationConfig />
         </TabsContent>
       </Tabs>
     </div>

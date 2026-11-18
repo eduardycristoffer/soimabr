@@ -17,6 +17,14 @@ import {
 } from "lucide-react";
 import { createContractVersion, restoreContractVersion } from "@/lib/contractVersions";
 import { ContractScopePreview } from "@/components/contracts/ContractScopePreview";
+import { ContractDataCard } from "@/components/contracts/ContractDataCard";
+import { ContractSignatureCard } from "@/components/contracts/ContractSignatureCard";
+import { useAutentiqueAvailability } from "@/hooks/useAutentique";
+import { useContractPlaceholderMap } from "@/hooks/useContractPlaceholderMap";
+import { resolvePlaceholders } from "@/lib/contractPlaceholders";
+import { sanitizeStorageFileName } from "@/lib/storageFileName";
+import { formatCPF, formatPhone, isValidCPF } from "@/lib/validators";
+import { RefreshCw } from "lucide-react";
 
 
 const statusLabel: Record<string, string> = {
@@ -38,6 +46,16 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 };
 
 const LOCKED_STATES = ["aprovado", "sent", "signed", "cancelled"];
+
+const warnIfBadCpf = (v: string, who?: string) => {
+  if (v && !isValidCPF(v)) {
+    toast({
+      title: "CPF parece inválido",
+      description: who ? `Confira o CPF de ${who}.` : "Confira o número digitado.",
+      variant: "destructive",
+    });
+  }
+};
 
 export default function ContratoEditor() {
   const { id } = useParams<{ id: string }>();
@@ -94,6 +112,22 @@ export default function ContratoEditor() {
     return m;
   }, [sourceClauses]);
 
+  // Assinatura digital (Autentique): só entra em cena quando banco, função e chave estiverem prontos
+  const autentique = useAutentiqueAvailability();
+
+  // Dados atuais do contrato (proposta, cliente, empresa, signatários) para preencher os {{campos}}
+  const { buildMap, structuredServices, quoteTotal, ready: mapReady } = useContractPlaceholderMap(contract);
+
+  // Texto do modelo JÁ preenchido com os dados atuais (é com ele que o snapshot deve ser comparado)
+  const resolvedSourceMap = useMemo(() => {
+    const m = new Map<string, { title: string; body: string; resolved: boolean }>();
+    const map = buildMap();
+    sourceMap.forEach((v, k) =>
+      m.set(k, { title: v.title, body: map ? resolvePlaceholders(v.body, map) : v.body, resolved: !!map }),
+    );
+    return m;
+  }, [sourceMap, buildMap]);
+
   const status = contract?.status;
   const isLocked = status ? LOCKED_STATES.includes(status) : false;
   const isSigned = status === "signed" || status === "cancelled";
@@ -141,12 +175,79 @@ export default function ContratoEditor() {
   const restoreDefault = async (snap: any) => {
     const src = snap.source_clause_id ? sourceMap.get(snap.source_clause_id) : null;
     if (!src) { toast({ title: "Sem texto padrão para restaurar" }); return; }
-    if (!confirm("Restaurar o texto padrão desta cláusula? Suas alterações no snapshot serão perdidas.")) return;
+    const map = buildMap();
+    if (!map) { toast({ title: "Aguarde o carregamento dos dados do contrato e tente de novo" }); return; }
+    if (!confirm("Restaurar o texto padrão desta cláusula, com os dados atuais do contrato? Suas alterações manuais nela serão perdidas.")) return;
     try {
-      await updateClause(snap.id, { title: src.title, body: src.body });
+      // antes o texto voltava com os {{campos}} crus; agora volta preenchido
+      await updateClause(snap.id, { title: src.title, body: resolvePlaceholders(src.body, map) });
       toast({ title: "Texto padrão restaurado" });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  // Refaz, a partir do modelo, as cláusulas indicadas (com os dados do contrato + alterações recém-salvas)
+  const regenerateClauses = async (snaps: any[], override: Record<string, any> = {}) => {
+    const map = buildMap(override);
+    if (!map) throw new Error("Dados do contrato ainda não carregaram");
+    for (const s of snaps) {
+      const src = s.source_clause_id ? sourceMap.get(s.source_clause_id) : null;
+      if (!src) continue;
+      await updateClause(s.id, { body: resolvePlaceholders(src.body, map) });
+    }
+  };
+
+  const tokenRx = (t: string) => new RegExp(`\\{\\{\\s*${t}\\s*\\}\\}`, "i");
+
+  // Depois de salvar prazo/parcelas/serviços: oferece atualizar as cláusulas que usam esses dados
+  const handleDataSaved = async (patch: Record<string, any>) => {
+    const c: any = contract;
+    const same = (a: any, b: any) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    const tokens: string[] = [];
+    if (!same(c.delivery_days, patch.delivery_days)) tokens.push("prazo_entrega_dias");
+    if (!same(c.payment_schedule, patch.payment_schedule)) tokens.push("condicoes_pagamento_tabela");
+    if ("extra_services" in patch && !same(c.extra_services, patch.extra_services)) tokens.push("servicos_inclusos_lista");
+
+    await qc.invalidateQueries({ queryKey: ["contract", id] });
+    if (!tokens.length) return;
+
+    const affected = (snapshots || []).filter((s: any) => {
+      const src = s.source_clause_id ? sourceMap.get(s.source_clause_id) : null;
+      return !!src && tokens.some((t) => tokenRx(t).test(src.body));
+    });
+    if (!affected.length) return;
+
+    const titles = affected.map((s: any) => `• ${s.title}`).join("\n");
+    if (!confirm(`Atualizar o texto das cláusulas que usam esses dados?\n\n${titles}\n\nElas serão refeitas a partir do modelo (alterações manuais nelas serão substituídas).`)) {
+      toast({ title: "Cláusulas mantidas", description: "Os dados foram salvos, mas o texto das cláusulas não mudou." });
+      return;
+    }
+    try {
+      await regenerateClauses(affected, patch);
+      toast({ title: "Cláusulas atualizadas", description: `${affected.length} cláusula(s) refeita(s) com os novos dados.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar cláusulas", description: e.message, variant: "destructive" });
+    }
+  };
+
+  // Botão geral: refaz as cláusulas que divergem do modelo com os dados atuais
+  const refreshAllFromData = async () => {
+    const map = buildMap();
+    if (!map) { toast({ title: "Aguarde o carregamento dos dados do contrato e tente de novo" }); return; }
+    const differing = (snapshots || []).filter((s: any) => {
+      const src = s.source_clause_id ? sourceMap.get(s.source_clause_id) : null;
+      if (!src || !/\{\{/.test(src.body)) return false;
+      return resolvePlaceholders(src.body, map).trim() !== (s.body || "").trim();
+    });
+    if (!differing.length) { toast({ title: "Tudo em dia", description: "Nenhuma cláusula está diferente do modelo com os dados atuais." }); return; }
+    const titles = differing.map((s: any) => `• ${s.title}`).join("\n");
+    if (!confirm(`Estas cláusulas estão diferentes do modelo com os dados atuais:\n\n${titles}\n\nRefazer o texto delas? Alterações manuais nelas serão substituídas.`)) return;
+    try {
+      await regenerateClauses(differing);
+      toast({ title: "Cláusulas atualizadas", description: `${differing.length} cláusula(s) refeita(s).` });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar cláusulas", description: e.message, variant: "destructive" });
     }
   };
 
@@ -247,7 +348,8 @@ export default function ContratoEditor() {
     if (!file) return;
     setUploading(true);
     try {
-      const path = `${id}/signed-${Date.now()}-${file.name}`;
+      // O Storage recusa colchetes, acentos etc. no nome ("Invalid key"): usa um nome seguro
+      const path = `${id}/signed-${Date.now()}-${sanitizeStorageFileName(file.name)}`;
       const { error: upErr } = await supabase.storage.from("contracts").upload(path, file, { upsert: false });
       if (upErr) throw upErr;
       await saveContractFields.mutateAsync({
@@ -303,7 +405,8 @@ export default function ContratoEditor() {
             <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
           </Button>
         )}
-        {status === "aprovado" && (
+        {/* Com o Autentique ativo, o envio é feito pelo cartão "Assinatura digital" (abaixo) */}
+        {status === "aprovado" && !autentique.active && (
           <Button onClick={() => transition.mutate("sent")} disabled={transition.isPending}>
             <Send className="h-4 w-4 mr-2" /> Enviar para assinatura
           </Button>
@@ -354,30 +457,55 @@ export default function ContratoEditor() {
         </div>
       )}
 
+      <ContractSignatureCard
+        contract={contract}
+        onChanged={() => {
+          qc.invalidateQueries({ queryKey: ["contract", id] });
+          qc.invalidateQueries({ queryKey: ["contract-versions", id] });
+        }}
+      />
+
       <Card>
-        <CardHeader><CardTitle className="text-base">Representantes e Gestores</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3">
-          {[
-            ["Rep. Vendedora — nome", "seller_rep_name"],
-            ["Rep. Vendedora — CPF", "seller_rep_cpf"],
-            ["Rep. Compradora — nome", "buyer_rep_name"],
-            ["Rep. Compradora — CPF", "buyer_rep_cpf"],
-            ["Gestor Vendedora — nome", "seller_manager_name"],
-            ["Gestor Vendedora — e-mail", "seller_manager_email"],
-            ["Gestor Compradora — nome", "buyer_manager_name"],
-            ["Gestor Compradora — e-mail", "buyer_manager_email"],
-          ].map(([label, key]) => (
-            <div key={key}>
-              <Label className="text-xs">{label}</Label>
-              <Input
-                defaultValue={(contract as any)[key] || ""}
-                disabled={isLocked}
-                onBlur={(e) => {
-                  if (e.target.value !== (contract as any)[key]) {
-                    saveContractFields.mutate({ [key]: e.target.value || null });
-                  }
-                }}
-              />
+        <CardHeader>
+          <CardTitle className="text-base">Gestores do contrato</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Recebem notas fiscais, boletos e comunicações. Os representantes legais que assinam ficam em "Signatários", abaixo.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {([
+            ["Vendedora", "seller_manager"],
+            ["Compradora", "buyer_manager"],
+          ] as const).map(([side, prefix]) => (
+            <div key={prefix} className="space-y-2">
+              <h4 className="text-sm font-semibold">{side}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {([
+                  ["Nome", `${prefix}_name`, undefined, "text"],
+                  ["CPF", `${prefix}_cpf`, formatCPF, "numeric"],
+                  ["Telefone", `${prefix}_phone`, formatPhone, "tel"],
+                  ["E-mail (notas fiscais e boletos)", `${prefix}_email`, undefined, "email"],
+                ] as const).map(([label, key, mask, mode]) => (
+                  <div key={key}>
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      defaultValue={(contract as any)[key] || ""}
+                      inputMode={mode as any}
+                      disabled={isLocked}
+                      onChange={(e) => { if (mask) e.target.value = mask(e.target.value); }}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== ((contract as any)[key] || "")) {
+                          if (key.endsWith("_cpf") && v && !isValidCPF(v)) {
+                            toast({ title: "CPF parece inválido", description: `Confira o CPF do gestor da ${side.toLowerCase()}.`, variant: "destructive" });
+                          }
+                          saveContractFields.mutate({ [key]: v || null });
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </CardContent>
@@ -386,17 +514,31 @@ export default function ContratoEditor() {
       <SignatoriesEditor contractId={id!} isLocked={isLocked} />
       <WitnessesEditor contractId={id!} isLocked={isLocked} />
 
+      <ContractDataCard
+        contract={contract}
+        quoteTotal={quoteTotal}
+        structuredServices={structuredServices}
+        isLocked={isLocked}
+        onSaved={handleDataSaved}
+      />
+
       {(contract as any).quote_id && (
         <ContractScopePreview quoteId={(contract as any).quote_id} />
       )}
 
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-lg font-semibold">Cláusulas</h2>
         {!isLocked && (
-          <Button size="sm" variant="outline" onClick={addClause}>
-            <Plus className="h-3 w-3 mr-1" /> Adicionar cláusula
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={refreshAllFromData} disabled={!mapReady}
+              title="Refaz o texto das cláusulas que estão diferentes do modelo com os dados atuais do contrato">
+              <RefreshCw className="h-3 w-3 mr-1" /> Atualizar com dados atuais
+            </Button>
+            <Button size="sm" variant="outline" onClick={addClause}>
+              <Plus className="h-3 w-3 mr-1" /> Adicionar cláusula
+            </Button>
+          </div>
         )}
       </div>
 
@@ -408,7 +550,7 @@ export default function ContratoEditor() {
             index={idx}
             total={snapshots.length}
             isLocked={isLocked}
-            source={s.source_clause_id ? sourceMap.get(s.source_clause_id) : undefined}
+            source={s.source_clause_id ? resolvedSourceMap.get(s.source_clause_id) : undefined}
             onSave={(patch) => updateClause(s.id, patch)}
             onMove={(dir) => reorderClause(idx, dir)}
             onRemove={() => removeClause(s.id, s.is_core)}
@@ -445,7 +587,7 @@ function ClauseCard({
   index: number;
   total: number;
   isLocked: boolean;
-  source?: { title: string; body: string };
+  source?: { title: string; body: string; resolved?: boolean };
   onSave: (patch: { body?: string; title?: string }) => Promise<void>;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
@@ -487,7 +629,9 @@ function ClauseCard({
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  const isPersonalized = !!source && source.body.trim() !== (snapshot.body || "").trim();
+  // Só compara quando o modelo já está preenchido com os dados do contrato; antes de carregar,
+  // o texto do modelo traz {{campos}} e TODA cláusula pareceria "personalizada".
+  const isPersonalized = !!source && source.resolved !== false && source.body.trim() !== (snapshot.body || "").trim();
 
   const wrap = (before: string, after = before) => {
     const el = textareaRef.current;
@@ -536,7 +680,7 @@ function ClauseCard({
           />
           {snapshot.is_core && <Badge variant="outline" className="text-[10px] rounded-full">núcleo</Badge>}
           {isPersonalized && (
-            <Badge variant="secondary" className="text-[10px] rounded-full" title="O texto diverge do modelo padrão">
+            <Badge variant="secondary" className="text-[10px] rounded-full" title="O texto difere do modelo padrão preenchido com os dados atuais do contrato">
               personalizada
             </Badge>
           )}
@@ -732,7 +876,9 @@ function SignatoriesEditor({ contractId, isLocked }: { contractId: string; isLoc
         {list.map((s: any) => (
           <div key={s.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
             <div><Label className="text-xs">Nome</Label><Input defaultValue={s.name} disabled={isLocked} onBlur={(e) => e.target.value !== s.name && upd(s.id, { name: e.target.value })} /></div>
-            <div><Label className="text-xs">CPF</Label><Input defaultValue={s.cpf} disabled={isLocked} onBlur={(e) => e.target.value !== s.cpf && upd(s.id, { cpf: e.target.value })} /></div>
+            <div><Label className="text-xs">CPF</Label><Input defaultValue={formatCPF(s.cpf || "")} inputMode="numeric" placeholder="000.000.000-00" disabled={isLocked}
+              onChange={(e) => { e.target.value = formatCPF(e.target.value); }}
+              onBlur={(e) => { const v = e.target.value; if (v !== (s.cpf || "")) { warnIfBadCpf(v, s.name); upd(s.id, { cpf: v }); } }} /></div>
             <div><Label className="text-xs">RG</Label><Input defaultValue={s.rg || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (s.rg || "") && upd(s.id, { rg: e.target.value || null })} /></div>
             <div><Label className="text-xs">Cargo</Label><Input defaultValue={s.cargo || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (s.cargo || "") && upd(s.id, { cargo: e.target.value || null })} /></div>
             {!isLocked && (
@@ -803,7 +949,9 @@ function WitnessesEditor({ contractId, isLocked }: { contractId: string; isLocke
         {(rows || []).map((w: any) => (
           <div key={w.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
             <div><Label className="text-xs">Nome</Label><Input defaultValue={w.name} disabled={isLocked} onBlur={(e) => e.target.value !== w.name && upd(w.id, { name: e.target.value })} /></div>
-            <div><Label className="text-xs">CPF</Label><Input defaultValue={w.cpf} disabled={isLocked} onBlur={(e) => e.target.value !== w.cpf && upd(w.id, { cpf: e.target.value })} /></div>
+            <div><Label className="text-xs">CPF</Label><Input defaultValue={formatCPF(w.cpf || "")} inputMode="numeric" placeholder="000.000.000-00" disabled={isLocked}
+              onChange={(e) => { e.target.value = formatCPF(e.target.value); }}
+              onBlur={(e) => { const v = e.target.value; if (v !== (w.cpf || "")) { warnIfBadCpf(v, w.name); upd(w.id, { cpf: v }); } }} /></div>
             <div><Label className="text-xs">E-mail</Label><Input defaultValue={w.email || ""} disabled={isLocked} onBlur={(e) => e.target.value !== (w.email || "") && upd(w.id, { email: e.target.value || null })} /></div>
             {!isLocked && (
               <Button variant="ghost" size="icon" onClick={() => del(w.id)}>

@@ -30,3 +30,7 @@ verify_jwt = false
 
 [functions.reset-password]
 verify_jwt = false
+
+# Recebe o webhook do Autentique (sem JWT) e também atende o app (autentica o usuário no código)
+[functions.contract-signature]
+verify_jwt = false

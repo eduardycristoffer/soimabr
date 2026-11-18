@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Building2, Globe, Mail, Phone, MapPin, User, FileText } from "lucide-react";
+import { QuoteAmount } from "@/components/quotes/QuoteAmount";
 
 interface ClientDetailModalProps {
   open: boolean;
@@ -26,7 +27,7 @@ export default function ClientDetailModal({ open, onOpenChange, client }: Client
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, quote_number, project_name, total, currency, status, created_at")
+        .select("id, quote_number, project_name, total, currency, usd_brl_rate_used, status, created_at")
         .eq("client_id", client!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -36,9 +37,6 @@ export default function ClientDetailModal({ open, onOpenChange, client }: Client
   });
 
   if (!client) return null;
-
-  const formatCurrency = (value: number, currency: string = "BRL") =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
 
   const formatDate = (date: string) =>
     new Intl.DateTimeFormat("pt-BR").format(new Date(date));
@@ -142,7 +140,7 @@ export default function ClientDetailModal({ open, onOpenChange, client }: Client
                       {q.project_name && <span className="ml-2 text-muted-foreground">· {q.project_name}</span>}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{formatCurrency(q.total, q.currency)}</span>
+                      <QuoteAmount className="font-medium text-right" value={q.total} quote={q} />
                       <Badge variant={q.status === "finalized" ? "default" : q.status === "cancelled" ? "destructive" : "secondary"} className="text-xs">
                         {statusLabels[q.status as QuoteStatus]}
                       </Badge>

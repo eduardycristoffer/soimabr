@@ -16,6 +16,42 @@ function esc(s: string) {
     .replace(/>/g, "&gt;");
 }
 
+// O servidor roda em UTC: sem informar o fuso, a hora sai 3h adiantada
+// e, à noite, a data pode sair com 1 dia a mais.
+const TZ_BR = "America/Sao_Paulo";
+const fmtDateBR = (d: any) =>
+  d ? new Date(d).toLocaleDateString("pt-BR", { timeZone: TZ_BR }) : "-";
+const fmtDateTimeBR = (d: any) =>
+  d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: TZ_BR }) : "-";
+
+const digitsOnly = (v: string) => (v || "").replace(/\D/g, "");
+// Formata só quando o valor é exatamente um CPF (11 dígitos); texto livre fica como está.
+function fmtCpf(v?: string | null): string {
+  const t = (v || "").trim();
+  const d = digitsOnly(t);
+  if (d.length !== 11 || !/^[\d.\-\s]+$/.test(t)) return t;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+const NUM_PT: Record<number, string> = {
+  1: "uma", 2: "duas", 3: "três", 4: "quatro", 5: "cinco",
+  6: "seis", 7: "sete", 8: "oito", 9: "nove", 10: "dez",
+};
+
+// Os modelos padrão trazem linhas fixas em branco para testemunhas
+// ("Testemunhas: / 1) Nome: ____ ... / 2) Nome: ____ ...") no fim da cláusula de foro.
+// As testemunhas passam a vir do cadastro do contrato (quantas forem), então essas linhas saem.
+function stripBlankWitnessLines(body: string): string {
+  return (body || "").replace(/\n*[ \t]*Testemunhas:[ \t]*\n(?:[ \t]*\d+\)[ \t]*Nome:[^\n]*(?:\n|$))+/gi, "\n");
+}
+
+// "junto a duas testemunhas" → número real de testemunhas cadastradas (quando há alguma)
+function adaptWitnessCount(body: string, n: number): string {
+  if (!n || n === 2) return body || "";
+  const word = NUM_PT[n] ? `${NUM_PT[n]} (${String(n).padStart(2, "0")})` : String(n);
+  return (body || "").replace(/\bduas testemunhas\b/gi, `${word} testemunha${n === 1 ? "" : "s"}`);
+}
+
 function getItemProduct(item: any): any {
   return item?.products || item?.product || item?.product_data || {};
 }
@@ -95,7 +131,7 @@ function signatureBlock(label: string, name: string, cpf?: string, rg?: string, 
   const meta = [
     name ? `<strong>${esc(name)}</strong>` : "",
     cargo ? esc(cargo) : "",
-    cpf ? `CPF: ${esc(cpf)}` : "",
+    cpf ? `CPF: ${esc(fmtCpf(cpf))}` : "",
     rg ? `RG: ${esc(rg)}` : "",
   ].filter(Boolean).join("<br/>");
   return `
@@ -109,7 +145,7 @@ function signatureBlock(label: string, name: string, cpf?: string, rg?: string, 
 function witnessBlock(w: any, idx: number) {
   const meta = [
     w.name ? `<strong>${esc(w.name)}</strong>` : "",
-    w.cpf ? `CPF: ${esc(w.cpf)}` : "",
+    w.cpf ? `CPF: ${esc(fmtCpf(w.cpf))}` : "",
     w.email ? `E-mail: ${esc(w.email)}` : "",
   ].filter(Boolean).join("<br/>");
   return `
@@ -212,7 +248,14 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
       .replace(/<table\b[^>]*class=["'][^"']*\bscope-table\b[^"']*["'][\s\S]*?<\/table>/gi, scopeTableHtml);
   };
 
-  const prepareClauseBody = (body: string): string => replaceScopeTokens(refreshExistingScopeTable(body));
+  // Só consideramos testemunhas com algum dado preenchido
+  const witnessList = (witnesses || []).filter((w: any) => (w.name || "").trim() || (w.cpf || "").trim());
+
+  const prepareClauseBody = (body: string): string =>
+    adaptWitnessCount(
+      stripBlankWitnessLines(replaceScopeTokens(refreshExistingScopeTable(body))),
+      witnessList.length,
+    );
 
   const sortedSnaps = [...snapshots].sort((a, b) => a.order_index - b.order_index);
   const snapshotHasScope = sortedSnaps.some(c => /scope-table|itens_inclusos_tabela/i.test(c.body || ""));
@@ -242,8 +285,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
     : "";
 
   // Histórico de revisões (data, hora e autor de cada salvamento)
-  const fmtDateTime = (d: any) =>
-    d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-";
+  const fmtDateTime = fmtDateTimeBR;
   const sortedVersions = [...(versions || [])].sort((a, b) => (b.version_number || 0) - (a.version_number || 0));
   const revisionSection = sortedVersions.length
     ? `<section class="clause">
@@ -280,9 +322,11 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
         ? signatureBlock("Pela COMPRADORA", contract.buyer_rep_name, contract.buyer_rep_cpf, contract.buyer_rep_rg, contract.buyer_rep_cargo)
         : "");
 
-  const witnessBlocks = witnesses.length
-    ? witnesses.map((w, i) => witnessBlock(w, i)).join("")
-    : "";
+  // Testemunhas cadastradas (quantas forem). Sem nenhuma cadastrada, mantém 2 linhas
+  // em branco para preenchimento manual, como antes.
+  const witnessBlocks = witnessList.length
+    ? witnessList.map((w: any, i: number) => witnessBlock(w, i)).join("")
+    : [0, 1].map((i) => witnessBlock({}, i)).join("");
 
   return `<!doctype html>
 <html lang="pt-BR"><head>
@@ -333,7 +377,7 @@ function buildHTML(contract: any, snapshots: any[], company: any, signatories: a
   <img src="${SOIMA_LOGO_URL}" alt="SOIMA"/>
   <div class="meta">
     <div><strong>${esc(contract.contract_number)}</strong></div>
-    <div>Emitido em ${new Date(contract.generated_at || contract.created_at).toLocaleDateString("pt-BR")}</div>
+    <div>Emitido em ${fmtDateBR(contract.generated_at || contract.created_at)}</div>
     <div>${esc(company?.razao_social || "")}</div>
   </div>
 </header>
@@ -487,7 +531,8 @@ Deno.serve(async (req) => {
         use_print: false,
         sandbox: false,
         footer: {
-          source: `<div style="width:100%;font-size:8pt;color:#888;text-align:center;font-family:Helvetica,Arial,sans-serif;padding:0 18mm;">${esc(footerText)} — Página <span class="pdfshift_page_number"></span> de <span class="pdfshift_total_pages"></span></div>`,
+          // PDFShift substitui {{page}} e {{total}} no rodapé (as <span class="pdfshift_..."> não existem)
+          source: `<div style="width:100%;font-size:8pt;color:#888;text-align:center;font-family:Helvetica,Arial,sans-serif;padding:0 18mm;">${esc(footerText)} — Página {{page}} de {{total}}</div>`,
           spacing: "8mm",
         },
       }),

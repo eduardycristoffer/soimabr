@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Building2, Save, Megaphone } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatCPF } from "@/lib/validators";
 
 const settingsSchema = z.object({
   company_name: z.string().min(1, "Nome é obrigatório"),
@@ -27,6 +29,12 @@ const settingsSchema = z.object({
   website: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   crea_registration: z.string().optional().or(z.literal("")),
+  // Usados na qualificação das partes dos contratos
+  inscricao_estadual: z.string().optional().or(z.literal("")),
+  representante_nome: z.string().optional().or(z.literal("")),
+  representante_cpf: z.string().optional().or(z.literal("")),
+  representante_rg: z.string().optional().or(z.literal("")),
+  representante_cargo: z.string().optional().or(z.literal("")),
 });
 
 type SettingsForm = z.infer<typeof settingsSchema>;
@@ -35,18 +43,25 @@ export default function ConfiguracaoEmpresa() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: settings, isLoading } = useQuery({
+  // O sistema tem mais de uma empresa (ex.: indústria, locações, serviços), cada uma
+  // com seu modelo de contrato. Antes a tela editava só "a primeira" sem deixar escolher.
+  const { data: companies, isLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("company_settings")
         .select("*")
-        .limit(1)
-        .single();
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const settings = useMemo(
+    () => (companies || []).find((c) => c.id === selectedCompanyId) || (companies || [])[0] || null,
+    [companies, selectedCompanyId],
+  );
 
   const { data: systemSettings, isLoading: isSystemSettingsLoading } = useQuery({
     queryKey: ["system-settings"],
@@ -92,6 +107,11 @@ export default function ConfiguracaoEmpresa() {
       website: "",
       address: "",
       crea_registration: "",
+      inscricao_estadual: "",
+      representante_nome: "",
+      representante_cpf: "",
+      representante_rg: "",
+      representante_cargo: "",
     },
   });
 
@@ -106,6 +126,11 @@ export default function ConfiguracaoEmpresa() {
         website: settings.website || "",
         address: settings.address || "",
         crea_registration: settings.crea_registration || "",
+        inscricao_estadual: settings.inscricao_estadual || "",
+        representante_nome: settings.representante_nome || "",
+        representante_cpf: settings.representante_cpf || "",
+        representante_rg: settings.representante_rg || "",
+        representante_cargo: settings.representante_cargo || "",
       });
     }
   }, [settings]);
@@ -149,6 +174,25 @@ export default function ConfiguracaoEmpresa() {
           Dados institucionais usados no cabeçalho e rodapé do PDF das propostas
         </p>
       </div>
+
+      {(companies || []).length > 1 && (
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            <Label>Empresa que você está editando</Label>
+            <Select value={settings?.id || ""} onValueChange={(v) => setSelectedCompanyId(v)}>
+              <SelectTrigger className="max-w-md"><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+              <SelectContent>
+                {(companies || []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.company_name || c.razao_social}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Cada empresa tem seu modelo de contrato (venda, locação e serviços). Os dados abaixo entram na qualificação da vendedora/locadora do contrato.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -224,6 +268,60 @@ export default function ConfiguracaoEmpresa() {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="inscricao_estadual" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inscrição Estadual</FormLabel>
+                    <FormControl><Input placeholder="Ex.: 10.550.407-6" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <div className="pt-2 space-y-1">
+                <h3 className="text-sm font-semibold">Representante legal padrão</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pré-preenche o representante da vendedora ao gerar um contrato (pode ser alterado em cada contrato).
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="representante_nome" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="representante_cargo" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cargo</FormLabel>
+                    <FormControl><Input placeholder="Ex.: Diretor" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="representante_cpf" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="000.000.000-00"
+                        {...field}
+                        onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="representante_rg" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RG / documento</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
 
               <div className="flex justify-end pt-2">
                 <Button type="submit" disabled={mutation.isPending}>

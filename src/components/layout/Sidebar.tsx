@@ -31,6 +31,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import logoSoima from "@/assets/logo-soima.webp";
+import { InstallAppButton } from "@/components/layout/InstallAppButton";
+import { TourButton } from "@/components/tour/TourButton";
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -154,6 +156,8 @@ export function Sidebar({ mobile = false, onNavigate, bannerVisible = false }: S
 
         {/* User info */}
         <div className="border-t p-4 shrink-0">
+          <TourButton collapsed={effectiveCollapsed} onBeforeStart={mobile ? handleNavClick : undefined} />
+          <InstallAppButton collapsed={effectiveCollapsed} />
           {!effectiveCollapsed && user && (
             <button
               onClick={() => {
