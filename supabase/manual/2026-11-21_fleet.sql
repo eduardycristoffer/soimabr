@@ -101,8 +101,9 @@ CREATE TRIGGER trg_fleet_rentals_updated
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ───────────────────────── permissões ─────────────────────────
--- Tira o acesso amplo que o Supabase dá às tabelas novas; depois libera só o necessário.
-REVOKE ALL ON public.fleet_units, public.fleet_rentals, public.fleet_costs FROM PUBLIC, anon;
+-- Tira o acesso amplo que o Supabase dá às tabelas novas (inclusive TRUNCATE, que a RLS não barra);
+-- depois libera só o necessário para usuários logados (a RLS abaixo restringe a administradores).
+REVOKE ALL ON public.fleet_units, public.fleet_rentals, public.fleet_costs FROM PUBLIC, anon, authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.fleet_units, public.fleet_rentals, public.fleet_costs TO authenticated;
 GRANT ALL ON public.fleet_units, public.fleet_rentals, public.fleet_costs TO service_role;
