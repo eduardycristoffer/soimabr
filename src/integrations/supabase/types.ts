@@ -1044,6 +1044,220 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_costs: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          incurred_on: string
+          kind: string
+          rental_id: string | null
+          unit_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          incurred_on: string
+          kind: string
+          rental_id?: string | null
+          unit_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          incurred_on?: string
+          kind?: string
+          rental_id?: string | null
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_costs_rental_id_fkey"
+            columns: ["rental_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_rentals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_costs_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_rentals: {
+        Row: {
+          actual_end_date: string | null
+          cancelled_at: string | null
+          client_id: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          demobilization_value: number
+          id: string
+          mobilization_value: number
+          monthly_value: number
+          notes: string | null
+          planned_end_date: string
+          quote_id: string | null
+          site_location: string | null
+          site_name: string | null
+          start_date: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_end_date?: string | null
+          cancelled_at?: string | null
+          client_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          demobilization_value?: number
+          id?: string
+          mobilization_value?: number
+          monthly_value?: number
+          notes?: string | null
+          planned_end_date: string
+          quote_id?: string | null
+          site_location?: string | null
+          site_name?: string | null
+          start_date: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_end_date?: string | null
+          cancelled_at?: string | null
+          client_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          demobilization_value?: number
+          id?: string
+          mobilization_value?: number
+          monthly_value?: number
+          notes?: string | null
+          planned_end_date?: string
+          quote_id?: string | null
+          site_location?: string | null
+          site_name?: string | null
+          start_date?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_rentals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_rentals_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_rentals_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_rentals_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_units: {
+        Row: {
+          acquisition_cost: number
+          acquisition_date: string | null
+          altura_torre_m: number | null
+          carga_maxima_kg: number | null
+          carga_ponta_kg: number | null
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lanca_m: number | null
+          location_note: string | null
+          model_name: string | null
+          notes: string | null
+          product_id: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+          year_manufactured: number | null
+        }
+        Insert: {
+          acquisition_cost?: number
+          acquisition_date?: string | null
+          altura_torre_m?: number | null
+          carga_maxima_kg?: number | null
+          carga_ponta_kg?: number | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lanca_m?: number | null
+          location_note?: string | null
+          model_name?: string | null
+          notes?: string | null
+          product_id?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          year_manufactured?: number | null
+        }
+        Update: {
+          acquisition_cost?: number
+          acquisition_date?: string | null
+          altura_torre_m?: number | null
+          carga_maxima_kg?: number | null
+          carga_ponta_kg?: number | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lanca_m?: number | null
+          location_note?: string | null
+          model_name?: string | null
+          notes?: string | null
+          product_id?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          year_manufactured?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_units_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_sheets_config: {
         Row: {
           apps_script_url: string | null

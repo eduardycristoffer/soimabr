@@ -64,6 +64,13 @@
       "when": 1794977532274,
       "tag": "0008_quotes_closing_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794977620945,
+      "tag": "0009_fleet_management_tables",
+      "breakpoints": true
     }
   ]
 }
