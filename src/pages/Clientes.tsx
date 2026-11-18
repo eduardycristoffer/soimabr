@@ -111,14 +111,14 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Clientes</h1>
           <p className="text-muted-foreground">
             {isAdmin ? "Todos os clientes da empresa" : "Seus clientes cadastrados"}
           </p>
         </div>
-        <Button onClick={handleNewClient}>
+        <Button onClick={handleNewClient} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Novo Cliente
         </Button>

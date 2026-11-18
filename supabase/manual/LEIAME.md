@@ -129,6 +129,13 @@ Usa o mesmo SQL da proposta de serviço (item 4 da seção 3) e exige publicar d
 7. Propostas de locação antigas continuam abrindo: ao editar, os valores já gravados viram linhas do quadro (o que era "incluso" vira linha ligada **sem valor**, com aviso, até alguém informar o preço). Contrato, frota e relatórios continuam lendo os mesmos campos de antes.
 8. A proposta detalhada é sempre em português. O **contrato** de locação segue o modelo cadastrado em Modelos de Contrato; incluir ali as mesmas cláusulas da proposta (e outras) é um passo à parte.
 
+## 12. Menu no celular e números nos relatórios — nada a configurar
+
+Só código; não precisa de SQL nem de função nova.
+- **Celular (tela estreita, também no app instalado):** o menu vira uma **barra de baixo** com Dashboard, Propostas, Pipeline, Contratos e **Mais**. Em **Mais** abre uma gaveta (sobe de baixo; fecha arrastando para baixo ou tocando fora) com **todas** as telas, o perfil, o Tour guiado, Instalar app e Sair; as telas de administração só aparecem para administradores (e Frota só com a frota ativada). No computador e no tablet o menu lateral continua como era.
+- **Números grandes:** os cartões dos Relatórios e da Frota mostram valores sem centavos e, de 1 milhão para cima, abreviados (ex.: **R$ 123,63 mi**); o **valor exato** aparece ao passar o mouse (ou manter o dedo) sobre o número. Nos gráficos, o eixo é abreviado e o balão mostra o valor completo. Porcentagens e médias têm no máximo 1 casa decimal; a cotação do dólar sempre com 4 casas e vírgula (5,1234). Tabelas e propostas continuam com o valor cheio.
+- **Relatórios no celular:** os filtros ficam recolhidos (botão **Filtros**, com aviso quando há filtro ativo) e as abas rolam para o lado.
+
 ## O que NÃO foi testado
 A integração foi escrita pela documentação pública do Autentique (https://docs.autentique.com.br/api/2),
 mas **não foi executada contra a API real** (não havia chave). O teste do passo 5 é obrigatório.

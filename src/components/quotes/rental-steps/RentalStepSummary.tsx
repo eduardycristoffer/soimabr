@@ -1,3 +1,4 @@
+import { formatDecimal } from "@/lib/numberFormat";
 import { RentalWizardData } from "@/hooks/useRentalWizard";
 import {
   GROUP_TITLE, effectiveQty, linesWithoutValue, lineValue, shownLines, type LineGroup, type RentalTotals,
@@ -143,10 +144,10 @@ export default function RentalStepSummary({ data, months, totals, onNext, onPrev
               <div className="flex justify-between text-muted-foreground"><span>Serviços de mão-de-obra</span><span>{formatMoney(totals.cmo)}</span></div>
               <div className="flex justify-between border-t pt-2 font-medium"><span>Valor total estimado por equipamento</span><span>{formatMoney(totals.subtotal)}</span></div>
               {totals.discount > 0 && (
-                <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-{formatMoney(totals.discount)}</span></div>
+                <div className="flex justify-between text-destructive"><span>Desconto ({formatDecimal(data.discount_percent)}%)</span><span>-{formatMoney(totals.discount)}</span></div>
               )}
               {data.rental_tax_percent > 0 && (
-                <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+{formatMoney(totals.tax)}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Impostos ({formatDecimal(data.rental_tax_percent)}%)</span><span>+{formatMoney(totals.tax)}</span></div>
               )}
             </>
           )}

@@ -222,7 +222,8 @@ describe("o tour aponta só para o que existe no sistema (evita o tour 'quebrar'
   // código das telas, sem os testes e sem o próprio conteúdo do tour (que cita os seletores)
   const files = walk(root).filter((f) => /\.(tsx?|jsx?)$/.test(f) && !/\.test\.|tourContent\.ts$/.test(f));
   const code = files.map((f) => readFileSync(f, "utf-8")).join("\n");
-  const sidebar = readFileSync(join(root, "components/layout/Sidebar.tsx"), "utf-8");
+  // a lista de telas do menu (computador e celular) fica em navItems.ts
+  const sidebar = readFileSync(join(root, "components/layout/navItems.ts"), "utf-8");
   const app = readFileSync(join(root, "App.tsx"), "utf-8");
 
   for (const s of NOVIDADES_TOUR.steps) {

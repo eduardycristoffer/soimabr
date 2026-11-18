@@ -65,7 +65,7 @@ export interface AuthContextType {
 export interface NavItem {
   title: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
   adminOnly?: boolean;
   /** só aparece depois que a gestão de frota foi ativada no banco */
   needsFleet?: boolean;

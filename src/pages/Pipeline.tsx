@@ -97,12 +97,12 @@ export default function Pipeline() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pipeline de Vendas</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Pipeline de Vendas</h1>
           <p className="text-muted-foreground">
             Acompanhe seus leads do primeiro contato ao fechamento
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
             <ToggleGroupItem value="kanban" size="sm" aria-label="Kanban">
               <LayoutGrid className="h-4 w-4" />

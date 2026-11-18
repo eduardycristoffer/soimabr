@@ -1,3 +1,4 @@
+import { formatDecimal } from "@/lib/numberFormat";
 import { RentalWizardData } from "@/hooks/useRentalWizard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -127,10 +128,10 @@ export default function RentalStepCommercial({ data, updateData, subtotal, disco
       <div className="bg-accent/30 rounded-lg p-4 space-y-1 text-sm">
         <div className="flex justify-between"><span>Subtotal</span><span>R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         {data.discount_percent > 0 && (
-          <div className="flex justify-between text-destructive"><span>Desconto ({data.discount_percent}%)</span><span>-R$ {discountValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
+          <div className="flex justify-between text-destructive"><span>Desconto ({formatDecimal(data.discount_percent)}%)</span><span>-R$ {discountValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         )}
         {data.rental_tax_percent > 0 && (
-          <div className="flex justify-between text-muted-foreground"><span>Impostos ({data.rental_tax_percent}%)</span><span>+R$ {taxValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
+          <div className="flex justify-between text-muted-foreground"><span>Impostos ({formatDecimal(data.rental_tax_percent)}%)</span><span>+R$ {taxValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
         )}
         <div className="flex justify-between font-bold text-lg text-primary border-t pt-2"><span>Total</span><span>R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
       </div>

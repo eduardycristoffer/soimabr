@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatMoney } from "@/lib/quoteMoney";
+import { exactMoney, formatBRL, formatBRLCompact, formatBRLKpi, formatPercent } from "@/lib/numberFormat";
 import { QuoteAmount } from "@/components/quotes/QuoteAmount";
 import { ColumnChart, DonutChart, HBarList, PALETTE, StackedColumnChart, StatTile, TrendChart } from "@/components/reports/charts";
 import { useQuoteClosingEnabled } from "@/hooks/useQuoteClosingEnabled";
@@ -43,7 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowDown, ArrowUp, BadgeCheck, BarChart3, ChevronDown, Download, FileSignature, FileText, FilterX, Minus, Percent, Receipt, Wallet,
+  ArrowDown, ArrowUp, BadgeCheck, BarChart3, ChevronDown, Download, FileSignature, FileText, FilterX, Minus, Percent, Receipt, SlidersHorizontal, Wallet,
 } from "lucide-react";
 
 const QUOTE_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -66,10 +66,9 @@ const PAGE = 25;
 
 const fmtDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
-const brl = (n: number) => formatMoney(n, "BRL");
-const brlCompact = (n: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(n);
-const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
+const brl = (n: number) => formatBRL(n);
+const brlCompact = (n: number) => formatBRLCompact(n);
+const pct = (n: number | null) => formatPercent(n, 0);
 const numPt = (n: number) => n.toFixed(2).replace(".", ",");
 
 /** As listas detalhadas ficam recolhidas: o gráfico vem primeiro, a tabela é para quem quer conferir linha a linha. */
@@ -99,6 +98,8 @@ export default function Relatorios() {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [preset, setPreset] = useState<PeriodPreset | "custom">("all");
   const [tab, setTab] = useState("geral");
+  // No celular os filtros ficam recolhidos (seis campos ocupariam a tela inteira); no computador ficam sempre à vista
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [quotesShown, setQuotesShown] = useState(PAGE);
   const [contractsShown, setContractsShown] = useState(PAGE);
 
@@ -241,7 +242,7 @@ export default function Relatorios() {
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl flex items-center gap-2">
             <BarChart3 className="h-7 w-7" /> Relatórios
           </h1>
           <p className="text-muted-foreground">
@@ -256,7 +257,20 @@ export default function Relatorios() {
       {/* Filtros: uma única linha acima de tudo que ela controla */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            aria-expanded={filtersOpen}
+            aria-controls="report-filters"
+            className="flex w-full items-center justify-between gap-2 text-left md:hidden"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden /> Filtros
+              {hasFilters && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">ativos</span>}
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+          <div id="report-filters" className={`${filtersOpen ? "grid" : "hidden"} mt-3 grid-cols-2 items-end gap-3 md:mt-0 md:grid md:grid-cols-3 lg:grid-cols-6`}>
             <div className="space-y-1">
               <Label className="text-xs">Período</Label>
               <Select value={preset} onValueChange={(v) => applyPreset(v as PeriodPreset | "custom")}>
@@ -316,7 +330,7 @@ export default function Relatorios() {
             )}
           </div>
           {hasFilters && (
-            <div className="mt-3 flex justify-end">
+            <div className={`mt-3 justify-end md:flex ${filtersOpen ? "flex" : "hidden"}`}>
               <Button variant="ghost" size="sm" onClick={clearAll}><FilterX className="h-4 w-4 mr-1" /> Limpar filtros</Button>
             </div>
           )}
@@ -324,12 +338,15 @@ export default function Relatorios() {
       </Card>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList data-tour="relatorios-abas">
-          <TabsTrigger value="geral">Visão geral</TabsTrigger>
-          <TabsTrigger value="propostas">Propostas</TabsTrigger>
-          <TabsTrigger value="contratos">Contratos</TabsTrigger>
-          {isAdmin && <TabsTrigger value="vendedores">Vendedores</TabsTrigger>}
-        </TabsList>
+        {/* No celular as abas rolam para o lado em vez de estourar a tela */}
+        <div className="-mx-4 overflow-x-auto px-4 pb-1 scrollbar-thin sm:mx-0 sm:px-0">
+          <TabsList data-tour="relatorios-abas" className="w-max">
+            <TabsTrigger value="geral">Visão geral</TabsTrigger>
+            <TabsTrigger value="propostas">Propostas</TabsTrigger>
+            <TabsTrigger value="contratos">Contratos</TabsTrigger>
+            {isAdmin && <TabsTrigger value="vendedores">Vendedores</TabsTrigger>}
+          </TabsList>
+        </div>
 
         {/* ───────── Visão geral ───────── */}
         <TabsContent value="geral" className="space-y-6">
@@ -340,7 +357,7 @@ export default function Relatorios() {
                 <p className="text-sm text-muted-foreground">
                   Contratos assinados em {monthLabel(months[months.length - 1])}
                 </p>
-                <p className="text-5xl font-semibold tracking-tight">{isLoading ? "…" : currentSigned}</p>
+                <p className="text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{isLoading ? "…" : currentSigned}</p>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {delta > 0 ? <ArrowUp className="h-4 w-4" /> : delta < 0 ? <ArrowDown className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
@@ -355,13 +372,13 @@ export default function Relatorios() {
           <div className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${closingEnabled ? "xl:grid-cols-5" : ""}`}>
             <StatTile label="Propostas" value={stats.total} icon={<FileText className="h-4 w-4" />}
               hint={`${stats.finalizadas} finalizadas · ${stats.canceladas} canceladas`} />
-            <StatTile label="Valor em propostas" value={brl(stats.valorBRL)} icon={<Wallet className="h-4 w-4" />}
+            <StatTile label="Valor em propostas" value={formatBRLKpi(stats.valorBRL)} title={exactMoney(stats.valorBRL)} icon={<Wallet className="h-4 w-4" />}
               hint={stats.outraMoeda > 0 ? `Exclui ${stats.outraMoeda} em outra moeda e as canceladas` : "Exclui as canceladas"} />
-            <StatTile label="Ticket médio" value={stats.ticketMedio === null ? "—" : brl(stats.ticketMedio)} icon={<Receipt className="h-4 w-4" />}
+            <StatTile label="Ticket médio" value={stats.ticketMedio === null ? "—" : formatBRLKpi(stats.ticketMedio)} title={stats.ticketMedio === null ? undefined : exactMoney(stats.ticketMedio)} icon={<Receipt className="h-4 w-4" />}
               hint={`Sobre ${stats.qtdNaSoma} proposta${stats.qtdNaSoma === 1 ? "" : "s"}`} />
             {closingEnabled && (
               <StatTile label="Fechadas" value={closing.fechadas} icon={<BadgeCheck className="h-4 w-4" />}
-                hint={`${pct(closing.taxa)} das finalizadas · ${brl(closing.valorFechadoBRL)}`} />
+                title={exactMoney(closing.valorFechadoBRL)} hint={`${pct(closing.taxa)} das finalizadas · ${formatBRLKpi(closing.valorFechadoBRL)}`} />
             )}
             <StatTile label="Conversão" value={pct(stats.conversao)} icon={<Percent className="h-4 w-4" />}
               hint={`${stats.assinados} assinada${stats.assinados === 1 ? "" : "s"} de ${stats.finalizadas} finalizada${stats.finalizadas === 1 ? "" : "s"}`} />
@@ -386,6 +403,7 @@ export default function Relatorios() {
               description="Últimos 12 meses, em R$ (sem canceladas)"
               data={valueSeries.map((m) => ({ label: m.label, value: m.value }))}
               format={brlCompact}
+              tooltipFormat={brl}
               valueHeader="Valor em R$"
             />
             <HBarList title="Funil" description="Do período e filtros escolhidos" items={funnelItems} ordinal />

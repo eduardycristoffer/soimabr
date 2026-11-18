@@ -142,3 +142,41 @@ describe("página de Relatórios com gráficos", () => {
     expect(screen.queryByRole("tab", { name: /Vendedores/ })).not.toBeInTheDocument();
   });
 });
+
+describe("números grandes nos cartões (não podem estourar o layout)", () => {
+  const tile = (label: string) => screen.getByText(label).closest("[class*='rounded-lg']") as HTMLElement;
+
+  it("valor de 123 milhões vira 'R$ 123,63 mi' (valor exato ao passar o mouse); ticket sem centavos", async () => {
+    h.quotes = [mkQ("1", { total: 123_000_000.5 }), mkQ("2", { total: 634_061.69 })];
+    renderPage();
+    await waitFor(() => expect((tile("Valor em propostas").querySelector("p[title]") as HTMLElement).textContent?.replace(/\s/g, "")).not.toBe("R$0")); // espera os dados chegarem
+    const valor = tile("Valor em propostas").querySelector("p[title]") as HTMLElement;
+    expect(valor.textContent?.replace(/ /g, " ")).toBe("R$ 123,63 mi");
+    expect(valor.getAttribute("title")?.replace(/ /g, " ")).toBe("R$ 123.634.062,19");
+    // nenhum cartão mostra o número cheio com centavos no texto
+    expect(tile("Valor em propostas").textContent).not.toMatch(/123\.634\.062/);
+    const ticket = tile("Ticket médio").querySelector("p[title]") as HTMLElement;
+    expect(ticket.textContent?.replace(/ /g, " ")).toBe("R$ 61,82 mi");
+  });
+
+  it("valor pequeno aparece inteiro e sem centavos", async () => {
+    h.quotes = [mkQ("1", { total: 895_899 })];
+    renderPage();
+    await waitFor(() => expect(tile("Ticket médio").textContent).toMatch(/895/));
+    expect((tile("Ticket médio").querySelector("p[title]") as HTMLElement).textContent?.replace(/ /g, " ")).toBe("R$ 895.899");
+  });
+
+  it("o valor do cartão é cortado com reticências (e não passa da borda) se mesmo assim não couber", async () => {
+    renderPage();
+    await screen.findByText("Evolução mês a mês");
+    const valor = tile("Valor em propostas").querySelector("p[title]") as HTMLElement;
+    expect(valor).toHaveClass("truncate");
+    expect(tile("Valor em propostas")).toHaveClass("min-w-0");
+  });
+
+  it("as abas rolam para o lado no celular em vez de estourar a tela", async () => {
+    renderPage();
+    await screen.findByText("Evolução mês a mês");
+    expect(screen.getByRole("tablist").parentElement).toHaveClass("overflow-x-auto");
+  });
+});
