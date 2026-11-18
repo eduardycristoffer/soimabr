@@ -11,6 +11,7 @@ import { Search, FileSignature, Eye, Plus } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import SelectQuoteForContractDialog from "@/components/contracts/SelectQuoteForContractDialog";
 import GenerateContractDialog from "@/components/contracts/GenerateContractDialog";
+import { ContractFleetChip, useContractFleetMap } from "@/components/fleet/ContractFleetChip";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Rascunho", variant: "secondary" },
@@ -43,6 +44,8 @@ export default function Contratos() {
   });
 
   const filteredContracts = statusFilter === "all" ? contracts : contracts?.filter((c: any) => c.status === statusFilter);
+  // qual grua da frota atende cada contrato de locação (só aparece com a frota ativada)
+  const fleet = useContractFleetMap((filteredContracts || []).map((c: any) => c.id));
 
   return (
     <div className="space-y-6">
@@ -106,7 +109,10 @@ export default function Contratos() {
                         <TableCell className="font-mono">{c.quotes?.quote_number}</TableCell>
                         <TableCell>{c.quotes?.clients?.nome_fantasia || c.quotes?.clients?.razao_social || "-"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
+                            <ContractFleetChip enabled={fleet.enabled} isRental={c.quotes?.quote_type === "locacao"} codes={fleet.map[c.id]} />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
@@ -139,6 +145,7 @@ export default function Contratos() {
                     <div className="mt-3 flex items-center gap-1 flex-wrap">
                       <Badge variant={statusConfig[c.status]?.variant} className={`status-badge-${c.status}`}>{statusConfig[c.status]?.label}</Badge>
                       <Badge variant="outline">{c.quotes?.quote_type === "locacao" ? "Locação" : "Venda"}</Badge>
+                      <ContractFleetChip enabled={fleet.enabled} isRental={c.quotes?.quote_type === "locacao"} codes={fleet.map[c.id]} />
                     </div>
                     <div className="mt-3 flex items-center justify-between text-sm">
                       <span className="font-mono text-xs text-muted-foreground">{c.quotes?.quote_number}</span>

@@ -19,6 +19,7 @@ import { createContractVersion, restoreContractVersion } from "@/lib/contractVer
 import { ContractScopePreview } from "@/components/contracts/ContractScopePreview";
 import { ContractDataCard } from "@/components/contracts/ContractDataCard";
 import { ContractSignatureCard } from "@/components/contracts/ContractSignatureCard";
+import { ContractRentalCard } from "@/components/fleet/ContractRentalCard";
 import { useAutentiqueAvailability } from "@/hooks/useAutentique";
 import { useContractPlaceholderMap } from "@/hooks/useContractPlaceholderMap";
 import { resolvePlaceholders } from "@/lib/contractPlaceholders";
@@ -464,6 +465,8 @@ export default function ContratoEditor() {
           qc.invalidateQueries({ queryKey: ["contract-versions", id] });
         }}
       />
+
+      <ContractRentalCard contract={contract as any} />
 
       <Card>
         <CardHeader>

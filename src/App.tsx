@@ -17,6 +17,8 @@ import Orcamentos from "@/pages/Orcamentos";
 import Contratos from "@/pages/Contratos";
 import ContratoEditor from "@/pages/ContratoEditor";
 import ContractTemplates from "@/pages/ContractTemplates";
+import Frota from "@/pages/Frota";
+import FrotaGrua from "@/pages/FrotaGrua";
 import Usuarios from "@/pages/Usuarios";
 import Auditoria from "@/pages/Auditoria";
 import RegrasDesconto from "@/pages/RegrasDesconto";
@@ -51,6 +53,8 @@ const App = () => (
               <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/contratos" element={<Contratos />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/frota" element={<Frota />} />
+              <Route path="/frota/gruas/:id" element={<FrotaGrua />} />
               <Route path="/contratos/:id" element={<ContratoEditor />} />
               <Route path="/admin/modelos-contrato" element={<ContractTemplates />} />
               <Route path="/usuarios" element={<Usuarios />} />

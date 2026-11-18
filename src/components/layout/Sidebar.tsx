@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Webhook,
   BarChart3,
+  Construction,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +34,7 @@ import {
 import logoSoima from "@/assets/logo-soima.webp";
 import { InstallAppButton } from "@/components/layout/InstallAppButton";
 import { TourButton } from "@/components/tour/TourButton";
+import { useFleetEnabled } from "@/hooks/useFleetEnabled";
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -41,6 +43,7 @@ const navItems: NavItem[] = [
   { title: "Propostas", href: "/orcamentos", icon: FileText },
   { title: "Contratos", href: "/contratos", icon: FileSignature },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { title: "Frota", href: "/frota", icon: Construction, adminOnly: true, needsFleet: true },
   { title: "Modelos de Contrato", href: "/admin/modelos-contrato", icon: FileCog, adminOnly: true },
   { title: "Produtos", href: "/produtos", icon: Package, adminOnly: true },
   { title: "Aprovações", href: "/aprovacoes", icon: CheckCircle2, adminOnly: true },
@@ -76,8 +79,10 @@ export function Sidebar({ mobile = false, onNavigate, bannerVisible = false }: S
 
   const effectiveCollapsed = mobile ? false : collapsed;
 
+  // "Frota" só aparece para administradores e depois que o SQL da frota foi aplicado
+  const fleetEnabled = useFleetEnabled(isAdmin);
   const filteredItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin
+    (item) => (!item.adminOnly || isAdmin) && (!item.needsFleet || fleetEnabled)
   );
 
   const isItemActive = (href: string) => {
