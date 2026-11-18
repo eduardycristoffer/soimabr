@@ -67,6 +67,8 @@ export interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
+  /** só aparece depois que a gestão de frota foi ativada no banco */
+  needsFleet?: boolean;
 }
 
 // Lead source / origin types

@@ -27,6 +27,7 @@ Peça no chat *"execute esta migration"* e cole o conteúdo, ou use o SQL editor
 2. `2026-11-17_autentique.sql` — tabelas e colunas da assinatura digital
 3. `2026-11-18_email_integration.sql` — conta de e-mail da empresa e registro dos envios de proposta
 4. `2026-11-19_service_proposal.sql` — colunas da proposta de serviço (só depois dele a opção **Serviço** aparece em Nova Proposta)
+6. `2026-11-21_fleet.sql` — gestão da frota de gruas locadas (só depois dele o item **Frota** aparece no menu e o cartão "Locação em obra" nos contratos de locação)
 
 São só colunas/tabelas **novas**; nada existente é alterado. O app funciona sem eles.
 
@@ -85,6 +86,23 @@ Depois de publicar a função `generate-pdf` e rodar o SQL do item 4 da seção 
    O menu **Atalhos de serviços** traz os serviços do modelo (montagem, telescopagem, manutenção, hora técnica...) **sem preço** — o preço é sempre definido por quem faz a proposta.
 4. **Textos:** responsabilidades, pagamento, reajuste, retenções etc. já vêm preenchidos e são totalmente editáveis (com botão "Restaurar"). Para finalizar é preciso marcar que os textos foram revisados — reajuste, retenções e prazos do modelo **devem ser conferidos** para cada cliente.
 5. Propostas de serviço funcionam com o que já existe: lista, **Baixar PDF**, **Enviar ao cliente** (e-mail), Relatórios, editar e duplicar.
+
+## 10. Frota de gruas locadas em obras
+
+Depois de rodar `2026-11-21_fleet.sql` (item 6 do passo 3) e publicar o app, o menu ganha **Frota** (somente administradores; os valores de compra e a rentabilidade ficam restritos a eles, também no banco).
+
+Como usar, na ordem:
+1. **Frota → Nova grua**: cadastre cada grua física (código/patrimônio, modelo do catálogo, medidas, valor e data de compra). O valor de compra é a base do "valor empregado".
+2. Em um **contrato de locação**, aparece o cartão **Locação em obra (frota)**: clique em *Alocar grua a este contrato*. Cliente, obra, início, prazo e valores já vêm da proposta; escolha a grua (o sistema marca as que estão ocupadas no período, em manutenção ou que não atendem a altura/lança/carga exigidas pela obra). Também dá para alocar direto em **Frota → Alocar grua a uma obra**, sem contrato.
+3. Acompanhe no **Panorama**: números da frota, o que precisa de atenção (devolução atrasada, cliente esperando a grua, contrato terminando em até 30 dias, contrato sem assinatura, grua parada), linha do tempo de todas as gruas, receita por mês e rentabilidade.
+4. Ao fim da obra: **Registrar devolução** (ou **Prorrogar**). Lance manutenção, frete e **investimentos** (reforma/upgrade) na página de cada grua para ver o resultado real.
+
+Como os números são calculados:
+- **Valor empregado** = compra + investimentos lançados.
+- **Receita** = aluguel mensal pro rata dos dias em obra + mobilização (ao iniciar) + desmobilização (ao devolver). Se a grua passa do prazo sem voltar, continua rendendo e aparece como atrasada.
+- **Resultado** = receita − custos de operação (manutenção, frete, montagem, seguro, impostos).
+- **Rentabilidade (ROI)** = resultado ÷ valor empregado. **Rendimento mensal** = mensalidade atual ÷ valor empregado. **Utilização** = dias em obra ÷ dias disponíveis nos últimos 12 meses.
+- Valores de propostas em dólar são convertidos pela cotação gravada na proposta; em outra moeda sem cotação, preencha em reais.
 
 ## O que NÃO foi testado
 A integração foi escrita pela documentação pública do Autentique (https://docs.autentique.com.br/api/2),
