@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boletim de melhorias — Sistema Comercial SOIMA BR</title>
+<style>
+  :root {
+    --bg: #ffffff; --ink: #14213d; --muted: #5b6577; --line: #dfe4ec; --soft: #f3f6fb;
+    --brand: #0047ab; --brand-soft: #e6eefb;
+    --ok: #146c43; --ok-bg: #e3f4ea;
+    --act: #8a5a00; --act-bg: #fff3d6;
+    --todo: #5b6577; --todo-bg: #eceff4;
+    --warn: #9b2226; --warn-bg: #fde8e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1623; --ink: #e8edf6; --muted: #9aa7bd; --line: #26324a; --soft: #162033; --brand: #6ea2ff; --brand-soft: #172a4d;
+      --ok: #7ddba3; --ok-bg: #12301f; --act: #f2c26b; --act-bg: #3a2c0d; --todo: #aab4c6; --todo-bg: #1d2740; --warn: #ff9a9e; --warn-bg: #3a1416;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 64px; }
+  header.top { padding: 40px 0 24px; border-bottom: 3px solid var(--brand); margin-bottom: 28px; }
+  .eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+  h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; margin: 6px 0 8px; }
+  .lead { color: var(--muted); font-size: 18px; margin: 0; max-width: 62ch; }
+  h2 { font-size: 24px; margin: 44px 0 6px; padding-top: 8px; }
+  h2 .n { color: var(--brand); margin-right: 8px; }
+  h3 { font-size: 17px; margin: 22px 0 6px; }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 14px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 22px 0 4px; }
+  .kpi { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .kpi b { display: block; font-size: 28px; line-height: 1.1; color: var(--brand); }
+  .kpi span { font-size: 14px; color: var(--muted); }
+
+  .callout { border-left: 4px solid var(--brand); background: var(--brand-soft); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--warn); background: var(--warn-bg); }
+  .callout strong:first-child { display: block; margin-bottom: 2px; }
+
+  .chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; vertical-align: middle; }
+  .chip.ok { color: var(--ok); background: var(--ok-bg); }
+  .chip.act { color: var(--act); background: var(--act-bg); }
+  .chip.todo { color: var(--todo); background: var(--todo-bg); }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--soft); }
+  .tbl-scroll { overflow-x: auto; }
+
+  .block { border: 1px solid var(--line); border-radius: 14px; padding: 6px 20px 16px; margin: 18px 0; page-break-inside: avoid; }
+  .block h3 { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  ul { margin: 6px 0 6px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 28px; }
+  ol.steps { padding-left: 22px; }
+  ol.steps > li { margin: 10px 0; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; background: var(--soft); padding: 1px 6px; border-radius: 5px; }
+  pre { background: var(--soft); border: 1px solid var(--line); padding: 10px 12px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  nav.toc { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; margin: 18px 0; columns: 2 260px; font-size: 15px; }
+  nav.toc a { color: var(--brand); text-decoration: none; }
+  nav.toc div { break-inside: avoid; padding: 2px 0; }
+
+  @media print {
+    :root { --bg: #fff; --ink: #111; }
+    body { font-size: 11.5pt; }
+    .wrap { max-width: none; padding: 0; }
+    nav.toc { display: none; }
+    h2 { page-break-after: avoid; }
+    .block, table, .callout { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Boletim de melhorias</div>
+  <h1>Sistema Comercial SOIMA BR</h1>
+  <p class="lead">O que foi feito, o que depende de você para entrar no ar, o que ainda não foi testado de verdade e o que vem a seguir. Situação em <strong>17/11/2026</strong>.</p>
+  <div class="kpis">
+    <div class="kpi"><b>10</b><span>entregas prontas no código</span></div>
+    <div class="kpi"><b>218</b><span>testes automáticos passando</span></div>
+    <div class="kpi"><b>~90</b><span>arquivos novos ou alterados</span></div>
+    <div class="kpi"><b>0</b><span>mudanças na <span class="mono">main</span> ou em produção</span></div>
+  </div>
+</header>
+
+<div class="callout">
+  <strong>Resumo</strong>
+  As 10 entregas desta lista estão feitas e testadas no código, guardadas em branches do Git; <strong>nada foi publicado</strong>.
+  Para entrar no ar falta você aprovar, aplicar 4 arquivos de banco de dados, pedir 4 publicações de funções ao Lovable e conectar as contas de e-mail e do Autentique.
+  O que ainda não foi iniciado está na seção 6.
+</div>
+
+<nav class="toc" aria-label="Índice">
+  <div><a href="#situacao">1. Situação em uma olhada</a></div>
+  <div><a href="#entregas">2. O que foi entregue</a></div>
+  <div><a href="#no-ar">3. Como colocar no ar</a></div>
+  <div><a href="#testes">4. O que ainda não foi testado de verdade</a></div>
+  <div><a href="#decisoes">5. Decisões que você pode reverter</a></div>
+  <div><a href="#pendente">6. O que ainda está pendente</a></div>
+  <div><a href="#tecnico">7. Anexo técnico</a></div>
+</nav>
+
+<h2 id="situacao"><span class="n">1</span>Situação em uma olhada</h2>
+<p class="muted small">
+  <span class="chip ok">Pronto</span> feito e testado por testes automáticos, só precisa publicar ·
+  <span class="chip act">Precisa ativar</span> depende de algo seu (SQL, publicar função, chave) ·
+  <span class="chip todo">Pendente</span> ainda não feito.
+</p>
+<div class="tbl-scroll">
+<table>
+  <thead><tr><th>Entrega</th><th>Situação</th><th>O que falta para funcionar</th></tr></thead>
+  <tbody>
+    <tr><td>Contratos e editor do contrato</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app; PDF correto exige publicar <span class="mono">generate-contract-pdf</span></td></tr>
+    <tr><td>Valores em reais, dólar só como estimativa</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app</td></tr>
+    <tr><td>Locação: regra de desconto e PDF</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app e <span class="mono">generate-pdf</span></td></tr>
+    <tr><td>Baixar o PDF da proposta (sem a palavra "Rascunho")</td><td><span class="chip act">Precisa ativar</span></td><td>Publicar <span class="mono">generate-pdf</span></td></tr>
+    <tr><td>Envio da proposta por e-mail com autorização</td><td><span class="chip act">Precisa ativar</span></td><td>SQL 3, publicar <span class="mono">proposal-email</span>, conectar o e-mail</td></tr>
+    <tr><td>Assinatura digital pelo Autentique</td><td><span class="chip act">Precisa ativar</span></td><td>SQL 2, publicar <span class="mono">contract-signature</span>, chave e webhook</td></tr>
+    <tr><td>Relatórios reorganizados em abas</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app</td></tr>
+    <tr><td>Aplicativo instalável (PWA)</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app</td></tr>
+    <tr><td>Proposta de serviço (modelo TECSU)</td><td><span class="chip act">Precisa ativar</span></td><td>SQL 4 e publicar <span class="mono">generate-pdf</span></td></tr>
+    <tr><td>Tour guiado</td><td><span class="chip ok">Pronto</span></td><td>Publicar o app</td></tr>
+    <tr><td>Proforma Invoice (contrato internacional)</td><td><span class="chip todo">Pendente</span></td><td>Não iniciada — ver seção 6</td></tr>
+    <tr><td>Estoque de gruas, travas de compatibilidade, MCP com áudio</td><td><span class="chip todo">Pendente</span></td><td>Não iniciados — ver seção 6</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="entregas"><span class="n">2</span>O que foi entregue</h2>
+
+<section class="block">
+  <h3>2.1 Contratos e editor do contrato <span class="chip ok">Pronto</span></h3>
+  <div class="grid2">
+    <div>
+      <p><strong>Problemas corrigidos</strong></p>
+      <ul>
+        <li>Numeração de páginas errada no PDF: agora sai "Página X de Y".</li>
+        <li>Horário errado: datas e horas passam a seguir o fuso de Brasília.</li>
+        <li>Testemunhas: aparecem as 3 (antes só a primeira).</li>
+        <li>Erro ao subir o contrato assinado em PDF (nome de arquivo com acento ou espaço).</li>
+        <li>Botão "restaurar padrão" do editor.</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong>Melhorias</strong></p>
+      <ul>
+        <li>Vários representantes por parte, e o texto das cláusulas acompanha.</li>
+        <li>E-mail da nota fiscal no item 4.1.1.</li>
+        <li>Inscrição estadual da SOIMA e escolha da empresa na Configuração da Empresa.</li>
+        <li>CPF, CNPJ, telefone e CEP formatam sozinhos.</li>
+        <li>Editor com card "Dados do contrato": o cliente corrige dados, serviços adicionais e parcelas e atualiza as cláusulas sem depender de suporte.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="small muted">Serviços adicionais editáveis dependem do SQL 1; o resto não depende de banco.</p>
+</section>
+
+<section class="block">
+  <h3>2.2 Valores em reais; dólar só como estimativa <span class="chip ok">Pronto</span></h3>
+  <ul>
+    <li>Erro corrigido: a lista mostrava valores em reais com o símbolo "US$" (R$ 570.120,00 aparecia como US$ 570.120,00).</li>
+    <li>Regra: a proposta é <strong>sempre em reais</strong>, para não sofrer com o câmbio. O valor em dólar aparece apenas como <strong>estimativa pela cotação do dia</strong>, identificado como estimativa.</li>
+    <li>Vale na lista, no detalhe da proposta, no painel, no cliente e em Aprovações.</li>
+  </ul>
+</section>
+
+<section class="block">
+  <h3>2.3 Locação: desconto e PDF <span class="chip ok">Pronto</span></h3>
+  <ul>
+    <li>A locação passou a respeitar o limite de desconto de cada usuário: acima dele, a proposta vai para aprovação de um administrador (igual à venda).</li>
+    <li>Antes, o código marcava o desconto como aprovado sempre; isso era uma falha escondida, já corrigida.</li>
+    <li>A proposta de locação gera PDF para baixar, como as demais.</li>
+  </ul>
+</section>
+
+<section class="block">
+  <h3>2.4 PDF da proposta para baixar <span class="chip act">Precisa ativar</span></h3>
+  <ul>
+    <li>Botão <strong>Baixar PDF</strong> na lista e no detalhe: entrega o arquivo pronto (o botão antigo, que só abria a página para imprimir, continua).</li>
+    <li>A palavra "Rascunho" sai do PDF; fica só <strong>"Rev. N"</strong>.</li>
+    <li>O mesmo PDF é anexado no envio por e-mail.</li>
+  </ul>
+  <p class="small muted">Usa o PDFShift, a mesma chave que já gera os contratos.</p>
+</section>
+
+<section class="block">
+  <h3>2.5 E-mail dentro do sistema, com autorização de envio <span class="chip act">Precisa ativar</span></h3>
+  <div class="grid2">
+    <div>
+      <p><strong>Integração (administrador)</strong></p>
+      <ul>
+        <li>Webhooks &amp; Integrações → aba <strong>E-mail</strong>.</li>
+        <li>Provedores prontos: Gmail, Microsoft 365, Zoho, HostGator ou servidor próprio.</li>
+        <li>E-mail de teste antes de ligar.</li>
+        <li>Senha guardada criptografada e nunca volta para a tela.</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong>Envio pelo vendedor</strong></p>
+      <ul>
+        <li>Na proposta finalizada: <strong>Enviar ao cliente</strong>.</li>
+        <li>Confere destinatário, assunto e mensagem, abre o PDF e marca <em>"Autorizo o envio"</em>.</li>
+        <li>Opção de exigir um administrador: o pedido vai para <strong>Aprovações</strong> e só sai depois de autorizado.</li>
+        <li>Cada envio fica registrado.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <h3>2.6 Assinatura digital pelo Autentique <span class="chip act">Precisa ativar</span></h3>
+  <ul>
+    <li>No contrato aprovado: <strong>Enviar para assinatura digital</strong>, com os signatários do contrato (representantes e testemunhas).</li>
+    <li>Acompanha quem viu, assinou ou recusou; botão <strong>Atualizar status</strong> e aviso automático (webhook com validação de assinatura).</li>
+    <li>O PDF assinado fica registrado no próprio contrato (<strong>Baixar assinado</strong>).</li>
+    <li>Nasce em <strong>modo teste</strong> (sem validade jurídica e sem gastar crédito) até você ativar a produção.</li>
+    <li>Está tudo construído; falta conectar o plano da SOIMA, como combinado.</li>
+  </ul>
+</section>
+
+<section class="block">
+  <h3>2.7 Relatórios bem estruturados <span class="chip ok">Pronto</span></h3>
+  <ul>
+    <li>Quatro abas: <strong>Visão geral</strong>, <strong>Propostas</strong>, <strong>Contratos</strong> e <strong>Vendedores</strong> (administrador).</li>
+    <li>Filtros de período, tipo (venda, locação, serviço) e status.</li>
+    <li>Gráficos de colunas e barras, números de conversão e tabelas compactas; os cálculos têm testes próprios.</li>
+  </ul>
+</section>
+
+<section class="block">
+  <h3>2.8 Aplicativo instalável (PWA) <span class="chip ok">Pronto</span></h3>
+  <ul>
+    <li>Ícone na tela, abre em tela cheia. Botão <strong>Instalar app</strong> no menu (no iPhone, o passo a passo pelo Safari).</li>
+    <li>Aviso de nova versão com botão <strong>Atualizar</strong>: nunca recarrega a tela no meio de uma proposta.</li>
+    <li>Faixa de "sem conexão" e página amigável quando a internet cai.</li>
+    <li><strong>Segurança:</strong> dados de clientes, propostas e contratos nunca ficam guardados no aparelho; só os arquivos do próprio app entram no cache.</li>
+  </ul>
+</section>
+
+<section class="block">
+  <h3>2.9 Proposta de serviço (modelo TECSU) <span class="chip act">Precisa ativar</span></h3>
+  <ul>
+    <li>Nova opção <strong>Serviço</strong> em Nova Proposta, em 5 etapas: Cliente, Escopo, Preços, Condições e Revisão.</li>
+    <li>Tabela de preços com quantidade, unidade (Vb, Hs, Mês, Dia, Único, Un) e preço unitário. Com quantidade, soma no total; sem quantidade, fica "sob medição"; "Opcional" aparece marcado e não soma.</li>
+    <li>Atalhos com os serviços do modelo (montagem, telescopagem, manutenção, hora técnica...) sem preço: quem faz a proposta define.</li>
+    <li>Textos editáveis (inclusos, pagamento, responsabilidades das duas partes, reajuste, retenções, aceite) com "Restaurar texto-padrão".</li>
+    <li>PDF em formato de carta, 7 seções numeradas e bloco de aceite do cliente; sai pela empresa emitente (padrão Dacrom Brasil Serviços).</li>
+    <li>Funciona com lista, editar, duplicar, e-mail ao cliente e Relatórios.</li>
+  </ul>
+  <div class="callout warn">
+    <strong>Atenção aos textos-padrão</strong>
+    Reajuste, retenção de 5% e prazos vêm do modelo da TECSU. Por isso o sistema só deixa finalizar depois que a pessoa marca "revisei os textos".
+  </div>
+</section>
+
+<section class="block">
+  <h3>2.10 Tour guiado <span class="chip ok">Pronto</span></h3>
+  <ul>
+    <li>Botão <strong>Tour guiado</strong> no menu lateral. Destaca na tela real cada novidade, com cartão explicativo.</li>
+    <li>Leva você às telas certas (Propostas, Contratos, Relatórios, E-mail, Aprovações) e volta ao ponto de onde saiu.</li>
+    <li>Adapta-se a quem usa: administradores veem 2 passos a mais (e-mail e aprovações); o passo de serviço só aparece depois que a função for ativada.</li>
+    <li>Setas do teclado avançam e voltam; <strong>Esc</strong> fecha. No celular o cartão se ajusta à largura da tela.</li>
+    <li>Um aviso "Ver tour" aparece <strong>uma única vez</strong> por navegador.</li>
+  </ul>
+</section>
+
+<h2 id="no-ar"><span class="n">3</span>Como colocar no ar</h2>
+<p>O Lovable <strong>não</strong> publica funções nem roda SQL que chegam pelo Git. Por isso a ordem importa. O passo a passo completo, com as frases prontas para o chat do Lovable, está em <span class="mono">supabase/manual/LEIAME.md</span>.</p>
+<ol class="steps">
+  <li><strong>Aprovar e juntar na <span class="mono">main</span>.</strong> As branches estão empilhadas: a mais recente contém todas. Depois do merge, o Lovable sincroniza e você clica em <em>Publish</em>.</li>
+  <li><strong>Publicar 4 funções pelo chat do Lovable</strong>, uma de cada vez e sem alterar nada: <span class="mono">generate-contract-pdf</span>, <span class="mono">contract-signature</span>, <span class="mono">proposal-email</span>, <span class="mono">generate-pdf</span>.</li>
+  <li><strong>Rodar os 4 arquivos SQL</strong>, nesta ordem: serviços adicionais do contrato → Autentique → e-mail → proposta de serviço. São só colunas e tabelas novas; nada existente é alterado.</li>
+  <li><strong>Autentique:</strong> criar os segredos no Lovable Cloud (a chave nunca vai no chat) e cadastrar o endereço do webhook.</li>
+  <li><strong>E-mail:</strong> como administrador, conectar a conta em Webhooks &amp; Integrações → E-mail e enviar o e-mail de teste (no Gmail, usar senha de app).</li>
+  <li><strong>Testar</strong> na ordem da seção 4 antes de usar com cliente.</li>
+</ol>
+
+<h2 id="testes"><span class="n">4</span>O que ainda não foi testado de verdade</h2>
+<p>Tudo foi verificado por testes automáticos, e telas e PDFs foram conferidos no navegador. Mas alguns pontos só se confirmam com contas e chaves reais:</p>
+<div class="tbl-scroll">
+<table>
+  <thead><tr><th>Ponto</th><th>Por quê</th><th>Como conferir</th></tr></thead>
+  <tbody>
+    <tr><td>Envio de e-mail</td><td>Não houve servidor de e-mail real</td><td>Botão "Enviar e-mail de teste", depois uma proposta para você mesmo</td></tr>
+    <tr><td>Autentique</td><td>Não havia chave de API; formato exato dos avisos (webhook) pode precisar de ajuste</td><td>Contrato de teste em modo sandbox, assinar com seu e-mail</td></tr>
+    <tr><td>PDF gerado pelo PDFShift</td><td>O layout foi conferido na página que a função monta, não no PDF final</td><td>Baixar uma proposta de cada tipo; ver margens, rodapé "Página X de Y" e quebras de tabela</td></tr>
+    <tr><td>Aplicativo instalável</td><td>O navegador do ambiente de desenvolvimento não aceita service worker</td><td>Chrome → DevTools → Application; usar "Instalar app"</td></tr>
+    <tr><td>Telas com login real</td><td>O desenvolvimento não tem acesso ao sistema logado</td><td>Percorrer o tour guiado e criar uma proposta de serviço de teste</td></tr>
+    <tr><td>Gerar contrato a partir de proposta de serviço</td><td>Usa o modelo de contrato de serviço existente; não foi exercitado</td><td>Finalizar uma proposta de serviço e clicar em "Gerar Contrato"</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="decisoes"><span class="n">5</span>Decisões que você pode reverter</h2>
+<p class="muted">Foram escolhas minhas, onde havia mais de um caminho. Todas são fáceis de mudar.</p>
+<ul>
+  <li><strong>Proposta de serviço mostra os preços por padrão.</strong> Contraria a regra "esconder sempre ativo", porque ali a tabela de preços é o próprio conteúdo. Há uma chave para esconder, com aviso.</li>
+  <li><strong>Preço livre na proposta de serviço, sem regra de desconto.</strong> Quem monta a proposta digita o preço. Se só administrador deve alterar, dá para travar.</li>
+  <li><strong>Emitente padrão: Dacrom Brasil Serviços</strong> (trocável por proposta).</li>
+  <li><strong>Quantidade só em números inteiros</strong> na proposta de serviço, porque a coluna do banco é inteira.</li>
+  <li><strong>Aviso do tour aparece uma vez</strong> para cada navegador. Se preferir só o botão no menu, é uma linha para desligar.</li>
+  <li><strong>"Rascunho" sai só do PDF</strong>; na tela o status continua como sempre.</li>
+</ul>
+
+<h2 id="pendente"><span class="n">6</span>O que ainda está pendente</h2>
+<div class="tbl-scroll">
+<table>
+  <thead><tr><th>Item</th><th>Situação / o que já foi decidido</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Proforma Invoice</strong> (contrato internacional)</td><td><span class="chip todo">Não iniciada</span> Numeração proposta <span class="mono">NNN-XX-AAAA</span>; valor em reais com estimativa em dólar; contas bancárias cadastráveis; NCM preenchido depois pelo administrador. Precisa de SQL e função nova.</td></tr>
+    <tr><td><strong>Modelo de contrato v2</strong></td><td><span class="chip todo">Aguardando seu OK</span> Comparei com o contrato da Santos (mesmas 15 cláusulas; a Santos é mais detalhada em pagamento, validade da assinatura eletrônica, garantias e prazo). Só escrevo o SQL de um modelo inativo se você aprovar.</td></tr>
+    <tr><td><strong>Proposta de locação completa</strong></td><td><span class="chip todo">Pendente</span> Itemizar operador, manutenção, telescopagem etc., como no modelo da AB Incorporadora, e permitir item avulso livre.</td></tr>
+    <tr><td><strong>IA para ler a Ficha Cadastral</strong> do cliente (PDF)</td><td><span class="chip todo">Pendente</span> Preencher os dados do cliente a partir do PDF. Função nova.</td></tr>
+    <tr><td><strong>Travas de compatibilidade</strong> das gruas</td><td><span class="chip todo">Pendente</span> Impedir combinações que não existem para determinada grua, para o cliente ter autonomia sem errar.</td></tr>
+    <tr><td><strong>Estoque e frota de gruas</strong></td><td><span class="chip todo">Pendente</span> Gruas locadas, quando a locação termina, e avisar se já há cliente esperando a grua.</td></tr>
+    <tr><td><strong>App focado em proposta rápida + MCP com áudio</strong></td><td><span class="chip todo">Pendente</span> Fluxo enxuto de venda, locação e serviço, e geração por áudio transcrito.</td></tr>
+    <tr><td><strong>Login com verificação em duas etapas</strong></td><td><span class="chip todo">Pendente</span> Você autorizou propor a correção.</td></tr>
+    <tr><td><strong>Segurança</strong></td><td><span class="chip todo">Pendente</span> Segredo do webhook de leads, desconto validado também no servidor e gravação da proposta em uma única operação.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="tecnico"><span class="n">7</span>Anexo técnico</h2>
+
+<h3>Branches e commits</h3>
+<table>
+  <thead><tr><th>Branch</th><th>Commit</th><th>Conteúdo</th></tr></thead>
+  <tbody>
+    <tr><td><span class="mono">main</span></td><td><span class="mono">3f5d8ed</span></td><td>Sem alterações (sincroniza com o Lovable e a produção)</td></tr>
+    <tr><td><span class="mono">feat/contratos-melhorias</span></td><td><span class="mono">a42d6f2</span></td><td>Contratos, valores em R$, locação, Autentique, e-mail, PDF, relatórios, PWA</td></tr>
+    <tr><td><span class="mono">feat/proposta-servico</span></td><td><span class="mono">4c425ed</span></td><td>Proposta de serviço</td></tr>
+    <tr><td><span class="mono">feat/tour-guiado</span></td><td>último da branch</td><td>Tour guiado e este boletim</td></tr>
+  </tbody>
+</table>
+
+<h3>Funções de borda a publicar (4)</h3>
+<table>
+  <thead><tr><th>Função</th><th>Situação</th><th>Para quê</th></tr></thead>
+  <tbody>
+    <tr><td><span class="mono">generate-contract-pdf</span></td><td>Atualizada</td><td>Rodapé com página, fuso de Brasília, testemunhas</td></tr>
+    <tr><td><span class="mono">generate-pdf</span></td><td>Atualizada</td><td>PDF para baixar, sem "Rascunho", proposta de serviço</td></tr>
+    <tr><td><span class="mono">contract-signature</span></td><td>Nova</td><td>Autentique (envio, status, webhook)</td></tr>
+    <tr><td><span class="mono">proposal-email</span></td><td>Nova</td><td>Conexão de e-mail e envio da proposta</td></tr>
+  </tbody>
+</table>
+
+<h3>Arquivos de banco (<span class="mono">supabase/manual/</span>)</h3>
+<table>
+  <thead><tr><th>#</th><th>Arquivo</th><th>O que cria</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><span class="mono">2026-11-17_contracts_extra_services.sql</span></td><td>Coluna dos serviços adicionais do contrato</td></tr>
+    <tr><td>2</td><td><span class="mono">2026-11-17_autentique.sql</span></td><td>Tabelas e colunas da assinatura digital</td></tr>
+    <tr><td>3</td><td><span class="mono">2026-11-18_email_integration.sql</span></td><td>Conta de e-mail e registro dos envios</td></tr>
+    <tr><td>4</td><td><span class="mono">2026-11-19_service_proposal.sql</span></td><td>Colunas da proposta de serviço</td></tr>
+  </tbody>
+</table>
+<p class="small muted">O app foi escrito para funcionar <strong>antes</strong> de cada SQL: a função que depende de uma coluna só aparece depois que ela existir.</p>
+
+<h3>Segredos (Lovable Cloud → Secrets)</h3>
+<ul>
+  <li><span class="mono">AUTENTIQUE_API_KEY</span> e <span class="mono">AUTENTIQUE_WEBHOOK_SECRET</span> — obrigatórios para a assinatura digital.</li>
+  <li><span class="mono">AUTENTIQUE_SANDBOX</span> — deixar sem criar (modo teste); só criar com o valor <span class="mono">false</span> quando for valer.</li>
+  <li><span class="mono">PDFSHIFT_API_KEY</span> — já existe (gera os contratos); passa a gerar também as propostas.</li>
+</ul>
+
+<h3>Qualidade</h3>
+<ul>
+  <li>218 testes automáticos em 15 arquivos, todos passando; checagem de tipos sem erros.</li>
+  <li>Os testes foram "sabotados" de propósito (mutação) nos pontos críticos — ordem de gravação, soma dos totais, escape de HTML, travas do tour — e falharam como deveriam.</li>
+  <li>O PDF da proposta de serviço é testado executando o código real da função; o tour, o conteúdo e os alvos na tela são conferidos contra o código para não "quebrar" em silêncio.</li>
+</ul>
+
+<footer>
+  Boletim gerado em 17/11/2026 com apoio do Claude Code. Os números e estados acima refletem o código nas branches indicadas.
+</footer>
+
+</div>
+</body>
+</html>

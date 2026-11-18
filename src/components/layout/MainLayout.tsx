@@ -8,6 +8,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AppTourProvider } from "@/components/tour/AppTourProvider";
 
 export function MainLayout() {
   const { user, isLoading } = useAuth();
@@ -42,6 +43,7 @@ export function MainLayout() {
   }
 
   return (
+    <AppTourProvider>
     <div className={showMaintenanceBanner ? "flex min-h-screen w-full bg-background pt-9" : "flex min-h-screen w-full bg-background"}>
       {showMaintenanceBanner && (
         <div className="fixed top-0 left-0 right-0 z-50 flex h-9 items-center justify-center bg-destructive px-4 text-center text-xs font-medium text-destructive-foreground sm:text-sm">
@@ -84,5 +86,6 @@ export function MainLayout() {
         </div>
       </main>
     </div>
+    </AppTourProvider>
   );
 }

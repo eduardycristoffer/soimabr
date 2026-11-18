@@ -281,7 +281,7 @@ export default function Orcamentos() {
   const renderQuoteActions = (quote: any) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" data-tour="acoes-proposta"><MoreHorizontal className="h-4 w-4" /></Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setViewingQuoteId(quote.id)}>
@@ -377,7 +377,7 @@ export default function Orcamentos() {
           <h1 className="text-3xl font-bold tracking-tight">Propostas Comerciais</h1>
           <p className="text-muted-foreground">Crie e gerencie propostas comerciais</p>
         </div>
-        <Button onClick={handleNew} className="rounded-full self-start sm:self-auto">
+        <Button onClick={handleNew} data-tour="nova-proposta" className="rounded-full self-start sm:self-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nova Proposta
         </Button>

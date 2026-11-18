@@ -20,6 +20,7 @@ export function InstallAppButton({ collapsed = false }: { collapsed?: boolean })
       variant="ghost"
       onClick={onClick}
       aria-label="Instalar app"
+      data-tour="instalar-app"
       className={cn("text-sidebar-foreground hover:bg-sidebar-accent w-full", collapsed ? "justify-center px-0" : "justify-start")}
     >
       <Download className="h-5 w-5 shrink-0" />

@@ -260,7 +260,7 @@ export default function Relatorios() {
       </Card>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
+        <TabsList data-tour="relatorios-abas">
           <TabsTrigger value="geral">Visão geral</TabsTrigger>
           <TabsTrigger value="propostas">Propostas</TabsTrigger>
           <TabsTrigger value="contratos">Contratos</TabsTrigger>
