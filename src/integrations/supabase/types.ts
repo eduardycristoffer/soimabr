@@ -1697,6 +1697,7 @@ export type Database = {
           grua_lanca_m: number | null
           id: string
           international_unit_price_brl: number | null
+          is_optional: boolean
           notes: string | null
           order_index: number
           product_category: Database["public"]["Enums"]["product_category"]
@@ -1706,6 +1707,7 @@ export type Database = {
           quantity: number
           quote_id: string
           total_price: number
+          unit: string | null
           unit_price: number
         }
         Insert: {
@@ -1717,6 +1719,7 @@ export type Database = {
           grua_lanca_m?: number | null
           id?: string
           international_unit_price_brl?: number | null
+          is_optional?: boolean
           notes?: string | null
           order_index?: number
           product_category: Database["public"]["Enums"]["product_category"]
@@ -1726,6 +1729,7 @@ export type Database = {
           quantity?: number
           quote_id: string
           total_price: number
+          unit?: string | null
           unit_price: number
         }
         Update: {
@@ -1737,6 +1741,7 @@ export type Database = {
           grua_lanca_m?: number | null
           id?: string
           international_unit_price_brl?: number | null
+          is_optional?: boolean
           notes?: string | null
           order_index?: number
           product_category?: Database["public"]["Enums"]["product_category"]
@@ -1746,6 +1751,7 @@ export type Database = {
           quantity?: number
           quote_id?: string
           total_price?: number
+          unit?: string | null
           unit_price?: number
         }
         Relationships: [
@@ -1929,6 +1935,7 @@ export type Database = {
           rental_technical_assistance: boolean | null
           rental_terrain_condition: string | null
           rental_work_type: string | null
+          service_data: Json | null
           spec_override_enabled: boolean | null
           spec_tipo: string | null
           spec_vel_elevacao: string | null
@@ -2009,6 +2016,7 @@ export type Database = {
           rental_technical_assistance?: boolean | null
           rental_terrain_condition?: string | null
           rental_work_type?: string | null
+          service_data?: Json | null
           spec_override_enabled?: boolean | null
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
@@ -2089,6 +2097,7 @@ export type Database = {
           rental_technical_assistance?: boolean | null
           rental_terrain_condition?: string | null
           rental_work_type?: string | null
+          service_data?: Json | null
           spec_override_enabled?: boolean | null
           spec_tipo?: string | null
           spec_vel_elevacao?: string | null
