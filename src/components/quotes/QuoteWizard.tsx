@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { dispatchWebhookEvent } from "@/lib/dispatchWebhook";
 import { useQuoteWizard, WIZARD_STEPS, QuoteWizardData, QuoteItemDraft } from "@/hooks/useQuoteWizard";
 import { useUsdBrlRate } from "@/hooks/useUsdBrlRate";
+import { rateForSave } from "@/lib/usdBrlRate";
 import WizardHeader from "./WizardHeader";
 
 import StepClient from "./steps/StepClient";
@@ -223,10 +224,17 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         hide_unit_prices: wizard.data.hide_unit_prices,
       };
 
-      // Save USD rate for international quotes
-      if (isInternationalUsd && usdBrlRate) {
-        quotePayload.usd_brl_rate_used = usdBrlRate;
-        quotePayload.usd_brl_rate_updated_at = usdBrlLastUpdated || new Date().toISOString();
+      // Proposta internacional: toda vez que salva (nova ou revisão) grava a cotação do dólar de agora,
+      // buscada na hora, porque o dólar pode ter subido desde a última versão.
+      let rateWarning: string | null = null;
+      if (isInternationalUsd) {
+        const r = await rateForSave({ rate: usdBrlRate, lastUpdatedAt: usdBrlLastUpdated });
+        if (r) {
+          quotePayload.usd_brl_rate_used = r.rate;
+          quotePayload.usd_brl_rate_updated_at = r.lastUpdatedAt || new Date().toISOString();
+        } else {
+          rateWarning = "Atenção: não consegui buscar a cotação do dólar agora, a estimativa em USD ficou com a cotação anterior.";
+        }
       }
 
       let quoteId: string;
@@ -412,9 +420,9 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         console.error("Erro ao sincronizar pipeline:", pipelineErr);
       }
 
-      return { quoteNumber, mode };
+      return { quoteNumber, mode, rateWarning };
     },
-    onSuccess: ({ quoteNumber, mode }) => {
+    onSuccess: ({ quoteNumber, mode, rateWarning }) => {
       const isEdit = !!editingQuoteId;
       const messages = {
         finalized: { title: isEdit ? "Proposta atualizada e finalizada!" : "Proposta finalizada!", description: `Número: ${quoteNumber}` },
@@ -422,7 +430,8 @@ export default function QuoteWizard({ onClose, editingQuoteId, duplicatingQuoteI
         keep: { title: "Alteração salva!", description: `Proposta ${quoteNumber} mantida como ${originalStatus === "finalized" ? "Finalizada" : "Rascunho"}. Nova revisão registrada.` },
         request_approval: { title: "Enviado para aprovação!", description: `Proposta ${quoteNumber} aguardando aprovação de desconto.` },
       };
-      toast(messages[mode]);
+      const msg = messages[mode];
+      toast(rateWarning ? { ...msg, description: `${msg.description} ${rateWarning}` } : msg);
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });

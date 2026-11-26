@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { fetchUsdBrlRate } from "@/lib/usdBrlRate";
 
 interface UsdBrlRateResult {
   rate: number | null;
@@ -15,14 +16,7 @@ export function useUsdBrlRate(enabled = true): UsdBrlRateResult {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["usd-brl-rate"],
-    queryFn: async () => {
-      const res = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL");
-      if (!res.ok) throw new Error("Falha ao buscar cotação");
-      const json = await res.json();
-      const bid = parseFloat(json.USDBRL.bid);
-      const timestamp = json.USDBRL.create_date; // "YYYY-MM-DD HH:MM:SS"
-      return { rate: bid, lastUpdatedAt: timestamp };
-    },
+    queryFn: () => fetchUsdBrlRate(),
     refetchInterval: 30_000,
     enabled,
     retry: 2,
