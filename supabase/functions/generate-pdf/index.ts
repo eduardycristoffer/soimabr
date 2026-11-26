@@ -1240,7 +1240,7 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     <div class="section conditions">
       <div class="section-title">${t.conditions}</div>
       <div class="conditions-grid">
-        <div><span class="label">${t.currency_label}:</span> <span class="value">${quote.currency}</span></div>
+        <div><span class="label">${t.currency_label}:</span> <span class="value">${isInternationalUsd ? (lang === "en" ? "BRL (USD estimated)" : "BRL (USD estimado)") : quote.currency}</span></div>
         <div><span class="label">${t.validity_label}:</span> <span class="value">${quote.validity_days} ${t.days}</span></div>
         ${quote.delivery_time ? `<div><span class="label">${t.delivery}:</span> <span class="value">${quote.delivery_time}</span></div>` : ""}
         ${quote.payment_terms ? `<div><span class="label">${t.payment}:</span> <span class="value">${quote.payment_terms}</span></div>` : ""}
