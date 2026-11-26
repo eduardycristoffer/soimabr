@@ -149,7 +149,7 @@ async function createDocument(
   const form = new FormData();
   form.append("operations", JSON.stringify({ query, variables: { document, signers, file: null } }));
   form.append("map", JSON.stringify({ file: ["variables.file"] }));
-  form.append("file", new Blob([pdf], { type: "application/pdf" }), `${fileName}.pdf`);
+  form.append("file", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), `${fileName}.pdf`);
 
   const res = await fetch(AUTENTIQUE_URL, {
     method: "POST",
