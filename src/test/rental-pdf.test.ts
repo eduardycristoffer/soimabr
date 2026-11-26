@@ -222,6 +222,12 @@ describe("PDF da proposta de locação detalhada", () => {
     expect(html).toContain("Declaro expressamente ter lido");
   });
 
+  it("cada revisão renova a validade: 30 dias a contar da última revisão", () => {
+    const h = build({ quote: { __revision_number: 2, __validity_base: "2026-11-24T21:38:11Z" } });
+    expect(h).toContain("a contar da Rev. 2 (24/11/2026)");
+    expect(h).toContain("até <strong>24/12/2026</strong>");
+  });
+
   it("para o PDF não leva a barra de impressão; na tela leva", () => {
     expect(html).toContain('<div class="print-toolbar">');
     expect(build({ forPdf: true })).not.toContain('<div class="print-toolbar">');

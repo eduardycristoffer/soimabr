@@ -479,6 +479,8 @@ Deno.serve(async (req) => {
       editor: editorsMap[v.edited_by] || "-",
     }));
     (quote as any).__revision_number = (versions || []).length;
+    // Validade: cada revisão salva renova o prazo (conta a partir da última revisão); sem revisão, conta da criação.
+    (quote as any).__validity_base = (versions && versions[0]?.edited_at) || quote.created_at;
 
     // Fetch creator profile
     const { data: creator } = await supabase
@@ -731,7 +733,7 @@ function generateQuoteHTML(quote: any, items: any[], creator: any, company: any,
     }
   }
 
-  const validityDate = new Date(quote.created_at);
+  const validityDate = new Date(quote.__validity_base || quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
 
   // Grua specs block
@@ -1209,7 +1211,12 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
     return `<li>${catLabel} - ${item.product_name} (x${item.quantity})</li>`;
   }).join("");
 
-  let summaryTotals = `<div class="summary-total-row grand"><span>Total:</span><span>${formatCurrency(quote.total)}</span></div>`;
+  // Proposta internacional em USD: os valores da proposta estão em reais e o dólar é só estimativa.
+  const summaryTotalLabel = isInternationalUsd ? `${t.total_brl_label}:` : "Total:";
+  const summaryTotalValue = isInternationalUsd
+    ? `R$ ${Number(quote.total).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : formatCurrency(quote.total);
+  let summaryTotals = `<div class="summary-total-row grand"><span>${summaryTotalLabel}</span><span>${summaryTotalValue}</span></div>`;
 
 
   if (isInternationalUsd && quote.usd_brl_rate_used) {
@@ -1249,8 +1256,8 @@ function buildFinalPageHTML(quote: any, items: any[], productsMap: Record<string
       <div class="section-title">${lang === "en" ? "PROPOSAL VALIDITY" : "VALIDADE DA PROPOSTA"}</div>
       <p style="font-size: 10px; line-height: 1.6;">
         ${lang === "en"
-          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from the date of issue (${formatDateSimple(quote.created_at)}), expiring on <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
-          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar da data de emissão (${formatDateSimple(quote.created_at)}), expirando em <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
+          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from ${validityFromText(quote, "en", formatDateSimple)}, expiring on <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
+          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar ${validityFromText(quote, "pt", formatDateSimple)}, expirando em <strong>${formatDateSimple(validityDate.toISOString())}</strong>.`
         }
       </p>
     </div>
@@ -1486,7 +1493,7 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
     ? `Rev. ${quote.__revision_number ?? 0}`
     : (quote.status === "finalized" ? t.status_finalized : t.status_cancelled) + ` · Rev. ${quote.__revision_number ?? 0}`;
 
-  const validityDate = new Date(quote.created_at);
+  const validityDate = new Date(quote.__validity_base || quote.created_at);
   validityDate.setDate(validityDate.getDate() + (quote.validity_days || 30));
 
   // Work type label
@@ -1785,8 +1792,8 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
       <div class="section-title">${lang === "en" ? "PROPOSAL VALIDITY" : "VALIDADE DA PROPOSTA"}</div>
       <p style="font-size: 10px; line-height: 1.6;">
         ${lang === "en"
-          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from the date of issue (${formatDate(quote.created_at)}), expiring on <strong>${formatDate(validityDate.toISOString())}</strong>.`
-          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar da data de emissão (${formatDate(quote.created_at)}), expirando em <strong>${formatDate(validityDate.toISOString())}</strong>.`
+          ? `This proposal is valid for <strong>${quote.validity_days} days</strong> from ${validityFromText(quote, "en", formatDate)}, expiring on <strong>${formatDate(validityDate.toISOString())}</strong>.`
+          : `Esta proposta é válida por <strong>${quote.validity_days} dias</strong> a contar ${validityFromText(quote, "pt", formatDate)}, expirando em <strong>${formatDate(validityDate.toISOString())}</strong>.`
         }
       </p>
     </div>
@@ -1839,6 +1846,17 @@ function generateRentalHTML(quote: any, items: any[], creator: any, company: any
 // ════════════════════════════════════════════════════════════════════════════
 const SVC_TZ = "America/Sao_Paulo";
 const SVC_MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+// Validade (todos os modelos de PDF; fica aqui para os testes que recortam este trecho):
+// "a contar da data de emissão (18/08/2026)" ou, se a proposta foi revisada, "a contar da Rev. 2 (24/11/2026)".
+function validityFromText(quote: any, lang: string, fmt: (iso: string) => string): string {
+  const rev = Number(quote.__revision_number) || 0;
+  const base = quote.__validity_base || quote.created_at;
+  if (rev > 0 && base !== quote.created_at) {
+    return lang === "en" ? `revision ${rev} (${fmt(base)})` : `da Rev. ${rev} (${fmt(base)})`;
+  }
+  return lang === "en" ? `the date of issue (${fmt(quote.created_at)})` : `da data de emissão (${fmt(quote.created_at)})`;
+}
 
 function svcEsc(s: unknown): string {
   return String(s ?? "")
@@ -2026,7 +2044,7 @@ function generateServiceHTML(quote: any, items: any[], creator: any, company: an
     sec("RESPONSABILIDADES DA CONTRATADA", companyResp),
     sec("CONSIDERAÇÕES FINAIS", finalSections),
     sec("VALIDADE",
-      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar da data de emissão (${svcShortDate(issuedAt)}), até <strong>${svcAddDaysShort(issuedAt, validityDays)}</strong>.</p>`),
+      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar ${validityFromText(quote, "pt", svcShortDate)}, até <strong>${svcAddDaysShort(quote.__validity_base || issuedAt, validityDays)}</strong>.</p>`),
   ].join("");
 
   const signerName = sd.signer_name || co.representante_nome || creator?.name || "";
@@ -2265,7 +2283,7 @@ function generateRentalProposalHTML(quote: any, items: any[], creator: any, comp
     sec("OBSERVAÇÕES DO QUADRO DE PREÇOS", `${olist(sd.observations)}${quote.notes ? `<h3>Observações adicionais</h3>${svcParas(quote.notes)}` : ""}`),
     ...sections.map((s: any) => sec(String(s.title || "").trim().toUpperCase() || "CONDIÇÕES", olist(s.items))),
     sec("VALIDADE",
-      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar da data de emissão (${svcShortDate(issuedAt)}), até <strong>${svcAddDaysShort(issuedAt, validityDays)}</strong>, ou de acordo com a disponibilidade do equipamento.</p>`),
+      `<p>Mantemos a validade dos termos desta proposta por <strong>${validityDays} dias</strong> a contar ${validityFromText(quote, "pt", svcShortDate)}, até <strong>${svcAddDaysShort(quote.__validity_base || issuedAt, validityDays)}</strong>, ou de acordo com a disponibilidade do equipamento.</p>`),
   ].join("");
 
   const signerName = sd.signer_name || co.representante_nome || creator?.name || "";
